@@ -1,0 +1,68 @@
+@import "@fontsource-variable/inter";
+@import "tailwindcss";
+
+@theme {
+  --color-*: initial;
+  --color-bg: #0a0a0a;
+  --color-surface: #141414;
+  --color-surface-raised: #1c1c1c;
+  --color-hairline: #232323;
+  --color-ink: #fafafa;
+  --color-muted: #8a8a8a;
+  --color-accent: #d4d4d4;
+
+  --font-sans: "Inter Variable", Inter, system-ui, sans-serif;
+
+  --radius-*: initial;
+  --radius-md: 8px;
+
+  --shadow-*: initial;
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.4);
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  background: var(--color-bg);
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The Ledger Rule: comparable numerals align. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Snappier taps on mobile: no double-tap-zoom delay on controls. */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

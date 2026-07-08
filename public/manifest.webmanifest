@@ -1,0 +1,16 @@
+{
+  "name": "MIRIN",
+  "short_name": "MIRIN",
+  "description": "A personal workout tracker for logging progressive overload with minimal friction.",
+  "start_url": "/today",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "768x1024",
+      "type": "image/png"
+    }
+  ]
+}
