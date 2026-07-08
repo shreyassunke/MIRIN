@@ -65,7 +65,7 @@ export interface SetLog {
   rpe?: number;
   inputMethod?: InputMethod;
   loadBreakdown?: LoadBreakdown;
-  /** Set only when logged via a press-and-hold swap on a scheduled exercise. */
+  /** Set only when logged via a mid-workout exercise swap. */
   swappedFromExerciseId?: string;
 }
 

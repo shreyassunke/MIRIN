@@ -1,5 +1,6 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { AppIntro, shouldShowIntro } from "./components/AppIntro";
 import { AppShell } from "./components/AppShell";
 import { Today } from "./screens/Today";
 
@@ -18,6 +19,12 @@ const SplitEditor = lazy(() =>
 );
 
 export default function App() {
+  const [introComplete, setIntroComplete] = useState(() => !shouldShowIntro());
+
+  if (!introComplete) {
+    return <AppIntro onComplete={() => setIntroComplete(true)} />;
+  }
+
   return (
     <AppShell>
       <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>

@@ -539,10 +539,13 @@ export function Today() {
               onDragHandlePointerMove={handleProps.onPointerMove}
               onDragHandlePointerUp={handleProps.onPointerUp}
               onDragHandlePointerCancel={handleProps.onPointerCancel}
-              onSelect={() =>
-                setSelectedId(isActive && selectedId ? null : exercise.id)
-              }
-              onStartSwap={() => setSwappingIndex(index)}
+              onStartSwap={() => {
+                if (swappingIndex === index) return;
+                const wasFocused = selectedId === exercise.id;
+                setSelectedId(exercise.id);
+                if (wasFocused) setSwappingIndex(index);
+                else setSwappingIndex(null);
+              }}
               onCancelSwap={() => setSwappingIndex(null)}
               onSwapPick={(entry) => void handleSwapExercise(index, entry)}
               formatLoggedSet={(s) =>

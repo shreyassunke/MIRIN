@@ -3,7 +3,6 @@ import type { Exercise, SetLog } from "../db/db";
 import type { ExerciseLibraryEntry } from "../lib/library";
 import { ExerciseCombobox } from "./ExerciseCombobox";
 import { DragHandle } from "./DragHandle";
-import { useLongPress } from "../hooks/useLongPress";
 
 interface TodayExerciseTileProps {
   exercise: Exercise;
@@ -20,7 +19,6 @@ interface TodayExerciseTileProps {
   onDragHandlePointerMove?: (e: PointerEvent) => void;
   onDragHandlePointerUp?: (e: PointerEvent) => void;
   onDragHandlePointerCancel?: (e: PointerEvent) => void;
-  onSelect: () => void;
   onStartSwap: () => void;
   onCancelSwap: () => void;
   onSwapPick: (entry: ExerciseLibraryEntry) => void;
@@ -43,18 +41,12 @@ export function TodayExerciseTile({
   onDragHandlePointerMove,
   onDragHandlePointerUp,
   onDragHandlePointerCancel,
-  onSelect,
   onStartSwap,
   onCancelSwap,
   onSwapPick,
   formatLoggedSet,
   children,
 }: TodayExerciseTileProps) {
-  const { isPressing, longPressHandlers } = useLongPress({
-    onLongPress: onStartSwap,
-    disabled: isSwapping,
-  });
-
   return (
     <li
       data-reorder-index={reorderIndex}
@@ -76,18 +68,17 @@ export function TodayExerciseTile({
         </div>
         <button
           type="button"
-          onClick={onSelect}
-          {...longPressHandlers}
+          onClick={onStartSwap}
           className={[
-            "flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-[transform,background-color] duration-150 motion-reduce:transition-none",
-            isPressing ? "scale-[0.98] bg-surface-raised" : "",
-            isActive ? "bg-surface-raised/50" : "",
+            "flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-colors duration-150 motion-reduce:transition-none",
+            isActive ? "bg-surface-raised/50" : "hover:bg-surface-raised/30",
           ]
             .filter(Boolean)
             .join(" ")}
-          aria-expanded={isActive}
+          aria-expanded={isSwapping}
+          aria-label={`Replace ${exercise.name}`}
         >
-          <span>
+          <span className="min-w-0">
             <span className="block text-[17px] font-semibold tracking-tight">
               {exercise.name}
             </span>
