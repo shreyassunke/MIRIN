@@ -15,9 +15,12 @@ import {
   formatWeight,
   lastSets,
   newId,
-  nextDayTemplateId,
   startWeightFor,
 } from "../lib/workout";
+import { dayTemplateIdForDate, nextWorkout } from "../lib/rotation";
+import { REST_DAY_TEMPLATE } from "../db/seed";
+import { ensureExerciseRow } from "../lib/library";
+import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import {
   DEFAULT_BAR,
   MANUAL_STEP,
@@ -36,18 +39,25 @@ import { BarbellPicker } from "../components/weight/BarbellPicker";
 import { DumbbellPicker } from "../components/weight/DumbbellPicker";
 
 interface TodayData {
-  dayTemplateId: string;
+  dayTemplateId: string | null;
   dayName: string;
   exercises: Exercise[];
   sessionId: string | null;
+  /** Ids already on today's list (scheduled + ad-hoc). */
+  exerciseIds: string[];
   logs: SetLog[];
   prefills: Record<string, SetLog[]>;
   modePrefs: Record<string, InputMethod>;
+  isRestDay: boolean;
+  nextUp: { dayName: string; daysAway: number } | null;
 }
 
 function useTodayData(): TodayData | undefined {
   return useLiveQuery(async () => {
-    const split = await db.splits.toCollection().first();
+    // The active split drives today; a lone split acts as active.
+    const split =
+      (await db.splits.filter((s) => s.isActive).first()) ??
+      (await db.splits.toCollection().first());
     if (!split) return undefined;
 
     const sessions = await db.sessions.toArray();
@@ -55,13 +65,69 @@ function useTodayData(): TodayData | undefined {
       .filter((s) => !s.completed)
       .sort((a, b) => b.date.localeCompare(a.date))[0];
 
-    const dayTemplateId = open
-      ? open.dayTemplateId
-      : nextDayTemplateId(split, sessions);
-    const day = await db.dayTemplates.get(dayTemplateId);
-    if (!day) return undefined;
+    const today = new Date();
+    const allDays = new Map(
+      (await db.dayTemplates.toArray()).map((d) => [d.id, d] as const),
+    );
+    const isRest = (id: string) =>
+      (allDays.get(id)?.isRestDay ?? false) ||
+      (allDays.get(id)?.exerciseIds.length ?? 0) === 0;
 
-    const exercises = (await db.exercises.bulkGet(day.exerciseIds)).filter(
+    const scheduledId = dayTemplateIdForDate(split, today);
+
+    // An open session pins its own day; if its template was deleted
+    // (split removed mid-session), fall back to today's schedule.
+    let dayTemplateId = open ? open.dayTemplateId : scheduledId;
+    if (dayTemplateId && !allDays.get(dayTemplateId)) {
+      dayTemplateId = scheduledId;
+    }
+    const day = dayTemplateId ? allDays.get(dayTemplateId) : undefined;
+
+    if (!day || day.isRestDay) {
+      const upcoming = nextWorkout(split, isRest, today, 1);
+      const extraIds = open?.extraExerciseIds ?? [];
+      const exercises =
+        extraIds.length > 0
+          ? (await db.exercises.bulkGet(extraIds)).filter(
+              (e): e is Exercise => e !== undefined,
+            )
+          : [];
+      const logs = open
+        ? await db.setLogs.where("sessionId").equals(open.id).toArray()
+        : [];
+      const prefills: Record<string, SetLog[]> = {};
+      for (const exercise of exercises) {
+        prefills[exercise.id] = await lastSets(exercise.id, open?.id);
+      }
+      const modePrefs: Record<string, InputMethod> = {};
+      for (const pref of await db.exercisePrefs.toArray()) {
+        modePrefs[pref.exerciseId] = pref.preferredInputMethod;
+      }
+      return {
+        dayTemplateId: null,
+        dayName: extraIds.length > 0 ? "Extra work" : "Rest day",
+        exercises,
+        sessionId: open?.id ?? null,
+        exerciseIds: extraIds,
+        logs,
+        prefills,
+        modePrefs,
+        isRestDay: !open && extraIds.length === 0,
+        nextUp: upcoming
+          ? {
+              dayName: allDays.get(upcoming.dayTemplateId)?.name ?? "",
+              daysAway: upcoming.daysAway,
+            }
+          : null,
+      };
+    }
+
+    const exerciseIds = [
+      ...day.exerciseIds,
+      ...(open?.extraExerciseIds?.filter((id) => !day.exerciseIds.includes(id)) ??
+        []),
+    ];
+    const exercises = (await db.exercises.bulkGet(exerciseIds)).filter(
       (e): e is Exercise => e !== undefined,
     );
 
@@ -84,9 +150,12 @@ function useTodayData(): TodayData | undefined {
       dayName: day.name,
       exercises,
       sessionId: open?.id ?? null,
+      exerciseIds,
       logs,
       prefills,
       modePrefs,
+      isRestDay: false,
+      nextUp: null,
     };
   }, []);
 }
@@ -104,6 +173,7 @@ export function Today() {
   const [restDuration, setRestDuration] = useState(DEFAULT_REST_SECONDS);
   const [timerRun, setTimerRun] = useState(0);
   const [timerVisible, setTimerVisible] = useState(false);
+  const [addingExercise, setAddingExercise] = useState(false);
 
   // Input state for the active exercise, all in the current display unit.
   const [mode, setModeState] = useState<InputMethod>("manual");
@@ -161,13 +231,16 @@ export function Today() {
   }, [data, activeId, activeSetNumber, logsByExercise]);
 
   // Choose the input mode when the active exercise changes:
-  // saved preference > last logged method > name-based default.
+  // saved preference > last logged method > seeded/library default.
   useEffect(() => {
     if (!data || !activeId) return;
     const prior = data.prefills[activeId] ?? [];
     const lastMethod = prior[prior.length - 1]?.inputMethod;
+    const hint = data.exercises.find((e) => e.id === activeId)?.inputMethodHint;
     setModeState(
-      data.modePrefs[activeId] ?? lastMethod ?? defaultInputMethodFor(activeId),
+      data.modePrefs[activeId] ??
+        lastMethod ??
+        defaultInputMethodFor(activeId, hint),
     );
     setPair(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,7 +249,7 @@ export function Today() {
   // Prefill input values whenever exercise, set number, unit, or mode change.
   const prefillKey = `${data?.dayTemplateId}:${activeId}:${activeSetNumber}`;
   useEffect(() => {
-    if (!data || !activeId) return;
+    if (!data || !activeId || !data.dayTemplateId) return;
     const startLb = sourceSet?.weight ?? startWeightFor(activeId);
     const w = toDisplay(startLb, unit);
     setReps(sourceSet?.reps ?? defaultRepsFor(data.dayTemplateId));
@@ -208,6 +281,56 @@ export function Today() {
     return <p className="text-sm text-muted">Loading…</p>;
   }
 
+  if (data.isRestDay) {
+    return (
+      <div>
+        <header className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Rest day
+            </h1>
+            <p className="mt-1 text-sm text-muted">
+              {new Date().toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+          </div>
+          <UnitToggle />
+        </header>
+        <p className="mb-4 text-sm leading-relaxed text-muted">
+          No workout scheduled for today.
+          {data.nextUp &&
+            ` Next: ${data.nextUp.dayName} ${
+              data.nextUp.daysAway === 1
+                ? "tomorrow"
+                : `in ${data.nextUp.daysAway} days`
+            }.`}{" "}
+          Adjust the rotation on the Split screen if this looks wrong.
+        </p>
+        {addingExercise ? (
+          <ExerciseCombobox
+            excludeIds={data.exerciseIds}
+            onCancel={() => setAddingExercise(false)}
+            onPick={async (entry) => {
+              const id = await ensureExerciseRow(entry);
+              await addAdHocExercise(id);
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAddingExercise(true)}
+            className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+          >
+            Add exercise
+          </button>
+        )}
+      </div>
+    );
+  }
+
   const totalDisplay =
     mode === "barbell"
       ? round2(barWeight + 2 * plates.reduce((a, b) => a + b, 0))
@@ -232,12 +355,14 @@ export function Today() {
 
   async function ensureSession(): Promise<string> {
     if (data!.sessionId) return data!.sessionId;
+    const dayTemplateId = data!.dayTemplateId ?? REST_DAY_TEMPLATE.id;
     const id = newId();
     await db.sessions.add({
       id,
       date: new Date().toISOString(),
-      dayTemplateId: data!.dayTemplateId,
+      dayTemplateId,
       completed: false,
+      extraExerciseIds: [],
     });
     return id;
   }
@@ -302,6 +427,24 @@ export function Today() {
     await db.sessions.update(data!.sessionId, { completed: true });
     setSelectedId(null);
     setTimerVisible(false);
+    setAddingExercise(false);
+  }
+
+  async function addAdHocExercise(exerciseId: string) {
+    const sessionId = await ensureSession();
+    const session = await db.sessions.get(sessionId);
+    if (!session) return;
+    const extra = session.extraExerciseIds ?? [];
+    if (extra.includes(exerciseId) || data!.exerciseIds.includes(exerciseId)) {
+      setAddingExercise(false);
+      setSelectedId(exerciseId);
+      return;
+    }
+    await db.sessions.update(sessionId, {
+      extraExerciseIds: [...extra, exerciseId],
+    });
+    setAddingExercise(false);
+    setSelectedId(exerciseId);
   }
 
   return (
@@ -493,6 +636,29 @@ export function Today() {
           );
         })}
       </ul>
+
+      {!data.isRestDay && (
+        <div className="mt-4">
+          {addingExercise ? (
+            <ExerciseCombobox
+              excludeIds={data.exerciseIds}
+              onCancel={() => setAddingExercise(false)}
+              onPick={async (entry) => {
+                const id = await ensureExerciseRow(entry);
+                await addAdHocExercise(id);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingExercise(true)}
+              className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+            >
+              Add exercise
+            </button>
+          )}
+        </div>
+      )}
 
       {anyLogged && (
         <div className="mt-6">

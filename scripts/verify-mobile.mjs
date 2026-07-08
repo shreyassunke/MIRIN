@@ -26,6 +26,35 @@ const expect = async (name, cond) => {
 await page.goto(`${BASE}/today`, { waitUntil: "networkidle" });
 await page.waitForTimeout(700);
 
+// The assertions below need Push day (Lateral Raise + dumbbell wheel), so
+// re-anchor the active split's rotation to land Push on today regardless of
+// the real calendar date.
+await page.evaluate(async () => {
+  const req = indexedDB.open("mirin");
+  const idb = await new Promise((res, rej) => {
+    req.onsuccess = () => res(req.result);
+    req.onerror = rej;
+  });
+  await new Promise((res, rej) => {
+    const tx = idb.transaction("splits", "readwrite");
+    const store = tx.objectStore("splits");
+    const all = store.getAll();
+    all.onsuccess = () => {
+      const split = all.result.find((s) => s.isActive) ?? all.result[0];
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      split.anchorDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      split.anchorIndex = split.dayTemplateIds.indexOf("push");
+      store.put(split);
+    };
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+  idb.close();
+});
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForTimeout(700);
+
 // Logo in the mobile top bar.
 await expect("logo visible in mobile corner", () =>
   page.locator('header img[alt="MIRIN"]').isVisible(),

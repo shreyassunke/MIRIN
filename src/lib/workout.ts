@@ -26,8 +26,14 @@ export const DEFAULT_INPUT_METHOD: Record<string, InputMethod> = {
   "rear-delt-flye": "dumbbell",
 };
 
-export const defaultInputMethodFor = (exerciseId: string): InputMethod =>
-  DEFAULT_INPUT_METHOD[exerciseId] ?? "manual";
+/**
+ * First-open input method: the seeded map wins (unchanged behavior for the
+ * original exercises), then the library hint stored on the exercise row.
+ */
+export const defaultInputMethodFor = (
+  exerciseId: string,
+  hint?: InputMethod,
+): InputMethod => DEFAULT_INPUT_METHOD[exerciseId] ?? hint ?? "manual";
 
 /** First-ever-session starting defaults (lb). Guide, never block. */
 const START_WEIGHTS: Record<string, number> = {
@@ -63,23 +69,6 @@ export const defaultRepsFor = (dayTemplateId: string) =>
   dayTemplateId === "chest-back" ? 12 : 8;
 
 export const DEFAULT_TARGET_SETS = 3;
-
-/**
- * The next day template in the rotation: the one after the last
- * completed session's template. Falls back to the first day.
- */
-export function nextDayTemplateId(
-  split: { dayTemplateIds: string[] },
-  sessions: WorkoutSession[],
-): string {
-  const completed = sessions
-    .filter((s) => s.completed)
-    .sort((a, b) => b.date.localeCompare(a.date));
-  const last = completed[0];
-  if (!last) return split.dayTemplateIds[0];
-  const idx = split.dayTemplateIds.indexOf(last.dayTemplateId);
-  return split.dayTemplateIds[(idx + 1) % split.dayTemplateIds.length];
-}
 
 export interface SessionSets {
   session: WorkoutSession;

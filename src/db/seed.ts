@@ -1,8 +1,19 @@
 import type { Transaction } from "dexie";
 import type { DayTemplate, Exercise, Split } from "./db";
+import { DEFAULT_ANCHOR_DATE } from "../lib/rotation";
 
 const slug = (name: string) =>
   name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+export const DEFAULT_SPLIT_ID = "ppl-arms-cb";
+
+/** Shared rest-day template referenced by any split's rest slots. */
+export const REST_DAY_TEMPLATE: DayTemplate = {
+  id: "rest",
+  name: "Rest",
+  exerciseIds: [],
+  isRestDay: true,
+};
 
 // Exercises are deduped by name so a movement shared across days
 // (Barbell Curl, Lateral Raise, Rear Delt Flye) carries one history.
@@ -71,16 +82,33 @@ export async function seed(tx: Transaction) {
     }
   }
 
-  const dayTemplates: DayTemplate[] = DAYS.map((day) => ({
-    id: slug(day.name),
-    name: day.name,
-    exerciseIds: day.exercises.map(([name]) => slug(name)),
-  }));
+  const dayTemplates: DayTemplate[] = [
+    ...DAYS.map((day) => ({
+      id: slug(day.name),
+      name: day.name,
+      exerciseIds: day.exercises.map(([name]) => slug(name)),
+    })),
+    REST_DAY_TEMPLATE,
+  ];
 
+  // Mon–Fri workouts plus weekend rest, anchored to a Monday so the
+  // 7-slot loop stays aligned with the calendar week.
   const split: Split = {
-    id: "ppl-arms-cb",
+    id: DEFAULT_SPLIT_ID,
     name: "5-Day Rotation",
-    dayTemplateIds: dayTemplates.map((d) => d.id),
+    dayTemplateIds: [
+      "push",
+      "pull",
+      "legs",
+      "arms",
+      "chest-back",
+      REST_DAY_TEMPLATE.id,
+      REST_DAY_TEMPLATE.id,
+    ],
+    isActive: true,
+    isDefault: true,
+    anchorDate: DEFAULT_ANCHOR_DATE,
+    anchorIndex: 0,
   };
 
   await tx.table("exercises").bulkAdd([...exercises.values()]);
