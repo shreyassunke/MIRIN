@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -19,8 +19,16 @@ import {
 } from "../lib/workout";
 import { dayTemplateIdForDate, nextWorkout } from "../lib/rotation";
 import { REST_DAY_TEMPLATE } from "../db/seed";
-import { ensureExerciseRow } from "../lib/library";
+import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
+import {
+  appendSessionExercise,
+  reorderSessionExercises,
+  resolveSessionExerciseIds,
+  swapSessionExercise,
+} from "../lib/session";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
+import { TodayExerciseTile } from "../components/TodayExerciseTile";
+import { useDragReorder } from "../hooks/useDragReorder";
 import {
   DEFAULT_BAR,
   MANUAL_STEP,
@@ -50,6 +58,20 @@ interface TodayData {
   modePrefs: Record<string, InputMethod>;
   isRestDay: boolean;
   nextUp: { dayName: string; daysAway: number } | null;
+}
+
+function orderedExercises(
+  exerciseIds: string[],
+  rows: (Exercise | undefined)[],
+): Exercise[] {
+  const byId = new Map(
+    rows
+      .filter((e): e is Exercise => e !== undefined)
+      .map((e) => [e.id, e] as const),
+  );
+  return exerciseIds
+    .map((id) => byId.get(id))
+    .filter((e): e is Exercise => e !== undefined);
 }
 
 function useTodayData(): TodayData | undefined {
@@ -85,13 +107,11 @@ function useTodayData(): TodayData | undefined {
 
     if (!day || day.isRestDay) {
       const upcoming = nextWorkout(split, isRest, today, 1);
-      const extraIds = open?.extraExerciseIds ?? [];
-      const exercises =
-        extraIds.length > 0
-          ? (await db.exercises.bulkGet(extraIds)).filter(
-              (e): e is Exercise => e !== undefined,
-            )
-          : [];
+      const exerciseIds = resolveSessionExerciseIds(undefined, open);
+      const exercises = orderedExercises(
+        exerciseIds,
+        await db.exercises.bulkGet(exerciseIds),
+      );
       const logs = open
         ? await db.setLogs.where("sessionId").equals(open.id).toArray()
         : [];
@@ -105,14 +125,14 @@ function useTodayData(): TodayData | undefined {
       }
       return {
         dayTemplateId: null,
-        dayName: extraIds.length > 0 ? "Extra work" : "Rest day",
+        dayName: exerciseIds.length > 0 ? "Extra work" : "Rest day",
         exercises,
         sessionId: open?.id ?? null,
-        exerciseIds: extraIds,
+        exerciseIds,
         logs,
         prefills,
         modePrefs,
-        isRestDay: !open && extraIds.length === 0,
+        isRestDay: !open && exerciseIds.length === 0,
         nextUp: upcoming
           ? {
               dayName: allDays.get(upcoming.dayTemplateId)?.name ?? "",
@@ -122,13 +142,10 @@ function useTodayData(): TodayData | undefined {
       };
     }
 
-    const exerciseIds = [
-      ...day.exerciseIds,
-      ...(open?.extraExerciseIds?.filter((id) => !day.exerciseIds.includes(id)) ??
-        []),
-    ];
-    const exercises = (await db.exercises.bulkGet(exerciseIds)).filter(
-      (e): e is Exercise => e !== undefined,
+    const exerciseIds = resolveSessionExerciseIds(day, open);
+    const exercises = orderedExercises(
+      exerciseIds,
+      await db.exercises.bulkGet(exerciseIds),
     );
 
     const logs = open
@@ -174,6 +191,7 @@ export function Today() {
   const [timerRun, setTimerRun] = useState(0);
   const [timerVisible, setTimerVisible] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
+  const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
 
   // Input state for the active exercise, all in the current display unit.
   const [mode, setModeState] = useState<InputMethod>("manual");
@@ -196,6 +214,30 @@ export function Today() {
     }
     return map;
   }, [data?.logs]);
+
+  const ensureSession = useCallback(async (): Promise<string> => {
+    if (data?.sessionId) return data.sessionId;
+    const dayTemplateId = data?.dayTemplateId ?? REST_DAY_TEMPLATE.id;
+    const id = newId();
+    await db.sessions.add({
+      id,
+      date: new Date().toISOString(),
+      dayTemplateId,
+      completed: false,
+      extraExerciseIds: [],
+    });
+    return id;
+  }, [data?.dayTemplateId, data?.sessionId]);
+
+  const { getItemProps } = useDragReorder({
+    enabled: (data?.exercises.length ?? 0) > 1,
+    onReorder: (from, to) => {
+      void (async () => {
+        const sessionId = await ensureSession();
+        await reorderSessionExercises(sessionId, from, to);
+      })();
+    },
+  });
 
   const targetSetsFor = (exerciseId: string) =>
     data?.prefills[exerciseId]?.length || DEFAULT_TARGET_SETS;
@@ -353,20 +395,6 @@ export function Today() {
     });
   }
 
-  async function ensureSession(): Promise<string> {
-    if (data!.sessionId) return data!.sessionId;
-    const dayTemplateId = data!.dayTemplateId ?? REST_DAY_TEMPLATE.id;
-    const id = newId();
-    await db.sessions.add({
-      id,
-      date: new Date().toISOString(),
-      dayTemplateId,
-      completed: false,
-      extraExerciseIds: [],
-    });
-    return id;
-  }
-
   async function logSet(
     exerciseId: string,
     weightLb: number,
@@ -375,6 +403,7 @@ export function Today() {
     loadBreakdown?: LoadBreakdown,
   ) {
     const sessionId = await ensureSession();
+    const session = await db.sessions.get(sessionId);
     const setNumber = (logsByExercise.get(exerciseId)?.length ?? 0) + 1;
     await db.setLogs.add({
       id: newId(),
@@ -385,6 +414,7 @@ export function Today() {
       reps: repsToLog,
       inputMethod,
       loadBreakdown,
+      swappedFromExerciseId: session?.exerciseSwapOrigins?.[exerciseId],
     });
     // Stay on this exercise until its sets are done, then fall back to
     // the enforced order (first incomplete exercise).
@@ -428,23 +458,32 @@ export function Today() {
     setSelectedId(null);
     setTimerVisible(false);
     setAddingExercise(false);
+    setSwappingIndex(null);
   }
 
   async function addAdHocExercise(exerciseId: string) {
     const sessionId = await ensureSession();
-    const session = await db.sessions.get(sessionId);
-    if (!session) return;
-    const extra = session.extraExerciseIds ?? [];
-    if (extra.includes(exerciseId) || data!.exerciseIds.includes(exerciseId)) {
+    if (data!.exerciseIds.includes(exerciseId)) {
       setAddingExercise(false);
       setSelectedId(exerciseId);
       return;
     }
-    await db.sessions.update(sessionId, {
-      extraExerciseIds: [...extra, exerciseId],
-    });
+    await appendSessionExercise(sessionId, exerciseId);
     setAddingExercise(false);
     setSelectedId(exerciseId);
+  }
+
+  async function handleSwapExercise(index: number, entry: ExerciseLibraryEntry) {
+    const newExerciseId = await ensureExerciseRow(entry);
+    const sessionId = await ensureSession();
+    const outgoingId = await swapSessionExercise(sessionId, index, newExerciseId);
+    setSwappingIndex(null);
+    if (
+      selectedId === outgoingId ||
+      (selectedId === null && activeId === outgoingId)
+    ) {
+      setSelectedId(newExerciseId);
+    }
   }
 
   return (
@@ -468,7 +507,7 @@ export function Today() {
       </header>
 
       <ul className="space-y-3">
-        {data.exercises.map((exercise) => {
+        {data.exercises.map((exercise, index) => {
           const logged = logsByExercise.get(exercise.id) ?? [];
           const target = targetSetsFor(exercise.id);
           const isActive = exercise.id === activeId;
@@ -479,43 +518,35 @@ export function Today() {
                 .map((s) => `${formatWeight(toDisplay(s.weight, unit))}×${s.reps}`)
                 .join("  ")}`
             : "First time — starting defaults ready";
+          const dragProps = getItemProps(index);
 
           return (
-            <li
+            <TodayExerciseTile
               key={exercise.id}
-              className="rounded-md border border-hairline bg-surface"
+              exercise={exercise}
+              logged={logged}
+              target={target}
+              isActive={isActive}
+              complete={complete}
+              lastSummary={lastSummary}
+              isSwapping={swappingIndex === index}
+              excludeSwapIds={data.exerciseIds.filter((id) => id !== exercise.id)}
+              dragRowClassName={dragProps.className}
+              draggable={dragProps.draggable}
+              onDragStart={dragProps.onDragStart}
+              onDragEnd={dragProps.onDragEnd}
+              onDragOver={dragProps.onDragOver}
+              onDrop={dragProps.onDrop}
+              onSelect={() =>
+                setSelectedId(isActive && selectedId ? null : exercise.id)
+              }
+              onStartSwap={() => setSwappingIndex(index)}
+              onCancelSwap={() => setSwappingIndex(null)}
+              onSwapPick={(entry) => void handleSwapExercise(index, entry)}
+              formatLoggedSet={(s) =>
+                `${formatWeight(toDisplay(s.weight, unit))}×${s.reps}`
+              }
             >
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedId(isActive && selectedId ? null : exercise.id)
-                }
-                className="flex w-full items-baseline justify-between gap-3 px-4 py-3.5 text-left"
-                aria-expanded={isActive}
-              >
-                <span>
-                  <span className="block text-[17px] font-semibold tracking-tight">
-                    {exercise.name}
-                  </span>
-                  <span className="tnum mt-0.5 block text-[13px] text-muted">
-                    {lastSummary}
-                  </span>
-                </span>
-                <span className="tnum shrink-0 text-[13px] font-medium text-muted">
-                  {complete ? "Done" : `${logged.length} of ${target}`}
-                </span>
-              </button>
-
-              {logged.length > 0 && (
-                <div className="tnum flex flex-wrap gap-x-4 gap-y-1 border-t border-hairline px-4 py-2.5 text-sm text-muted">
-                  {logged.map((s) => (
-                    <span key={s.id} className="text-ink">
-                      {formatWeight(toDisplay(s.weight, unit))}×{s.reps}
-                    </span>
-                  ))}
-                </div>
-              )}
-
               {isActive && (
                 <div className="border-t border-hairline px-4 py-4">
                   {/* Input mode: remembered per exercise */}
@@ -632,7 +663,7 @@ export function Today() {
                   </Link>
                 </div>
               )}
-            </li>
+            </TodayExerciseTile>
           );
         })}
       </ul>

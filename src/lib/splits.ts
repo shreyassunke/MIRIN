@@ -26,6 +26,16 @@ export async function activateSplit(id: string) {
   });
 }
 
+/** Returns false if deactivating would leave zero active splits. */
+export async function canDeactivateSplit(id: string): Promise<boolean> {
+  const split = await db.splits.get(id);
+  if (!split?.isActive) return true;
+  const all = await db.splits.toArray();
+  if (all.length <= 1) return false;
+  const otherActive = all.some((s) => s.id !== id && s.isActive);
+  return otherActive;
+}
+
 /** Re-pins the rotation so the slot at `index` is today's workout. */
 export async function setRotationToday(splitId: string, index: number) {
   await db.splits.update(splitId, {

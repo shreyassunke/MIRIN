@@ -44,6 +44,10 @@ export interface WorkoutSession {
   completed: boolean;
   /** Exercises added mid-workout; not written back to the day template. */
   extraExerciseIds?: string[];
+  /** Session-only ordered exercise list. Set on first swap/reorder; never writes to DayTemplate. */
+  sessionExerciseIds?: string[];
+  /** Maps replacement exerciseId → outgoing exerciseId at swap time (for SetLog audit). */
+  exerciseSwapOrigins?: Record<string, string>;
 }
 
 export interface LoadBreakdown {
@@ -61,6 +65,8 @@ export interface SetLog {
   rpe?: number;
   inputMethod?: InputMethod;
   loadBreakdown?: LoadBreakdown;
+  /** Set only when logged via a press-and-hold swap on a scheduled exercise. */
+  swappedFromExerciseId?: string;
 }
 
 export interface ExercisePreference {
@@ -150,5 +156,7 @@ db.version(4)
       }
     });
   });
+
+db.version(5).stores({});
 
 db.on("populate", seed);

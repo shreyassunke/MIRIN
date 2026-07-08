@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               src="/logo.png"
               alt=""
               className="h-7 w-auto rounded"
-              width="21"
+              width="28"
               height="28"
             />
             <span className="text-lg font-semibold tracking-tight">
@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             src="/logo.png"
             alt="MIRIN"
             className="h-6 w-auto rounded"
-            width="18"
+            width="24"
             height="24"
           />
           <span className="text-sm font-semibold tracking-tight">MIRIN</span>

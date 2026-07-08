@@ -4,6 +4,7 @@ import { db, type DayTemplate, type Exercise, type Split } from "../db/db";
 import {
   activateSplit,
   addDay,
+  canDeactivateSplit,
   createSplit,
   deleteSplit,
   duplicateSplit,
@@ -15,19 +16,16 @@ import {
 } from "../lib/splits";
 import { rotationIndexForDate, weekdayLabels } from "../lib/rotation";
 import { ensureExerciseRow } from "../lib/library";
+import { move } from "../lib/array";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
+import { DragHandle } from "../components/DragHandle";
+import { ToggleSwitch } from "../components/ToggleSwitch";
+import { useDragReorder } from "../hooks/useDragReorder";
 
 const iconBtn =
   "h-11 w-11 rounded-md border border-hairline bg-surface text-muted transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:pointer-events-none disabled:opacity-40";
 const secondaryBtn =
   "h-11 rounded-md border border-hairline bg-surface px-4 text-sm font-medium text-ink transition-colors duration-150 hover:bg-surface-raised";
-
-function move<T>(list: T[], from: number, to: number): T[] {
-  const next = [...list];
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item);
-  return next;
-}
 
 /** Two-tap destructive action: no modal, no accidental taps. */
 function ConfirmButton({
@@ -63,15 +61,13 @@ interface RotationEditorProps {
 }
 
 function RotationEditor({ split, dayNames, editable }: RotationEditorProps) {
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [overIndex, setOverIndex] = useState<number | null>(null);
-
-  const labels = weekdayLabels(split);
-  const todayIndex = split.isActive ? rotationIndexForDate(split) : null;
-
   const reorder = (from: number, to: number) => {
     void reorderRotation(split, from, to);
   };
+  const { getItemProps } = useDragReorder({ enabled: editable, onReorder: reorder });
+
+  const labels = weekdayLabels(split);
+  const todayIndex = split.isActive ? rotationIndexForDate(split) : null;
 
   return (
     <section>
@@ -88,43 +84,18 @@ function RotationEditor({ split, dayNames, editable }: RotationEditorProps) {
       </p>
       <ol className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
         {split.dayTemplateIds.map((dayTemplateId, index) => {
-          const isDragTarget = overIndex === index && dragIndex !== null;
+          const dragProps = getItemProps(index);
           const isRest = dayTemplateId === REST_DAY_TEMPLATE.id;
           const isToday = todayIndex === index;
           return (
             <li
               key={`${index}-${dayTemplateId}`}
-              draggable={editable}
-              onDragStart={() => setDragIndex(index)}
-              onDragEnd={() => {
-                setDragIndex(null);
-                setOverIndex(null);
-              }}
-              onDragOver={(e) => {
-                if (!editable) return;
-                e.preventDefault();
-                setOverIndex(index);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (dragIndex !== null) reorder(dragIndex, index);
-                setDragIndex(null);
-                setOverIndex(null);
-              }}
-              className={[
-                "flex items-center gap-3 px-4 py-2.5",
-                dragIndex === index ? "opacity-50" : "",
-                isDragTarget ? "bg-surface-raised" : "",
-              ].join(" ")}
+              {...dragProps}
+              className={["flex items-center gap-3 px-4 py-2.5", dragProps.className]
+                .filter(Boolean)
+                .join(" ")}
             >
-              {editable && (
-                <span
-                  aria-hidden="true"
-                  className="cursor-grab select-none text-muted"
-                >
-                  ⠿
-                </span>
-              )}
+              {editable && <DragHandle />}
               <span className="tnum w-12 shrink-0 text-[13px] text-muted">
                 {labels ? labels[index] : index + 1}
               </span>
@@ -212,8 +183,6 @@ interface DayCardProps {
 }
 
 function DayCard({ day, exercises, editable, renamable }: DayCardProps) {
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [overIndex, setOverIndex] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState(day.name);
@@ -224,6 +193,7 @@ function DayCard({ day, exercises, editable, renamable }: DayCardProps) {
       exerciseIds: move(day.exerciseIds, from, to),
     });
   };
+  const { getItemProps } = useDragReorder({ enabled: editable, onReorder: reorder });
 
   const removeExercise = (exerciseId: string) => {
     void db.dayTemplates.update(day.id, {
@@ -285,41 +255,16 @@ function DayCard({ day, exercises, editable, renamable }: DayCardProps) {
           {day.exerciseIds.map((exerciseId, index) => {
             const exercise = exercises.get(exerciseId);
             if (!exercise) return null;
-            const isDragTarget = overIndex === index && dragIndex !== null;
+            const dragProps = getItemProps(index);
             return (
               <li
                 key={exerciseId}
-                draggable={editable}
-                onDragStart={() => setDragIndex(index)}
-                onDragEnd={() => {
-                  setDragIndex(null);
-                  setOverIndex(null);
-                }}
-                onDragOver={(e) => {
-                  if (!editable) return;
-                  e.preventDefault();
-                  setOverIndex(index);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragIndex !== null) reorder(dragIndex, index);
-                  setDragIndex(null);
-                  setOverIndex(null);
-                }}
-                className={[
-                  "flex items-center gap-3 px-4 py-2.5",
-                  dragIndex === index ? "opacity-50" : "",
-                  isDragTarget ? "bg-surface-raised" : "",
-                ].join(" ")}
+                {...dragProps}
+                className={["flex items-center gap-3 px-4 py-2.5", dragProps.className]
+                  .filter(Boolean)
+                  .join(" ")}
               >
-                {editable && (
-                  <span
-                    aria-hidden="true"
-                    className="cursor-grab select-none text-muted"
-                  >
-                    ⠿
-                  </span>
-                )}
+                {editable && <DragHandle />}
                 <span className="tnum w-5 shrink-0 text-[13px] text-muted">
                   {index + 1}
                 </span>
@@ -572,6 +517,13 @@ export function SplitEditor() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [blockedSplitId, setBlockedSplitId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!blockedSplitId) return;
+    const t = setTimeout(() => setBlockedSplitId(null), 3000);
+    return () => clearTimeout(t);
+  }, [blockedSplitId]);
 
   if (!data) {
     return <p className="text-sm text-muted">Loading…</p>;
@@ -634,19 +586,28 @@ export function SplitEditor() {
                     {split.dayTemplateIds.length}-day rotation
                   </span>
                 </button>
-                {split.isActive ? (
-                  <span className="shrink-0 text-[13px] font-medium text-ink">
-                    Active
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void activateSplit(split.id)}
-                    className="h-11 shrink-0 rounded-md border border-hairline bg-surface px-3 text-[13px] font-medium text-muted transition-colors duration-150 hover:bg-surface-raised hover:text-ink"
-                  >
-                    Make active
-                  </button>
-                )}
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <ToggleSwitch
+                    checked={split.isActive}
+                    label={`${split.name} active`}
+                    onChange={(next) => {
+                      if (next) {
+                        void activateSplit(split.id);
+                        return;
+                      }
+                      void (async () => {
+                        if (!(await canDeactivateSplit(split.id))) {
+                          setBlockedSplitId(split.id);
+                        }
+                      })();
+                    }}
+                  />
+                  {blockedSplitId === split.id && (
+                    <span className="text-[12px] text-muted">
+                      Activate another split first
+                    </span>
+                  )}
+                </div>
               </li>
             );
           })}
