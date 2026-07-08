@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const INTRO_SRC = "/Mirin%20app%20intro.mp4";
+const INTRO_SRC = "/mirin-intro.mp4";
 const SESSION_KEY = "mirin:intro-complete";
 
 type AppIntroProps = {
@@ -10,7 +10,9 @@ type AppIntroProps = {
 export function AppIntro({ onComplete }: AppIntroProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [exiting, setExiting] = useState(false);
+  const [needsTap, setNeedsTap] = useState(false);
   const completedRef = useRef(false);
+  const playbackStartedRef = useRef(false);
 
   const finish = useCallback(() => {
     if (completedRef.current) return;
@@ -28,6 +30,27 @@ export function AppIntro({ onComplete }: AppIntroProps) {
     setExiting(true);
   }, [onComplete]);
 
+  const startPlayback = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || completedRef.current) return false;
+
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+
+    try {
+      await video.play();
+      playbackStartedRef.current = true;
+      setNeedsTap(false);
+      return true;
+    } catch {
+      if (!playbackStartedRef.current) setNeedsTap(true);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -41,20 +64,20 @@ export function AppIntro({ onComplete }: AppIntroProps) {
     if (!video) return;
 
     const tryPlay = () => {
-      void video.play().catch(() => {
-        // Autoplay with sound is blocked on many mobile browsers; retry muted.
-        video.muted = true;
-        void video.play().catch(() => finish());
-      });
+      window.setTimeout(() => {
+        void startPlayback();
+      }, 0);
     };
 
-    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-      tryPlay();
-    } else {
-      video.addEventListener("loadeddata", tryPlay, { once: true });
-      return () => video.removeEventListener("loadeddata", tryPlay);
-    }
-  }, [finish, onComplete]);
+    video.addEventListener("canplay", tryPlay, { once: true });
+    video.addEventListener("loadeddata", tryPlay, { once: true });
+    video.load();
+
+    return () => {
+      video.removeEventListener("canplay", tryPlay);
+      video.removeEventListener("loadeddata", tryPlay);
+    };
+  }, [onComplete, startPlayback]);
 
   const handleTransitionEnd = (event: React.TransitionEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || !exiting) return;
@@ -64,7 +87,7 @@ export function AppIntro({ onComplete }: AppIntroProps) {
   return (
     <div
       className={[
-        "fixed inset-0 z-50 flex items-center justify-center bg-bg",
+        "fixed inset-0 z-50 bg-bg",
         "transition-opacity duration-500 motion-reduce:transition-none",
         exiting ? "pointer-events-none opacity-0" : "opacity-100",
       ].join(" ")}
@@ -72,21 +95,45 @@ export function AppIntro({ onComplete }: AppIntroProps) {
       onTransitionEnd={handleTransitionEnd}
       aria-hidden={exiting}
     >
-      <video
-        ref={videoRef}
-        src={INTRO_SRC}
-        className="h-full w-full object-contain"
-        playsInline
-        preload="auto"
-        onEnded={finish}
-        onError={finish}
-        aria-hidden
-      />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <video
+          ref={videoRef}
+          className="h-full w-full object-contain"
+          width={1080}
+          height={1920}
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          poster="/logo.png"
+          onEnded={finish}
+          onPlaying={() => {
+            playbackStartedRef.current = true;
+            setNeedsTap(false);
+          }}
+          aria-hidden
+        >
+          <source src={INTRO_SRC} type="video/mp4" />
+        </video>
+      </div>
+
+      {needsTap ? (
+        <button
+          type="button"
+          onClick={() => void startPlayback()}
+          className="absolute inset-0 flex items-center justify-center bg-bg/60"
+          aria-label="Play intro"
+        >
+          <span className="rounded-md bg-surface px-4 py-3 text-sm font-medium text-ink">
+            Tap to play
+          </span>
+        </button>
+      ) : null}
 
       <button
         type="button"
         onClick={finish}
-        className="absolute right-4 top-4 min-h-11 rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors duration-150 hover:text-ink"
+        className="absolute z-10 min-h-11 rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors duration-150 hover:text-ink"
         style={{
           top: "max(1rem, env(safe-area-inset-top))",
           right: "max(1rem, env(safe-area-inset-right))",

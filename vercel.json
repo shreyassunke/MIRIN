@@ -1,3 +1,12 @@
 {
+  "headers": [
+    {
+      "source": "/mirin-intro.mp4",
+      "headers": [
+        { "key": "Accept-Ranges", "value": "bytes" },
+        { "key": "Content-Type", "value": "video/mp4" }
+      ]
+    }
+  ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
