@@ -75,7 +75,7 @@ await page.goto(`${BASE}/exercise/lateral-raise`, { waitUntil: "networkidle" });
 await page.waitForTimeout(800);
 await page.screenshot({ path: `${OUT}/data-exercise.png`, fullPage: true });
 
-await page.goto(`${BASE}/trends`, { waitUntil: "networkidle" });
+await page.goto(`${BASE}/progress`, { waitUntil: "networkidle" });
 await page.waitForTimeout(1000);
 await page.screenshot({ path: `${OUT}/data-trends.png`, fullPage: true });
 

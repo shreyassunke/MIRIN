@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 
 const NAV_ITEMS = [
   { to: "/today", label: "Today" },
-  { to: "/trends", label: "Trends" },
+  { to: "/progress", label: "Progress" },
   { to: "/split", label: "Split" },
 ];
 

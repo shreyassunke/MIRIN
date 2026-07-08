@@ -128,10 +128,10 @@ await page
 await page.waitForTimeout(400);
 
 // Lazy routes still render.
-await page.goto(`${BASE}/trends`, { waitUntil: "networkidle" });
+await page.goto(`${BASE}/progress`, { waitUntil: "networkidle" });
 await page.waitForTimeout(800);
-await expect("trends renders (lazy)", () =>
-  page.getByRole("heading", { name: "Trends" }).isVisible(),
+await expect("progress renders (lazy)", () =>
+  page.getByRole("heading", { name: "Progress" }).isVisible(),
 );
 await page.goto(`${BASE}/split`, { waitUntil: "networkidle" });
 await page.waitForTimeout(600);

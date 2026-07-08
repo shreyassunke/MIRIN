@@ -60,7 +60,7 @@ export function Trends() {
   return (
     <div>
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Trends</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
         <p className="mt-1 text-sm text-muted">
           Volume per completed session, in{" "}
           {unit === "lb" ? "pounds" : "kilograms"} lifted
@@ -69,7 +69,7 @@ export function Trends() {
 
       {!hasAny && (
         <p className="mb-8 max-w-[65ch] text-sm leading-relaxed text-muted">
-          Nothing to chart yet. Trends appear after your first completed
+          Nothing to chart yet. Progress appears after your first completed
           session on the{" "}
           <Link to="/today" className="font-medium text-ink">
             Today

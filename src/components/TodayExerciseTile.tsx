@@ -1,4 +1,4 @@
-import type { DragEvent, ReactNode } from "react";
+import type { PointerEvent, ReactNode } from "react";
 import type { Exercise, SetLog } from "../db/db";
 import type { ExerciseLibraryEntry } from "../lib/library";
 import { ExerciseCombobox } from "./ExerciseCombobox";
@@ -14,12 +14,12 @@ interface TodayExerciseTileProps {
   lastSummary: string;
   isSwapping: boolean;
   excludeSwapIds: string[];
+  reorderIndex: number;
   dragRowClassName: string;
-  draggable: boolean;
-  onDragStart: () => void;
-  onDragEnd: () => void;
-  onDragOver: (e: DragEvent) => void;
-  onDrop: (e: DragEvent) => void;
+  onDragHandlePointerDown?: (e: PointerEvent) => void;
+  onDragHandlePointerMove?: (e: PointerEvent) => void;
+  onDragHandlePointerUp?: (e: PointerEvent) => void;
+  onDragHandlePointerCancel?: (e: PointerEvent) => void;
   onSelect: () => void;
   onStartSwap: () => void;
   onCancelSwap: () => void;
@@ -37,12 +37,12 @@ export function TodayExerciseTile({
   lastSummary,
   isSwapping,
   excludeSwapIds,
+  reorderIndex,
   dragRowClassName,
-  draggable,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDrop,
+  onDragHandlePointerDown,
+  onDragHandlePointerMove,
+  onDragHandlePointerUp,
+  onDragHandlePointerCancel,
   onSelect,
   onStartSwap,
   onCancelSwap,
@@ -57,11 +57,7 @@ export function TodayExerciseTile({
 
   return (
     <li
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
+      data-reorder-index={reorderIndex}
       className={[
         "rounded-md border border-hairline bg-surface",
         dragRowClassName,
@@ -70,9 +66,12 @@ export function TodayExerciseTile({
         .join(" ")}
     >
       <div className="flex items-stretch gap-2 px-2 py-2">
-        <div className="flex shrink-0 items-center self-center pl-1">
+        <div className="flex shrink-0 items-center self-center">
           <DragHandle
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={onDragHandlePointerDown}
+            onPointerMove={onDragHandlePointerMove}
+            onPointerUp={onDragHandlePointerUp}
+            onPointerCancel={onDragHandlePointerCancel}
           />
         </div>
         <button
@@ -104,10 +103,8 @@ export function TodayExerciseTile({
 
       {isSwapping && (
         <div className="border-t border-hairline px-4 py-3">
-          <p className="mb-2 text-[13px] font-medium text-muted">
-            Replace with…
-          </p>
           <ExerciseCombobox
+            label="Replace with…"
             excludeIds={excludeSwapIds}
             placeholder="Search exercises"
             onCancel={onCancelSwap}

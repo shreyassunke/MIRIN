@@ -229,8 +229,9 @@ export function Today() {
     return id;
   }, [data?.dayTemplateId, data?.sessionId]);
 
-  const { getItemProps } = useDragReorder({
+  const { getItemProps, getHandleProps } = useDragReorder({
     enabled: (data?.exercises.length ?? 0) > 1,
+    handleOnly: true,
     onReorder: (from, to) => {
       void (async () => {
         const sessionId = await ensureSession();
@@ -519,6 +520,7 @@ export function Today() {
                 .join("  ")}`
             : "First time — starting defaults ready";
           const dragProps = getItemProps(index);
+          const handleProps = getHandleProps(index);
 
           return (
             <TodayExerciseTile
@@ -531,12 +533,12 @@ export function Today() {
               lastSummary={lastSummary}
               isSwapping={swappingIndex === index}
               excludeSwapIds={data.exerciseIds.filter((id) => id !== exercise.id)}
+              reorderIndex={index}
               dragRowClassName={dragProps.className}
-              draggable={dragProps.draggable}
-              onDragStart={dragProps.onDragStart}
-              onDragEnd={dragProps.onDragEnd}
-              onDragOver={dragProps.onDragOver}
-              onDrop={dragProps.onDrop}
+              onDragHandlePointerDown={handleProps.onPointerDown}
+              onDragHandlePointerMove={handleProps.onPointerMove}
+              onDragHandlePointerUp={handleProps.onPointerUp}
+              onDragHandlePointerCancel={handleProps.onPointerCancel}
               onSelect={() =>
                 setSelectedId(isActive && selectedId ? null : exercise.id)
               }

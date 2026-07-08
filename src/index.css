@@ -25,12 +25,26 @@
 html {
   background: var(--color-bg);
   color-scheme: dark;
+  overflow-x: clip;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
 }
 
 body {
   font-family: var(--font-sans);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+body::-webkit-scrollbar {
+  display: none;
 }
 
 /* The Ledger Rule: comparable numerals align. */

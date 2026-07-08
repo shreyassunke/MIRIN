@@ -56,7 +56,7 @@ await run("exercise", mobile, async (page) => {
 });
 
 await run("trends", mobile, async (page) => {
-  await page.goto(`${BASE}/trends`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/progress`, { waitUntil: "networkidle" });
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/trends-mobile.png`, fullPage: true });
 });

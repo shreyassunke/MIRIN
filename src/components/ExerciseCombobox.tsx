@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -16,6 +17,7 @@ import {
   muscleLabel,
   type ExerciseLibraryEntry,
 } from "../lib/library";
+import { useDismissOnPointerOutside } from "../hooks/useDismissOnPointerOutside";
 
 const MAX_RESULTS = 12;
 const DEBOUNCE_MS = 150;
@@ -28,6 +30,8 @@ interface ExerciseComboboxProps {
   excludeIds?: string[];
   autoFocus?: boolean;
   placeholder?: string;
+  /** Optional label rendered inside the dismiss boundary. */
+  label?: string;
 }
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -147,13 +151,30 @@ export function ExerciseCombobox({
   excludeIds = [],
   autoFocus = true,
   placeholder = "Search exercises",
+  label,
 }: ExerciseComboboxProps) {
   const listboxId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounced(query, DEBOUNCE_MS);
   const [highlight, setHighlight] = useState(0);
   const [creating, setCreating] = useState(false);
+
+  const dismiss = useCallback(() => {
+    if (creating) {
+      onCancel?.();
+      return;
+    }
+    if (query) {
+      setQuery("");
+      inputRef.current?.focus();
+      return;
+    }
+    onCancel?.();
+  }, [creating, onCancel, query]);
+
+  useDismissOnPointerOutside(rootRef, dismiss, Boolean(onCancel));
 
   const entries = useLiveQuery(fullLibrary, [], undefined);
   const fuse = useMemo(
@@ -186,18 +207,20 @@ export function ExerciseCombobox({
 
   if (creating) {
     return (
-      <CreateCustomForm
-        initialName={query.trim()}
-        onCreate={(entry) => {
-          setCreating(false);
-          setQuery("");
-          onPick(entry);
-        }}
-        onBack={() => {
-          setCreating(false);
-          inputRef.current?.focus();
-        }}
-      />
+      <div ref={rootRef}>
+        <CreateCustomForm
+          initialName={query.trim()}
+          onCreate={(entry) => {
+            setCreating(false);
+            setQuery("");
+            onPick(entry);
+          }}
+          onBack={() => {
+            setCreating(false);
+            inputRef.current?.focus();
+          }}
+        />
+      </div>
     );
   }
 
@@ -225,13 +248,15 @@ export function ExerciseCombobox({
       if (optionCount > 0) pick(highlight);
     } else if (e.key === "Escape") {
       e.preventDefault();
-      if (query) setQuery("");
-      else onCancel?.();
+      dismiss();
     }
   };
 
   return (
-    <div>
+    <div ref={rootRef}>
+      {label && (
+        <p className="mb-2 text-[13px] font-medium text-muted">{label}</p>
+      )}
       <input
         ref={inputRef}
         type="text"

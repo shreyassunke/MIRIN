@@ -25,7 +25,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/today" replace />} />
           <Route path="/today" element={<Today />} />
           <Route path="/exercise/:id" element={<ExerciseDetail />} />
-          <Route path="/trends" element={<Trends />} />
+          <Route path="/progress" element={<Trends />} />
           <Route path="/split" element={<SplitEditor />} />
         </Routes>
       </Suspense>
