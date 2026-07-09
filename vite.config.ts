@@ -14,19 +14,8 @@ export default defineConfig({
       workbox: {
         // App shell + assets cached on first visit; API calls N/A (client-only).
         globPatterns: ["**/*.{js,css,html,ico,png,woff2,webmanifest}"],
-        runtimeCaching: [
-          {
-            urlPattern: /\/mirin-intro\.mp4$/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "mirin-intro-video",
-              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api/],
+        navigateFallbackDenylist: [/^\/api/, /^\/mirin-intro\.mp4$/],
       },
     }),
   ],

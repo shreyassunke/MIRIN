@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AppIntro, shouldShowIntro } from "./components/AppIntro";
+import { AppIntro } from "./components/AppIntro";
+import { prefetchIntroVideo, shouldShowIntro } from "./lib/introVideo";
 import { AppShell } from "./components/AppShell";
 import { Today } from "./screens/Today";
 
@@ -17,6 +18,10 @@ const Trends = lazy(() =>
 const SplitEditor = lazy(() =>
   import("./screens/SplitEditor").then((m) => ({ default: m.SplitEditor })),
 );
+
+if (shouldShowIntro()) {
+  prefetchIntroVideo();
+}
 
 export default function App() {
   const [introComplete, setIntroComplete] = useState(() => !shouldShowIntro());

@@ -1,23 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  INTRO_SESSION_KEY,
+  configureVideoForIOS,
+  getIntroVideoUrl,
+  isIOS,
+  releaseIntroVideoUrl,
+} from "../lib/introVideo";
 
-const INTRO_SRC = "/mirin-intro.mp4";
-const SESSION_KEY = "mirin:intro-complete";
+type Phase = "loading" | "ready" | "playing" | "error";
 
 type AppIntroProps = {
   onComplete: () => void;
 };
 
+const MAX_PLAY_RETRIES = 3;
+
 export function AppIntro({ onComplete }: AppIntroProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [exiting, setExiting] = useState(false);
-  const [needsTap, setNeedsTap] = useState(false);
   const completedRef = useRef(false);
-  const playbackStartedRef = useRef(false);
+  const playRetriesRef = useRef(0);
+  const readyRef = useRef(false);
+  const requiresTapRef = useRef(isIOS());
+  const sourceSetRef = useRef(false);
+
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [exiting, setExiting] = useState(false);
 
   const finish = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
-    sessionStorage.setItem(SESSION_KEY, "1");
+    sessionStorage.setItem(INTRO_SESSION_KEY, "1");
+    releaseIntroVideoUrl();
 
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -30,26 +43,56 @@ export function AppIntro({ onComplete }: AppIntroProps) {
     setExiting(true);
   }, [onComplete]);
 
-  const startPlayback = useCallback(async () => {
-    const video = videoRef.current;
-    if (!video || completedRef.current) return false;
+  const markReady = useCallback(() => {
+    if (readyRef.current || completedRef.current) return;
+    readyRef.current = true;
+    setPhase("ready");
+  }, []);
 
-    video.muted = true;
-    video.defaultMuted = true;
-    video.playsInline = true;
-    video.setAttribute("playsinline", "");
-    video.setAttribute("webkit-playsinline", "");
+  const attemptPlay = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || completedRef.current || video.ended) return false;
+
+    configureVideoForIOS(video);
 
     try {
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        await new Promise<void>((resolve, reject) => {
+          const onReady = () => {
+            cleanup();
+            resolve();
+          };
+          const onError = () => {
+            cleanup();
+            reject(new Error("Video failed to buffer"));
+          };
+          const cleanup = () => {
+            video.removeEventListener("canplay", onReady);
+            video.removeEventListener("error", onError);
+          };
+          video.addEventListener("canplay", onReady, { once: true });
+          video.addEventListener("error", onError, { once: true });
+        });
+      }
+
       await video.play();
-      playbackStartedRef.current = true;
-      setNeedsTap(false);
+      playRetriesRef.current = 0;
+      setPhase("playing");
       return true;
     } catch {
-      if (!playbackStartedRef.current) setNeedsTap(true);
+      playRetriesRef.current += 1;
+      if (playRetriesRef.current >= MAX_PLAY_RETRIES) {
+        setPhase("error");
+      } else {
+        setPhase("ready");
+      }
       return false;
     }
   }, []);
+
+  const handleStart = useCallback(() => {
+    void attemptPlay();
+  }, [attemptPlay]);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia(
@@ -60,29 +103,80 @@ export function AppIntro({ onComplete }: AppIntroProps) {
       return;
     }
 
+    let cancelled = false;
     const video = videoRef.current;
     if (!video) return;
 
-    const tryPlay = () => {
-      window.setTimeout(() => {
-        void startPlayback();
-      }, 0);
+    configureVideoForIOS(video);
+
+    const onCanPlayThrough = () => {
+      if (cancelled || completedRef.current) return;
+      markReady();
+      if (!requiresTapRef.current) {
+        window.requestAnimationFrame(() => {
+          void attemptPlay();
+        });
+      }
     };
 
-    video.addEventListener("canplay", tryPlay, { once: true });
-    video.addEventListener("loadeddata", tryPlay, { once: true });
-    video.load();
+    const onPlaying = () => {
+      if (cancelled || completedRef.current) return;
+      setPhase("playing");
+    };
+
+    const onWaiting = () => {
+      const current = videoRef.current;
+      if (!current || current.paused || current.ended || completedRef.current) {
+        return;
+      }
+      void current.play().catch(() => undefined);
+    };
+
+    const onVisibilityChange = () => {
+      const current = videoRef.current;
+      if (
+        document.hidden ||
+        !current ||
+        current.paused ||
+        current.ended ||
+        completedRef.current
+      ) {
+        return;
+      }
+      void current.play().catch(() => undefined);
+    };
+
+    video.addEventListener("canplaythrough", onCanPlayThrough);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("waiting", onWaiting);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    void getIntroVideoUrl()
+      .then((url) => {
+        if (cancelled || completedRef.current || sourceSetRef.current) return;
+        sourceSetRef.current = true;
+        video.src = url;
+        video.load();
+      })
+      .catch(() => {
+        if (!cancelled) setPhase("error");
+      });
 
     return () => {
-      video.removeEventListener("canplay", tryPlay);
-      video.removeEventListener("loadeddata", tryPlay);
+      cancelled = true;
+      video.removeEventListener("canplaythrough", onCanPlayThrough);
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("waiting", onWaiting);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [onComplete, startPlayback]);
+  }, [attemptPlay, markReady, onComplete]);
 
   const handleTransitionEnd = (event: React.TransitionEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || !exiting) return;
     onComplete();
   };
+
+  const showStartOverlay = phase === "ready" || phase === "error";
 
   return (
     <div
@@ -95,37 +189,45 @@ export function AppIntro({ onComplete }: AppIntroProps) {
       onTransitionEnd={handleTransitionEnd}
       aria-hidden={exiting}
     >
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex items-center justify-center [transform:translateZ(0)]">
         <video
           ref={videoRef}
-          className="h-full w-full object-contain"
+          className="h-full w-full object-contain [transform:translateZ(0)]"
           width={1080}
           height={1920}
-          autoPlay
           muted
           playsInline
           preload="auto"
           poster="/logo.png"
           onEnded={finish}
-          onPlaying={() => {
-            playbackStartedRef.current = true;
-            setNeedsTap(false);
-          }}
           aria-hidden
-        >
-          <source src={INTRO_SRC} type="video/mp4" />
-        </video>
+        />
       </div>
 
-      {needsTap ? (
+      {phase === "loading" ? (
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          aria-hidden
+        >
+          <img
+            src="/logo.png"
+            alt=""
+            className="h-16 w-auto rounded opacity-80"
+            width={64}
+            height={64}
+          />
+        </div>
+      ) : null}
+
+      {showStartOverlay ? (
         <button
           type="button"
-          onClick={() => void startPlayback()}
-          className="absolute inset-0 flex items-center justify-center bg-bg/60"
-          aria-label="Play intro"
+          onClick={handleStart}
+          className="absolute inset-0 flex items-center justify-center bg-bg/40"
+          aria-label={phase === "error" ? "Retry intro" : "Play intro"}
         >
           <span className="rounded-md bg-surface px-4 py-3 text-sm font-medium text-ink">
-            Tap to play
+            {phase === "error" ? "Tap to retry" : "Tap to start"}
           </span>
         </button>
       ) : null}
@@ -146,10 +248,4 @@ export function AppIntro({ onComplete }: AppIntroProps) {
   );
 }
 
-export function shouldShowIntro(): boolean {
-  if (typeof window === "undefined") return false;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    return false;
-  }
-  return sessionStorage.getItem(SESSION_KEY) !== "1";
-}
+export { shouldShowIntro, prefetchIntroVideo } from "../lib/introVideo";
