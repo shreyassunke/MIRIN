@@ -15,7 +15,7 @@ export default defineConfig({
         // App shell + assets cached on first visit; API calls N/A (client-only).
         globPatterns: ["**/*.{js,css,html,ico,png,woff2,webmanifest}"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api/, /^\/mirin-intro\.mp4$/],
+        navigateFallbackDenylist: [/^\/api/],
       },
     }),
   ],
