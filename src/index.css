@@ -270,6 +270,11 @@ html.reorder-active * {
   -webkit-touch-callout: none;
 }
 
+/* Logging / search panels keep vertical page scroll */
+[data-no-drag] {
+  touch-action: pan-y;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

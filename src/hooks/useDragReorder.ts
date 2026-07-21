@@ -17,7 +17,7 @@ interface UseDragReorderOptions {
 }
 
 const REORDER_ATTR = "data-reorder-index";
-const MOVE_CANCEL_PX = 10;
+const MOVE_CANCEL_PX = 12;
 const EDGE_PX = 72;
 const SCROLL_MAX = 18;
 
@@ -25,12 +25,9 @@ type DragLive = {
   from: number;
   over: number;
   height: number;
-  /** Pointer Y when the drag armed / began. */
   startClientY: number;
   startScrollY: number;
-  /** Latest pointer Y (viewport). */
   pointerY: number;
-  /** Finger follow offset in document space (includes scroll). */
   deltaY: number;
 };
 
@@ -62,9 +59,7 @@ function indexAtY(y: number): number | null {
 function isInteractiveTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
-  // Explicit no-drag regions (logging controls, search, etc.)
   if (el.closest("[data-no-drag]")) return true;
-  // Header surface may be a button but still long-press to reorder.
   if (el.closest("[data-drag-surface]")) return false;
   return Boolean(
     el.closest("button, a, input, textarea, select, [role='button']"),
@@ -92,6 +87,7 @@ export function useDragReorder({
   const [live, setLive] = useState<DragLive | null>(null);
   const liveRef = useRef<DragLive | null>(null);
   const draggingRef = useRef(false);
+  const armingRef = useRef(false);
   const movedRef = useRef(false);
   const pressTimerRef = useRef<number | null>(null);
   const originRef = useRef<{ x: number; y: number; index: number } | null>(
@@ -101,6 +97,7 @@ export function useDragReorder({
   const captureElRef = useRef<HTMLElement | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const suppressClickRef = useRef(false);
+  const touchMoveBlockRef = useRef<((e: TouchEvent) => void) | null>(null);
 
   const setLiveBoth = useCallback((next: DragLive | null) => {
     liveRef.current = next;
@@ -121,28 +118,62 @@ export function useDragReorder({
     }
   }, []);
 
+  const stopTouchMoveBlock = useCallback(() => {
+    if (touchMoveBlockRef.current) {
+      document.removeEventListener("touchmove", touchMoveBlockRef.current);
+      touchMoveBlockRef.current = null;
+    }
+  }, []);
+
+  /** Non-passive touchmove so iOS can't scroll-steal the long-press / drag. */
+  const startTouchMoveBlock = useCallback(() => {
+    if (touchMoveBlockRef.current) return;
+    const block = (e: TouchEvent) => {
+      if (armingRef.current || draggingRef.current) {
+        e.preventDefault();
+      }
+    };
+    touchMoveBlockRef.current = block;
+    document.addEventListener("touchmove", block, { passive: false });
+  }, []);
+
   const reset = useCallback(() => {
     clearPressTimer();
     stopScrollLoop();
+    stopTouchMoveBlock();
     draggingRef.current = false;
+    armingRef.current = false;
     movedRef.current = false;
     originRef.current = null;
     pointerIdRef.current = null;
     captureElRef.current = null;
     document.documentElement.classList.remove("reorder-active");
     setLiveBoth(null);
-  }, [clearPressTimer, setLiveBoth, stopScrollLoop]);
+  }, [clearPressTimer, setLiveBoth, stopScrollLoop, stopTouchMoveBlock]);
 
   const beginDrag = useCallback(
     (index: number, clientY: number, el: HTMLElement) => {
       if (!enabled) return;
       const row = el.closest<HTMLElement>(`[${REORDER_ATTR}]`) ?? el;
       const rect = row.getBoundingClientRect();
+      armingRef.current = false;
       draggingRef.current = true;
       movedRef.current = false;
       suppressClickRef.current = true;
       window.getSelection()?.removeAllRanges();
       document.documentElement.classList.add("reorder-active");
+      startTouchMoveBlock();
+
+      // Capture only once the drag is real — not during the press wait.
+      captureElRef.current = el;
+      if (pointerIdRef.current !== null) {
+        try {
+          el.setPointerCapture(pointerIdRef.current);
+        } catch {
+          /* ignore */
+        }
+      }
+
       setLiveBoth({
         from: index,
         over: index,
@@ -161,7 +192,7 @@ export function useDragReorder({
         }
       }
     },
-    [enabled, setLiveBoth],
+    [enabled, setLiveBoth, startTouchMoveBlock],
   );
 
   const autoScrollTick = useCallback(() => {
@@ -189,10 +220,7 @@ export function useDragReorder({
       current.pointerY -
       current.startClientY +
       (window.scrollY - current.startScrollY);
-    if (
-      over !== current.over ||
-      Math.abs(deltaY - current.deltaY) > 0.5
-    ) {
+    if (over !== current.over || Math.abs(deltaY - current.deltaY) > 0.5) {
       if (over !== current.over) movedRef.current = true;
       setLiveBoth({ ...current, over, deltaY });
     }
@@ -228,6 +256,14 @@ export function useDragReorder({
     },
     [ensureScrollLoop, setLiveBoth],
   );
+
+  const cancelArm = useCallback(() => {
+    clearPressTimer();
+    stopTouchMoveBlock();
+    armingRef.current = false;
+    originRef.current = null;
+    // Leave pointerId so pointerup can clean up; do not capture.
+  }, [clearPressTimer, stopTouchMoveBlock]);
 
   const endDrag = useCallback(() => {
     const current = liveRef.current;
@@ -267,20 +303,23 @@ export function useDragReorder({
 
       if (!draggingRef.current) {
         const origin = originRef.current;
-        if (!origin) return;
+        if (!origin || !armingRef.current) return;
         const dx = e.clientX - origin.x;
         const dy = e.clientY - origin.y;
         if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
-          clearPressTimer();
-          originRef.current = null;
+          // Finger moved — this is a scroll, not a drag. Release cleanly.
+          cancelArm();
+          return;
         }
+        // Still within slop while waiting for long-press: hold the gesture.
+        e.preventDefault();
         return;
       }
 
       e.preventDefault();
       updateDrag(e.clientY);
     },
-    [clearPressTimer, updateDrag],
+    [cancelArm, updateDrag],
   );
 
   const onPointerUp = useCallback(
@@ -294,10 +333,13 @@ export function useDragReorder({
         endDrag();
         return;
       }
+      stopTouchMoveBlock();
+      armingRef.current = false;
       originRef.current = null;
       pointerIdRef.current = null;
+      captureElRef.current = null;
     },
-    [clearPressTimer, endDrag],
+    [clearPressTimer, endDrag, stopTouchMoveBlock],
   );
 
   const onPointerCancel = useCallback(() => {
@@ -307,9 +349,12 @@ export function useDragReorder({
       suppressClickRef.current = false;
       return;
     }
+    stopTouchMoveBlock();
+    armingRef.current = false;
     originRef.current = null;
     pointerIdRef.current = null;
-  }, [clearPressTimer, reset]);
+    captureElRef.current = null;
+  }, [clearPressTimer, reset, stopTouchMoveBlock]);
 
   const armPress = useCallback(
     (index: number, e: ReactPointerEvent, immediate: boolean) => {
@@ -320,30 +365,28 @@ export function useDragReorder({
       pointerIdRef.current = e.pointerId;
       captureElRef.current = e.currentTarget as HTMLElement;
       originRef.current = { x: e.clientX, y: e.clientY, index };
-
-      try {
-        captureElRef.current.setPointerCapture(e.pointerId);
-      } catch {
-        /* ignore */
-      }
-
       window.getSelection()?.removeAllRanges();
 
       if (immediate) {
         e.preventDefault();
+        startTouchMoveBlock();
         beginDrag(index, e.clientY, captureElRef.current);
         return;
       }
+
+      // Arm long-press without capturing yet — capture happens in beginDrag.
+      armingRef.current = true;
+      startTouchMoveBlock();
 
       pressTimerRef.current = window.setTimeout(() => {
         pressTimerRef.current = null;
         const origin = originRef.current;
         const el = captureElRef.current;
-        if (!origin || !el) return;
+        if (!origin || !el || !armingRef.current) return;
         beginDrag(origin.index, origin.y, el);
       }, longPressMs);
     },
-    [beginDrag, clearPressTimer, enabled, longPressMs],
+    [beginDrag, clearPressTimer, enabled, longPressMs, startTouchMoveBlock],
   );
 
   const pointerHandlers = useCallback(
@@ -389,7 +432,9 @@ export function useDragReorder({
           : "transform 220ms var(--ease-out-quint), box-shadow 180ms var(--ease-out-quint)",
         zIndex: isDragging ? 40 : live && translateY !== 0 ? 1 : undefined,
         position: "relative",
-        touchAction: handleOnly ? undefined : "pan-y",
+        // none: we own vertical gestures on cards so long-press isn't scroll-stolen.
+        // Scroll from page chrome / data-no-drag regions instead.
+        touchAction: handleOnly ? undefined : "none",
         willChange: live ? "transform" : undefined,
       };
 
