@@ -1,5 +1,13 @@
-import type { ReactNode, SVGProps } from "react";
-import { NavLink } from "react-router-dom";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type SVGProps,
+} from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { getContactLine, getDisplayName } from "../lib/user";
 
@@ -10,6 +18,13 @@ const NAV_ITEMS = [
   { to: "/split", label: "Split", Icon: IconSplit },
   { to: "/profile", label: "Profile", Icon: IconProfile },
 ] as const;
+
+function activeNavIndex(pathname: string): number {
+  const exact = NAV_ITEMS.findIndex((item) => item.to === pathname);
+  if (exact >= 0) return exact;
+  // Nested routes (e.g. /history/session/:id) keep the parent tab lit.
+  return NAV_ITEMS.findIndex((item) => pathname.startsWith(`${item.to}/`));
+}
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [
@@ -124,8 +139,64 @@ function IconProfile(props: SVGProps<SVGSVGElement>) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const location = useLocation();
   const displayName = getDisplayName(user);
   const contact = getContactLine(user);
+  const activeIndex = activeNavIndex(location.pathname);
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const [indicator, setIndicator] = useState({
+    x: 0,
+    width: 0,
+    ready: false,
+  });
+  const [canAnimate, setCanAnimate] = useState(false);
+  const [settling, setSettling] = useState(false);
+  const prevIndex = useRef(activeIndex);
+
+  const measureIndicator = useCallback(() => {
+    const track = trackRef.current;
+    const item = itemRefs.current[activeIndex];
+    if (!track || !item || activeIndex < 0) {
+      setIndicator((s) => ({ ...s, ready: false }));
+      return;
+    }
+    const trackRect = track.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    setIndicator({
+      x: itemRect.left - trackRect.left,
+      width: itemRect.width,
+      ready: true,
+    });
+  }, [activeIndex]);
+
+  useLayoutEffect(() => {
+    measureIndicator();
+    // Enable slide transitions only after the first layout so cold open
+    // doesn't animate in from x=0.
+    if (!canAnimate) {
+      const id = requestAnimationFrame(() => setCanAnimate(true));
+      return () => cancelAnimationFrame(id);
+    }
+  }, [measureIndicator, location.pathname, canAnimate]);
+
+  useEffect(() => {
+    window.addEventListener("resize", measureIndicator);
+    return () => window.removeEventListener("resize", measureIndicator);
+  }, [measureIndicator]);
+
+  // Soft glass “settle” flash when the active tab changes.
+  useEffect(() => {
+    if (prevIndex.current === activeIndex || activeIndex < 0) {
+      prevIndex.current = activeIndex;
+      return;
+    }
+    prevIndex.current = activeIndex;
+    setSettling(true);
+    const t = window.setTimeout(() => setSettling(false), 320);
+    return () => window.clearTimeout(t);
+  }, [activeIndex]);
 
   return (
     <div className="min-h-dvh bg-bg text-ink md:flex">
@@ -174,28 +245,50 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      {/* Floating glass pill — Tinder structure: near-full width, equal slots, tall hits */}
+      {/* Floating glass pill — sliding frosted active indicator */}
       <nav
         className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
         aria-label="Primary"
       >
-        <div className="pointer-events-auto flex w-full items-stretch rounded-pill glass p-2 shadow-glass">
-          {NAV_ITEMS.map(({ to, label, Icon }) => (
+        <div
+          ref={trackRef}
+          className="nav-pill-track pointer-events-auto relative flex w-full items-stretch rounded-pill glass p-2 shadow-glass"
+        >
+          <span
+            aria-hidden="true"
+            className={[
+              "nav-pill-indicator",
+              indicator.ready ? "nav-pill-indicator-ready" : "",
+              canAnimate ? "nav-pill-indicator-animate" : "",
+              settling ? "nav-pill-indicator-settle" : "",
+            ].join(" ")}
+            style={{
+              width: indicator.width,
+              transform: `translateX(${indicator.x}px)`,
+            }}
+          />
+          {NAV_ITEMS.map(({ to, label, Icon }, index) => (
             <NavLink
               key={to}
               to={to}
-              className="min-w-0 flex-1"
+              ref={(el) => {
+                itemRefs.current[index] = el;
+              }}
+              className="nav-pill-item relative z-10 min-w-0 flex-1"
             >
               {({ isActive }) => (
                 <span
                   className={[
-                    "flex h-14 w-full flex-col items-center justify-center gap-1.5 rounded-pill",
-                    isActive
-                      ? "bg-glass-highlight text-ink"
-                      : "text-muted",
+                    "nav-pill-label flex h-14 w-full flex-col items-center justify-center gap-1.5 rounded-pill",
+                    isActive ? "text-ink" : "text-muted",
                   ].join(" ")}
                 >
-                  <Icon className="h-7 w-7" />
+                  <Icon
+                    className={[
+                      "h-7 w-7 transition-transform duration-[280ms] ease-out-expo",
+                      isActive ? "scale-105" : "scale-100",
+                    ].join(" ")}
+                  />
                   <span className="text-[12px] font-medium leading-none tracking-tight">
                     {label}
                   </span>
