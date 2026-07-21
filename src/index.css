@@ -255,6 +255,21 @@ a,
   border-color: rgb(250 250 250 / 0.2) !important;
 }
 
+/* Kill iOS/Android text selection while reordering */
+html.reorder-active,
+html.reorder-active * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+[data-reorder-index],
+[data-drag-surface] {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

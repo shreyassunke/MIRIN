@@ -93,7 +93,7 @@ export function TodayExerciseTile({
       onPointerMove={onDragPointerMove}
       onPointerUp={onDragPointerUp}
       onPointerCancel={onDragPointerCancel}
-      className={["overflow-hidden rounded-xl glass", dragRowClassName]
+      className={["overflow-hidden rounded-xl glass select-none", dragRowClassName]
         .filter(Boolean)
         .join(" ")}
     >
@@ -103,7 +103,7 @@ export function TodayExerciseTile({
           data-drag-surface=""
           onClick={handleHeaderClick}
           className={[
-            "glass-chip flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-3 py-1.5 text-left",
+            "glass-chip flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-3 py-1.5 text-left select-none",
             isActive ? "glass-chip-active" : "",
           ]
             .filter(Boolean)

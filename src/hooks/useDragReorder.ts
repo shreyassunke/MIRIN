@@ -129,6 +129,7 @@ export function useDragReorder({
     originRef.current = null;
     pointerIdRef.current = null;
     captureElRef.current = null;
+    document.documentElement.classList.remove("reorder-active");
     setLiveBoth(null);
   }, [clearPressTimer, setLiveBoth, stopScrollLoop]);
 
@@ -140,6 +141,8 @@ export function useDragReorder({
       draggingRef.current = true;
       movedRef.current = false;
       suppressClickRef.current = true;
+      window.getSelection()?.removeAllRanges();
+      document.documentElement.classList.add("reorder-active");
       setLiveBoth({
         from: index,
         over: index,
@@ -323,6 +326,8 @@ export function useDragReorder({
       } catch {
         /* ignore */
       }
+
+      window.getSelection()?.removeAllRanges();
 
       if (immediate) {
         e.preventDefault();
