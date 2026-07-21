@@ -60,7 +60,7 @@ export function RestTimer({
     <div
       role="timer"
       aria-live="off"
-      className="fixed inset-x-3 bottom-[5.75rem] z-40 mx-auto flex max-w-md items-center gap-3 rounded-xl glass px-4 py-3 shadow-glass md:bottom-6"
+      className="fixed inset-x-3 bottom-[4.75rem] z-40 mx-auto flex max-w-md items-center gap-3 rounded-xl glass px-4 py-3 shadow-glass md:bottom-6"
     >
       {!reducedMotion && (
         <svg

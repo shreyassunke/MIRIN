@@ -143,32 +143,38 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <main className="mx-auto w-full max-w-2xl px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-12 md:pt-10">
+        <main className="mx-auto w-full max-w-2xl px-4 pb-28 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-12 md:pt-10">
           {children}
         </main>
       </div>
 
-      {/* Mobile floating pill nav — compact, centered like Tinder */}
+      {/* Mobile tab bar — Duet sizing: full-width, compact, even slots */}
       <nav
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-glass-border glass pb-[env(safe-area-inset-bottom)] md:hidden"
         aria-label="Primary"
       >
-        <div className="pointer-events-auto flex items-stretch gap-0.5 rounded-pill glass p-1 shadow-glass">
+        <div className="flex h-14 items-stretch px-1">
           {NAV_ITEMS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) =>
-                [
-                  "glass-chip flex min-h-11 w-[4.25rem] flex-col items-center justify-center gap-0.5 rounded-pill px-1 py-1 text-[10px] font-medium",
-                  isActive
-                    ? "glass-chip-active text-ink"
-                    : "text-muted hover:text-ink",
-                ].join(" ")
-              }
+              className="flex min-w-0 flex-1 items-center justify-center"
             >
-              <Icon className="h-[1.125rem] w-[1.125rem]" />
-              <span>{label}</span>
+              {({ isActive }) => (
+                <span
+                  className={[
+                    "flex flex-col items-center justify-center gap-0.5 rounded-full px-3.5 py-1",
+                    isActive
+                      ? "bg-glass-highlight text-ink"
+                      : "text-muted",
+                  ].join(" ")}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="text-[11px] font-medium leading-none">
+                    {label}
+                  </span>
+                </span>
+              )}
             </NavLink>
           ))}
         </div>
