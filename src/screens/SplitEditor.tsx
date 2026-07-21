@@ -23,9 +23,9 @@ import { ToggleSwitch } from "../components/ToggleSwitch";
 import { useDragReorder } from "../hooks/useDragReorder";
 
 const iconBtn =
-  "h-11 w-11 rounded-md border border-hairline bg-surface text-muted transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:pointer-events-none disabled:opacity-40";
+  "glass-btn h-11 w-11 rounded-pill text-muted hover:text-ink disabled:pointer-events-none disabled:opacity-40";
 const secondaryBtn =
-  "h-11 rounded-md border border-hairline bg-surface px-4 text-sm font-medium text-ink transition-colors duration-150 hover:bg-surface-raised";
+  "glass-btn h-11 rounded-pill px-4 text-sm font-medium text-ink";
 
 /** Two-tap destructive action: no modal, no accidental taps. */
 function ConfirmButton({
@@ -641,7 +641,7 @@ export function SplitEditor() {
               <button
                 type="submit"
                 disabled={!newName.trim()}
-                className="h-11 rounded-md bg-accent px-4 text-sm font-semibold text-bg transition-colors duration-150 hover:bg-ink disabled:bg-surface disabled:text-muted"
+                className="btn-primary h-11 rounded-pill bg-accent px-4 text-sm font-semibold text-bg hover:bg-ink disabled:opacity-40"
               >
                 Create
               </button>

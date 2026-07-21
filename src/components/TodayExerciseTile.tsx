@@ -51,7 +51,7 @@ export function TodayExerciseTile({
     <li
       data-reorder-index={reorderIndex}
       className={[
-        "rounded-md border border-hairline bg-surface",
+        "overflow-hidden rounded-xl glass",
         dragRowClassName,
       ]
         .filter(Boolean)
@@ -70,8 +70,8 @@ export function TodayExerciseTile({
           type="button"
           onClick={onStartSwap}
           className={[
-            "flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-colors duration-150 motion-reduce:transition-none",
-            isActive ? "bg-surface-raised/50" : "hover:bg-surface-raised/30",
+            "glass-chip flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-left",
+            isActive ? "glass-chip-active" : "",
           ]
             .filter(Boolean)
             .join(" ")}

@@ -8,9 +8,9 @@ type Mode = "sign-in" | "sign-up";
 const inputClass =
   "h-12 w-full rounded-md border border-hairline bg-bg px-3 text-[15px] text-ink placeholder:text-muted transition-colors duration-150 focus:border-muted";
 const primaryBtn =
-  "h-12 w-full rounded-md bg-accent px-5 text-sm font-medium text-bg transition-colors duration-150 hover:bg-ink disabled:opacity-40";
+  "btn-primary h-12 w-full rounded-pill bg-accent px-5 text-sm font-medium text-bg hover:bg-ink disabled:opacity-40";
 const googleBtn =
-  "flex h-12 w-full items-center justify-center gap-2.5 rounded-md border border-hairline bg-surface px-5 text-sm font-medium text-ink transition-colors duration-150 hover:bg-surface-raised disabled:opacity-40";
+  "glass-btn flex h-12 w-full items-center justify-center gap-2.5 rounded-pill px-5 text-sm font-medium text-ink disabled:opacity-40";
 const ghostBtn =
   "text-sm font-medium text-muted transition-colors duration-150 hover:text-ink";
 
@@ -116,7 +116,7 @@ export function Auth() {
         </p>
 
         {!configured ? (
-          <div className="mt-8 rounded-md border border-hairline bg-surface p-4">
+          <div className="mt-8 rounded-xl glass p-4">
             <p className="text-[15px] leading-relaxed text-ink">
               Supabase is not configured.
             </p>

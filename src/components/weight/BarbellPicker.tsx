@@ -177,9 +177,9 @@ export function BarbellPicker({
                 onChange(bar, plates);
               }}
               className={[
-                "tnum h-9 rounded-pill px-3 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
+                "glass-chip tnum h-9 rounded-pill px-3 text-[13px] font-medium",
                 !customBar && barWeight === bar
-                  ? "bg-glass-highlight text-ink"
+                  ? "glass-chip-active text-ink"
                   : "text-muted hover:text-ink",
               ].join(" ")}
             >
@@ -191,9 +191,9 @@ export function BarbellPicker({
             aria-pressed={customBar}
             onClick={() => setCustomChosen(true)}
             className={[
-              "h-9 rounded-pill px-3 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
+              "glass-chip h-9 rounded-pill px-3 text-[13px] font-medium",
               customBar
-                ? "bg-glass-highlight text-ink"
+                ? "glass-chip-active text-ink"
                 : "text-muted hover:text-ink",
             ].join(" ")}
           >

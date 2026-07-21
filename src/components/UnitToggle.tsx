@@ -19,9 +19,9 @@ export function UnitToggle() {
           aria-pressed={unit === u}
           onClick={() => setUnit(u)}
           className={[
-            "h-9 min-w-10 rounded-pill px-3 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
+            "glass-chip h-9 min-w-10 rounded-pill px-3 text-[13px] font-medium",
             unit === u
-              ? "bg-glass-highlight text-ink"
+              ? "glass-chip-active text-ink"
               : "text-muted hover:text-ink",
           ].join(" ")}
         >

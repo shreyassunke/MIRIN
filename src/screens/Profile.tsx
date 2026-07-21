@@ -6,9 +6,9 @@ import { useSync } from "../sync/SyncProvider";
 const inputClass =
   "h-12 w-full rounded-md border border-hairline bg-bg px-3 text-[15px] text-ink placeholder:text-muted transition-colors duration-150 focus:border-muted";
 const primaryBtn =
-  "h-12 rounded-md bg-accent px-5 text-sm font-medium text-bg transition-colors duration-150 hover:bg-ink disabled:opacity-40";
+  "btn-primary h-12 rounded-pill bg-accent px-5 text-sm font-medium text-bg hover:bg-ink disabled:opacity-40";
 const secondaryBtn =
-  "h-12 rounded-md border border-hairline bg-surface px-5 text-sm font-medium text-ink transition-colors duration-150 hover:bg-surface-raised";
+  "glass-btn h-12 rounded-pill px-5 text-sm font-medium text-ink";
 
 function syncLabel(status: string, lastSyncedAt: string | null): string {
   switch (status) {
@@ -81,7 +81,7 @@ export function Profile() {
         Name and account details for this log.
       </p>
 
-      <section className="mt-8 rounded-md border border-hairline bg-surface p-4 md:p-6">
+      <section className="mt-8 rounded-xl glass p-4 md:p-6">
         <p className="text-[15px] font-semibold tracking-tight">
           {displayName || "No name set"}
         </p>

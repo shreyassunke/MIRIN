@@ -576,9 +576,9 @@ export function Today() {
                           aria-pressed={mode === m.id}
                           onClick={() => setMode(m.id, exercise.id)}
                           className={[
-                            "h-10 rounded-pill px-4 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
+                            "glass-chip h-10 rounded-pill px-4 text-[13px] font-medium",
                             mode === m.id
-                              ? "bg-glass-highlight text-ink"
+                              ? "glass-chip-active text-ink"
                               : "text-muted hover:text-ink",
                           ].join(" ")}
                         >
@@ -654,7 +654,7 @@ export function Today() {
                     <button
                       type="button"
                       onClick={() => logCurrent(exercise.id)}
-                      className="h-12 flex-1 rounded-pill bg-accent text-[15px] font-semibold text-bg transition-colors duration-150 hover:bg-ink"
+                      className="btn-primary h-12 flex-1 rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
                     >
                       Log set {logged.length + 1}
                     </button>
@@ -711,7 +711,7 @@ export function Today() {
             onClick={finishWorkout}
             className={
               allDone
-                ? "h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg transition-colors duration-150 hover:bg-ink"
+                ? "btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
                 : "glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
             }
           >

@@ -143,26 +143,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="min-w-0 flex-1">
-        {/* Mobile top bar */}
-        <header className="sticky top-0 z-20 glass border-b-0 px-4 py-2.5 md:hidden">
-          <div className="flex items-center gap-2.5">
-            <img
-              src="/logo.png"
-              alt="MIRIN"
-              className="h-6 w-auto rounded"
-              width="24"
-              height="24"
-            />
-            <span className="text-sm font-semibold tracking-tight">MIRIN</span>
-            {displayName ? (
-              <span className="ml-auto max-w-[40%] truncate text-[13px] text-muted">
-                {displayName}
-              </span>
-            ) : null}
-          </div>
-        </header>
-
-        <main className="mx-auto w-full max-w-2xl px-4 pb-32 pt-5 md:px-8 md:pb-12 md:pt-10">
+        <main className="mx-auto w-full max-w-2xl px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-12 md:pt-10">
           {children}
         </main>
       </div>
@@ -179,9 +160,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               to={to}
               className={({ isActive }) =>
                 [
-                  "flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-pill px-1 py-1.5 text-[11px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
+                  "glass-chip flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-pill px-1 py-1.5 text-[11px] font-medium",
                   isActive
-                    ? "bg-glass-highlight text-ink"
+                    ? "glass-chip-active text-ink"
                     : "text-muted hover:text-ink",
                 ].join(" ")
               }

@@ -122,8 +122,10 @@ export function DumbbellPicker({
             aria-pressed={pair}
             onClick={() => onPairChange(true)}
             className={[
-              "h-9 rounded-pill px-3 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
-              pair ? "bg-glass-highlight text-ink" : "text-muted hover:text-ink",
+              "glass-chip h-9 rounded-pill px-3 text-[13px] font-medium",
+              pair
+                ? "glass-chip-active text-ink"
+                : "text-muted hover:text-ink",
             ].join(" ")}
           >
             Pair
@@ -133,9 +135,9 @@ export function DumbbellPicker({
             aria-pressed={!pair}
             onClick={() => onPairChange(false)}
             className={[
-              "h-9 rounded-pill px-3 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
+              "glass-chip h-9 rounded-pill px-3 text-[13px] font-medium",
               !pair
-                ? "bg-glass-highlight text-ink"
+                ? "glass-chip-active text-ink"
                 : "text-muted hover:text-ink",
             ].join(" ")}
           >

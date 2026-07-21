@@ -60,7 +60,7 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
     "h-11 w-full rounded-md border border-hairline bg-bg px-3 text-sm text-ink focus:border-muted";
 
   return (
-    <div className="rounded-md border border-hairline bg-surface p-4">
+    <div className="rounded-xl glass p-4">
       <p className="mb-3 text-[13px] font-medium text-muted">
         New custom exercise
       </p>
@@ -125,14 +125,14 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
             });
             onCreate(entry);
           }}
-          className="h-11 flex-1 rounded-md bg-accent px-4 text-sm font-semibold text-bg transition-colors duration-150 hover:bg-ink disabled:bg-surface disabled:text-muted"
+          className="btn-primary h-11 flex-1 rounded-pill bg-accent px-4 text-sm font-semibold text-bg hover:bg-ink disabled:opacity-40"
         >
           Save exercise
         </button>
         <button
           type="button"
           onClick={onBack}
-          className="h-11 rounded-md border border-hairline bg-surface px-4 text-sm font-medium text-ink transition-colors duration-150 hover:bg-surface-raised"
+          className="glass-btn h-11 rounded-pill px-4 text-sm font-medium text-ink"
         >
           Back
         </button>
@@ -282,7 +282,7 @@ export function ExerciseCombobox({
           id={listboxId}
           role="listbox"
           aria-label="Exercise results"
-          className="mt-2 max-h-72 overflow-y-auto rounded-md border border-hairline bg-surface"
+          className="mt-2 max-h-72 overflow-y-auto rounded-xl glass"
         >
           {results.map((entry, index) => {
             const isAdded = excluded.has(entry.id);
