@@ -166,7 +166,7 @@ export function BarbellPicker({
       {/* Bar selection */}
       <div className="mb-4 flex items-center gap-2">
         <span className="text-[13px] font-medium text-muted">Bar</span>
-        <div className="flex gap-1.5">
+        <div className="glass flex gap-0.5 rounded-pill p-0.5">
           {bars.map((bar) => (
             <button
               key={bar}
@@ -177,10 +177,10 @@ export function BarbellPicker({
                 onChange(bar, plates);
               }}
               className={[
-                "tnum h-9 rounded-md border px-3 text-[13px] font-medium transition-colors duration-150",
+                "tnum h-9 rounded-pill px-3 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
                 !customBar && barWeight === bar
-                  ? "border-hairline bg-surface-raised text-ink"
-                  : "border-hairline bg-surface text-muted hover:text-ink",
+                  ? "bg-glass-highlight text-ink"
+                  : "text-muted hover:text-ink",
               ].join(" ")}
             >
               {formatWeight(bar)} {unit}
@@ -191,10 +191,10 @@ export function BarbellPicker({
             aria-pressed={customBar}
             onClick={() => setCustomChosen(true)}
             className={[
-              "h-9 rounded-md border px-3 text-[13px] font-medium transition-colors duration-150",
+              "h-9 rounded-pill px-3 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
               customBar
-                ? "border-hairline bg-surface-raised text-ink"
-                : "border-hairline bg-surface text-muted hover:text-ink",
+                ? "bg-glass-highlight text-ink"
+                : "text-muted hover:text-ink",
             ].join(" ")}
           >
             Custom

@@ -10,11 +10,11 @@ interface StepperProps {
 
 export function Stepper({ label, value, step, min = 0, onChange }: StepperProps) {
   const btn =
-    "h-11 w-11 rounded-md border border-hairline bg-surface text-xl leading-none text-ink transition-colors duration-150 hover:bg-surface-raised active:bg-surface-raised";
+    "glass-btn flex h-12 w-12 items-center justify-center rounded-pill text-xl leading-none text-ink";
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1.5">
       <span className="text-[13px] font-medium text-muted">{label}</span>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           className={btn}

@@ -42,6 +42,8 @@ typography:
     fontFeature: "tnum"
 rounded:
   md: "8px"
+  xl: "20px"
+  pill: "999px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -85,16 +87,17 @@ components:
 
 **Creative North Star: "The Well-Kept Logbook"**
 
-MIRIN looks like a precise instrument, not an app trying to impress. The entire surface is a near-black field (#0a0a0a) on which numbers — weights, reps, trends — are the only stars. There is one accent, and it isn't a color: it's off-white (#d4d4d4), reserved for the single primary action on each screen. Everything else is grayscale hierarchy: bright ink for the data that matters, muted ink for context, hairline borders instead of shadows for structure.
+MIRIN looks like a precise instrument, not an app trying to impress. The entire surface is a near-black field (#0a0a0a) on which numbers — weights, reps, trends — are the only stars. There is one accent, and it isn't a color: it's off-white (#d4d4d4), reserved for the single primary action on each screen. Everything else is grayscale hierarchy: bright ink for the data that matters, muted ink for context, hairline borders for content structure.
 
-This system explicitly rejects the generic AI dashboard: no purple gradients, no glassmorphism, no gradient text, no ghost cards, no drop-shadow-heavy cards, no side-stripe borders, no identical card grids, and none of the fitness-app hype vocabulary (streaks, badges, celebration motion). It is used mid-workout, one-handed, between sets — so density is moderate, tap targets are large, and each screen has exactly one primary action.
+Floating chrome (mobile nav, rest timer, segmented controls, steppers) uses purposeful frosted glass so thumb-zone controls feel physical without frosting the log itself. Content cards stay solid. This system rejects decorative glass, purple gradients, gradient text, ghost cards, side-stripe borders, identical card grids, and fitness-app hype. It is used mid-workout, one-handed, between sets — so density is moderate, tap targets are large, and each screen has exactly one primary action.
 
 **Key Characteristics:**
 - Near-black monochrome with a single off-white accent for primary actions
-- Structure by 1px hairline borders, never by shadows
+- Content structured by 1px hairline borders; floating chrome may use frosted glass
 - Tabular-figure numerals as the visual centerpiece
 - 8px spacing grid, generous whitespace, one primary action per screen
 - Charts as thin single-color instruments: 1.5px lines, no gridlines
+- Brief logo hold on cold open, then reveal the task (once per session)
 
 ## 2. Colors
 
@@ -105,8 +108,9 @@ A locked grayscale palette; hierarchy is carried entirely by lightness, never by
 
 ### Neutral
 - **Near-Black** (#0a0a0a): The body background everywhere. Near-black, not pure black — it keeps hairline borders and surfaces legible.
-- **Surface** (#141414): Cards, panels, the rest-timer chip, nav bars. Always paired with its border.
-- **Hairline** (#232323): 1px borders on every surface and input. This is the system's entire elevation vocabulary.
+- **Surface** (#141414): Content cards and data panels. Always paired with its hairline border.
+- **Hairline** (#232323): 1px borders on content surfaces and inputs.
+- **Glass** (rgb(20 20 20 / 0.62) + 18px blur): Floating chrome only — mobile nav, sticky mobile header, rest timer, segmented controls.
 - **Ink** (#fafafa): Primary text — exercise names, logged numbers, headings.
 - **Muted Ink** (#8a8a8a): Secondary text — dates, units, labels, helper copy. Passes 4.5:1 on both #0a0a0a and #141414; never use anything dimmer for readable text.
 
@@ -136,29 +140,31 @@ A locked grayscale palette; hierarchy is carried entirely by lightness, never by
 
 ## 4. Elevation
 
-Flat, structured by hairlines. Depth is conveyed by the two-step surface ramp (#0a0a0a → #141414) plus a 1px #232323 border — never by shadows. The only permitted shadow is a subtle 1–2px umbra on genuinely floating elements (the rest-timer overlay, a drag-in-progress row), e.g. `0 1px 2px rgba(0,0,0,0.4)`; anything softer, larger, or layered is prohibited.
+Content stays flat: two-step surface ramp (#0a0a0a → #141414) plus a 1px #232323 border. Floating chrome uses frosted glass (`backdrop-filter: blur(18px)`) with a light translucent border and a soft umbra (`0 8px 28px rgba(0,0,0,0.45)`). Drag-in-progress rows may keep the subtle 1–2px umbra.
 
 ### Named Rules
-**The Hairline Rule.** If a surface needs separation, it gets a 1px #232323 border. If a border isn't enough, the layout is wrong — not the shadow budget.
+**The Hairline Rule.** Content surfaces get a 1px #232323 border. If a border isn't enough, the layout is wrong — not the shadow budget.
+
+**The Glass Chrome Rule.** Blur and translucent fills are allowed only on elements that float above the page (nav, overlays, mid-workout controls). Never frost exercise cards, lists, or charts.
 
 ## 5. Components
 
-Component vocabulary is small and identical on every screen. All corners are 8px, no exceptions.
+Component vocabulary is small and identical on every screen. Content corners are 8px; floating chrome and mid-workout controls use pill (999px) or 20px radii.
 
 ### Buttons
-- **Shape:** Gently rounded (8px), minimum 44px tall for all mid-workout controls.
-- **Primary:** Off-white accent fill (#d4d4d4) with near-black text (#0a0a0a), 12px 20px padding. One per screen.
-- **Hover / Focus:** Primary brightens to #fafafa; focus is a visible 2px outline in #fafafa offset from the fill. Transitions 150ms ease-out.
-- **Secondary:** Surface fill (#141414), 1px #232323 border, ink text. Used for "Same as last time", timer adjustments, cancel.
+- **Shape:** Primary log actions and glass controls use pill radius on mobile; content-adjacent controls may stay 8px. Minimum 44px tall for mid-workout controls.
+- **Primary:** Off-white accent fill (#d4d4d4) with near-black text (#0a0a0a). One per screen.
+- **Hover / Focus:** Primary brightens to #fafafa; focus is a visible 2px outline in #fafafa offset from the fill. Transitions 150ms ease-out-quint.
+- **Secondary (glass):** Translucent fill + light border + blur (`.glass-btn`). Used for steppers, "Same as last time", timer adjustments.
 - **Disabled:** Surface fill, muted-ink text, no border dimming tricks.
 
 ### Steppers
-The signature control. A weight/reps stepper is a horizontal group — minus button, tabular-figure value, plus button — each target ≥44px. Buttons are secondary-style; the value is Data type. Press feedback is an instant background shift to #1c1c1c, no scale animation.
+The signature control. A weight/reps stepper is a horizontal group — minus button, tabular-figure value, plus button — each target ≥44px. Buttons are circular glass discs; the value is Data type. Press feedback is a brief scale-down (0.96) plus highlight shift; suppressed under `prefers-reduced-motion`.
 
 ### Cards / Containers
-- **Corner Style:** 8px.
-- **Background:** #141414, always with a 1px #232323 border.
-- **Shadow Strategy:** None at rest (see Elevation).
+- **Corner Style:** 8px for content cards.
+- **Background:** #141414, always with a 1px #232323 border. Not glass.
+- **Shadow Strategy:** None at rest on content cards.
 - **Internal Padding:** 16px (24px on desktop where content breathes).
 - Cards are used only when grouping is real (one exercise's logging block). Never nested, never as decoration.
 
@@ -167,10 +173,12 @@ The signature control. A weight/reps stepper is a horizontal group — minus but
 - **Focus:** Border shifts to #8a8a8a plus a visible outline. No glow.
 
 ### Navigation
-- Bottom tab bar on mobile, slim sidebar on desktop. Surface background, hairline top/side border. Active item: ink text; inactive: muted ink. No pill highlights, no accent fill — the accent belongs to the log action.
+- **Mobile:** Floating pill tab bar above the safe area — frosted glass, icon + label per tab, active item seated in a translucent highlight pill. Accent fill stays on the log action, not the nav.
+- **Desktop:** Slim sidebar, solid surface, hairline border. Active item: ink text; inactive: muted ink.
+- **Cold open:** Logo + wordmark hold ~900ms, then blur-fade into the shell (once per browser session). Skip under reduced motion.
 
 ### Rest Timer (signature component)
-A subtle progress ring, 1.5px stroke in #d4d4d4 on a #232323 track, with a tabular-figure countdown centered. Dismissible with one tap. Under `prefers-reduced-motion`, the ring is replaced by the numeric countdown alone.
+Floating glass chip above the mobile nav. Subtle progress ring, 1.5px stroke in #d4d4d4 on a #232323 track, tabular-figure countdown centered. Dismissible with one tap. Under `prefers-reduced-motion`, the ring is replaced by the numeric countdown alone.
 
 ### Charts
 Thin 1.5px lines in #d4d4d4, no gridlines, no area fills, no dots except the latest point, minimal muted-ink axis labels. A chart is an instrument for reading a trend, not a decoration.
@@ -178,19 +186,18 @@ Thin 1.5px lines in #d4d4d4, no gridlines, no area fills, no dots except the lat
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** keep exactly one accent-filled primary action per screen — everything else is surface or ghost-free secondary.
+- **Do** keep exactly one accent-filled primary action per screen — everything else is surface or glass secondary.
 - **Do** prefill last session's weight×reps and make adjustment stepper-only; zero required typing for a normal set.
-- **Do** use 1px #232323 borders as the only elevation; the 8px radius on every corner; the 8px spacing grid throughout.
+- **Do** keep content cards solid + hairline; reserve frosted glass for floating chrome and mid-workout controls.
 - **Do** set all comparable numerals in tabular figures.
 - **Do** write copy that states facts: "3 sets logged", "No sessions yet — defaults below", never praise or hype.
-- **Do** honor `prefers-reduced-motion` on every animation, including the rest-timer ring.
+- **Do** honor `prefers-reduced-motion` on every animation, including the rest-timer ring and boot splash.
 
 ### Don't:
-- **Don't** use purple gradients, gradient text, or any gradient anywhere — the palette is six flat values.
-- **Don't** use glassmorphism, backdrop blur, or frosted surfaces.
+- **Don't** use purple gradients, gradient text, or any gradient anywhere — the palette is grayscale plus the Plate Exception.
+- **Don't** frost content cards, lists, or charts — glass is chrome only.
 - **Don't** use the "ai-color-palette" (indigo/violet/cyan) or introduce any hue outside the Plate Exception Rule (muted plate-convention tints, weight picker only).
 - **Don't** use side-stripe borders (`border-left` > 1px as a colored accent) on cards, rows, or callouts.
 - **Don't** build the generic shadcn dashboard look: no identical card grids, no hero-metric tiles, no ghost cards.
-- **Don't** use drop shadows beyond the single subtle 1–2px umbra on floating elements.
 - **Don't** add gridlines, area fills, or multi-color series to charts; 1.5px single-accent lines only.
 - **Don't** ship motivational copy, streaks, badges, emoji, or celebration motion of any kind.

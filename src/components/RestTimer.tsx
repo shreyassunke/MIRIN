@@ -60,7 +60,7 @@ export function RestTimer({
     <div
       role="timer"
       aria-live="off"
-      className="fixed inset-x-4 bottom-20 z-20 mx-auto flex max-w-md items-center gap-3 rounded-md border border-hairline bg-surface px-4 py-3 shadow-float md:bottom-6"
+      className="fixed inset-x-3 bottom-[5.75rem] z-40 mx-auto flex max-w-md items-center gap-3 rounded-xl glass px-4 py-3 shadow-glass md:bottom-6"
     >
       {!reducedMotion && (
         <svg
@@ -100,14 +100,14 @@ export function RestTimer({
       <button
         type="button"
         onClick={() => adjust(-15)}
-        className="h-11 rounded-md border border-hairline bg-surface px-3 text-[13px] font-medium text-ink transition-colors duration-150 hover:bg-surface-raised"
+        className="glass-btn h-11 rounded-pill px-3 text-[13px] font-medium text-ink"
       >
         &minus;15s
       </button>
       <button
         type="button"
         onClick={() => adjust(15)}
-        className="h-11 rounded-md border border-hairline bg-surface px-3 text-[13px] font-medium text-ink transition-colors duration-150 hover:bg-surface-raised"
+        className="glass-btn h-11 rounded-pill px-3 text-[13px] font-medium text-ink"
       >
         +15s
       </button>
@@ -115,7 +115,7 @@ export function RestTimer({
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss rest timer"
-        className="h-11 w-11 rounded-md border border-hairline bg-surface text-muted transition-colors duration-150 hover:bg-surface-raised hover:text-ink"
+        className="glass-btn h-11 w-11 rounded-pill text-muted hover:text-ink"
       >
         &times;
       </button>

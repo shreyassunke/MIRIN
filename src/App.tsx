@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "./auth/RequireAuth";
 import { AppShell } from "./components/AppShell";
+import { BootSplash } from "./components/BootSplash";
 import { Auth } from "./screens/Auth";
 import { Today } from "./screens/Today";
 
@@ -25,11 +26,13 @@ const Profile = lazy(() =>
 function ProtectedLayout() {
   return (
     <RequireAuth>
-      <AppShell>
-        <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
-          <Outlet />
-        </Suspense>
-      </AppShell>
+      <BootSplash>
+        <AppShell>
+          <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
+            <Outlet />
+          </Suspense>
+        </AppShell>
+      </BootSplash>
     </RequireAuth>
   );
 }

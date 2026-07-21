@@ -25,14 +25,15 @@ Quiet, functional, precise. The app is a logbook, not a coach. No motivational c
 This must never look like:
 
 - Purple gradients or any gradient-as-decoration
-- Glassmorphism (decorative blur, frosted cards)
+- Decorative glassmorphism (frosted content cards, blur used for atmosphere)
 - The "ai-color-palette" (indigo/violet/cyan defaults)
 - Side-stripe borders (colored `border-left` accents on cards or list items)
 - The generic shadcn dashboard look (identical card grids, hero metrics, icon+heading+text tiles)
 - Gradient text
 - Ghost cards
-- Drop-shadow-heavy cards
+- Drop-shadow-heavy content cards
 - Fitness-app hype: badges, streaks, "crushing it" copy, progress rings as celebration
+- Dating-app chrome (swipe affordances, profile cards, social badges) — floating glass nav is fine; the product purpose is not
 
 ## Design Principles
 
@@ -41,6 +42,7 @@ This must never look like:
 3. **Quiet by default.** No praise, no persuasion. Labels state facts ("3 sets logged", not "Great work!"). Motion conveys state, never celebration.
 4. **The data is the interface.** Numbers are the content — set them in tabular figures, give them hierarchy, and keep chrome minimal. Charts are thin, ungridded, single-color instruments for reading trends, not decoration.
 5. **Guide, never block.** Empty states offer sensible starting defaults instead of blank fields. A first-ever session is loggable immediately.
+6. **Glass for chrome, solid for content.** Frosted blur is reserved for floating navigation, overlays, and mid-workout controls that sit above the page. Exercise cards and data panels stay solid surface + hairline — never frosted for decoration.
 
 ## Accessibility & Inclusion
 

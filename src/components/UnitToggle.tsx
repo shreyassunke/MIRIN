@@ -10,7 +10,7 @@ export function UnitToggle() {
     <div
       role="group"
       aria-label="Weight unit"
-      className="flex overflow-hidden rounded-md border border-hairline bg-surface"
+      className="glass flex overflow-hidden rounded-pill p-0.5"
     >
       {UNITS.map((u) => (
         <button
@@ -19,9 +19,9 @@ export function UnitToggle() {
           aria-pressed={unit === u}
           onClick={() => setUnit(u)}
           className={[
-            "h-9 px-3 text-[13px] font-medium transition-colors duration-150",
+            "h-9 min-w-10 rounded-pill px-3 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
             unit === u
-              ? "bg-surface-raised text-ink"
+              ? "bg-glass-highlight text-ink"
               : "text-muted hover:text-ink",
           ].join(" ")}
         >

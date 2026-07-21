@@ -1,20 +1,99 @@
-import type { ReactNode } from "react";
+import type { ReactNode, SVGProps } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { getContactLine, getDisplayName } from "../lib/user";
 
 const NAV_ITEMS = [
-  { to: "/today", label: "Today" },
-  { to: "/progress", label: "Progress" },
-  { to: "/split", label: "Split" },
-  { to: "/profile", label: "Profile" },
-];
+  { to: "/today", label: "Today", Icon: IconToday },
+  { to: "/progress", label: "Progress", Icon: IconProgress },
+  { to: "/split", label: "Split", Icon: IconSplit },
+  { to: "/profile", label: "Profile", Icon: IconProfile },
+] as const;
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [
     "rounded-md px-3 py-3 text-sm font-medium transition-colors duration-150",
     isActive ? "text-ink" : "text-muted hover:text-ink",
   ].join(" ");
+}
+
+function IconToday(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="15"
+        rx="2.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path
+        d="M8 3.5v3M16 3.5v3M4 10h16"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9 14.5h2.5M14.5 14.5H17"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconProgress(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path
+        d="M4 16.5 9 11l3.5 3.5L20 7"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 7h5v5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconSplit(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path
+        d="M5 8h14M5 12h14M5 16h14"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <circle cx="9" cy="8" r="1.35" fill="currentColor" />
+      <circle cx="14" cy="12" r="1.35" fill="currentColor" />
+      <circle cx="11" cy="16" r="1.35" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconProfile(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <circle cx="12" cy="9" r="3.25" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M5.5 18.5c1.4-2.4 3.5-3.6 6.5-3.6s5.1 1.2 6.5 3.6"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -35,9 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               width="28"
               height="28"
             />
-            <span className="text-lg font-semibold tracking-tight">
-              MIRIN
-            </span>
+            <span className="text-lg font-semibold tracking-tight">MIRIN</span>
           </span>
           {NAV_ITEMS.map((item) => (
             <NavLink key={item.to} to={item.to} className={navClass}>
@@ -66,44 +143,54 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="min-w-0 flex-1">
-        {/* Mobile top bar: logo in the corner */}
-        <header className="flex items-center gap-2.5 border-b border-hairline px-4 py-2.5 md:hidden">
-          <img
-            src="/logo.png"
-            alt="MIRIN"
-            className="h-6 w-auto rounded"
-            width="24"
-            height="24"
-          />
-          <span className="text-sm font-semibold tracking-tight">MIRIN</span>
-          {displayName ? (
-            <span className="ml-auto max-w-[40%] truncate text-[13px] text-muted">
-              {displayName}
-            </span>
-          ) : null}
+        {/* Mobile top bar */}
+        <header className="sticky top-0 z-20 glass border-b-0 px-4 py-2.5 md:hidden">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/logo.png"
+              alt="MIRIN"
+              className="h-6 w-auto rounded"
+              width="24"
+              height="24"
+            />
+            <span className="text-sm font-semibold tracking-tight">MIRIN</span>
+            {displayName ? (
+              <span className="ml-auto max-w-[40%] truncate text-[13px] text-muted">
+                {displayName}
+              </span>
+            ) : null}
+          </div>
         </header>
 
-        <main className="mx-auto w-full max-w-2xl px-4 pb-28 pt-5 md:px-8 md:pb-12 md:pt-10">
+        <main className="mx-auto w-full max-w-2xl px-4 pb-32 pt-5 md:px-8 md:pb-12 md:pt-10">
           {children}
         </main>
       </div>
 
-      {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-hairline bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              [
-                "flex-1 py-4 text-center text-[13px] font-medium transition-colors duration-150",
-                isActive ? "text-ink" : "text-muted",
-              ].join(" ")
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
+      {/* Mobile floating pill nav */}
+      <nav
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
+        aria-label="Primary"
+      >
+        <div className="pointer-events-auto mx-auto flex max-w-md items-stretch gap-0.5 rounded-pill glass p-1.5 shadow-glass">
+          {NAV_ITEMS.map(({ to, label, Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                [
+                  "flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-pill px-1 py-1.5 text-[11px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
+                  isActive
+                    ? "bg-glass-highlight text-ink"
+                    : "text-muted hover:text-ink",
+                ].join(" ")
+              }
+            >
+              <Icon className="h-5 w-5" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </div>
       </nav>
     </div>
   );

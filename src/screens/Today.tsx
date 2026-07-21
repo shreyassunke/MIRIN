@@ -567,7 +567,7 @@ export function Today() {
                     <div
                       role="group"
                       aria-label="Weight input method"
-                      className="flex overflow-hidden rounded-md border border-hairline bg-surface"
+                      className="glass flex overflow-hidden rounded-pill p-0.5"
                     >
                       {MODES.map((m) => (
                         <button
@@ -576,9 +576,9 @@ export function Today() {
                           aria-pressed={mode === m.id}
                           onClick={() => setMode(m.id, exercise.id)}
                           className={[
-                            "h-10 px-4 text-[13px] font-medium transition-colors duration-150",
+                            "h-10 rounded-pill px-4 text-[13px] font-medium transition-[background-color,color] duration-150 ease-[var(--ease-out-quint)]",
                             mode === m.id
-                              ? "bg-surface-raised text-ink"
+                              ? "bg-glass-highlight text-ink"
                               : "text-muted hover:text-ink",
                           ].join(" ")}
                         >
@@ -654,7 +654,7 @@ export function Today() {
                     <button
                       type="button"
                       onClick={() => logCurrent(exercise.id)}
-                      className="h-12 flex-1 rounded-md bg-accent text-[15px] font-semibold text-bg transition-colors duration-150 hover:bg-ink"
+                      className="h-12 flex-1 rounded-pill bg-accent text-[15px] font-semibold text-bg transition-colors duration-150 hover:bg-ink"
                     >
                       Log set {logged.length + 1}
                     </button>
@@ -662,7 +662,7 @@ export function Today() {
                       <button
                         type="button"
                         onClick={() => logSameAsLastTime(exercise.id)}
-                        className="h-12 rounded-md border border-hairline bg-surface px-4 text-[15px] font-medium text-ink transition-colors duration-150 hover:bg-surface-raised"
+                        className="glass-btn h-12 rounded-pill px-4 text-[15px] font-medium text-ink"
                       >
                         Same as last time
                       </button>
@@ -711,8 +711,8 @@ export function Today() {
             onClick={finishWorkout}
             className={
               allDone
-                ? "h-12 w-full rounded-md bg-accent text-[15px] font-semibold text-bg transition-colors duration-150 hover:bg-ink"
-                : "h-12 w-full rounded-md border border-hairline bg-surface text-[15px] font-medium text-ink transition-colors duration-150 hover:bg-surface-raised"
+                ? "h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg transition-colors duration-150 hover:bg-ink"
+                : "glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
             }
           >
             Finish workout
