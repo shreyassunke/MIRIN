@@ -272,9 +272,18 @@ html.reorder-active * {
   -webkit-touch-callout: none;
 }
 
-/* Logging / search panels keep vertical page scroll */
+/* Prefer vertical page scroll on cards; drag hook takes over after long-press */
+[data-reorder-index] {
+  touch-action: pan-y;
+}
+
 [data-no-drag] {
   touch-action: pan-y;
+}
+
+html.reorder-active,
+html.reorder-active [data-reorder-index] {
+  touch-action: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

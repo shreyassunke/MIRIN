@@ -353,11 +353,10 @@ export function useDragReorder({
         if (!origin || !armingRef.current) return;
         const dx = e.clientX - origin.x;
         const dy = e.clientY - origin.y;
+        // Movement during the press wait = scroll intent. Bail and let pan-y work.
         if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
           cancelArm();
-          return;
         }
-        e.preventDefault();
         return;
       }
 
@@ -414,13 +413,12 @@ export function useDragReorder({
 
       if (immediate) {
         e.preventDefault();
-        startTouchMoveBlock();
         beginDrag(index, e.clientY, captureElRef.current);
         return;
       }
 
+      // Wait for a still press. Do not block touchmove yet — that breaks scrolling.
       armingRef.current = true;
-      startTouchMoveBlock();
 
       pressTimerRef.current = window.setTimeout(() => {
         pressTimerRef.current = null;
@@ -430,7 +428,7 @@ export function useDragReorder({
         beginDrag(origin.index, origin.y, el);
       }, longPressMs);
     },
-    [beginDrag, clearPressTimer, enabled, longPressMs, startTouchMoveBlock],
+    [beginDrag, clearPressTimer, enabled, longPressMs],
   );
 
   const pointerHandlers = useCallback(
@@ -459,9 +457,10 @@ export function useDragReorder({
       const isDragging = dragIndex === index;
 
       // Transforms are painted imperatively while dragging.
+      // pan-y keeps list scrolling; touchmove is only blocked after long-press lifts.
       const style: CSSProperties = {
         position: "relative",
-        touchAction: handleOnly ? undefined : "none",
+        touchAction: handleOnly ? undefined : "pan-y",
         willChange: dragIndex !== null ? "transform" : undefined,
       };
 

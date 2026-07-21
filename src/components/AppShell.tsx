@@ -148,26 +148,26 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      {/* Mobile floating pill nav */}
+      {/* Mobile floating pill nav — compact, centered like Tinder */}
       <nav
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
         aria-label="Primary"
       >
-        <div className="pointer-events-auto mx-auto flex max-w-md items-stretch gap-0.5 rounded-pill glass p-1.5 shadow-glass">
+        <div className="pointer-events-auto flex items-stretch gap-0.5 rounded-pill glass p-1 shadow-glass">
           {NAV_ITEMS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
                 [
-                  "glass-chip flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-pill px-1 py-1.5 text-[11px] font-medium will-change-transform",
+                  "glass-chip flex min-h-11 w-[4.25rem] flex-col items-center justify-center gap-0.5 rounded-pill px-1 py-1 text-[10px] font-medium",
                   isActive
                     ? "glass-chip-active text-ink"
                     : "text-muted hover:text-ink",
                 ].join(" ")
               }
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-[1.125rem] w-[1.125rem]" />
               <span>{label}</span>
             </NavLink>
           ))}
