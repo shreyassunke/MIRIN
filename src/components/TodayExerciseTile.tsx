@@ -1,8 +1,14 @@
-import type { PointerEvent, ReactNode } from "react";
+import {
+  useRef,
+  type CSSProperties,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import type { Exercise, SetLog } from "../db/db";
 import type { ExerciseLibraryEntry } from "../lib/library";
 import { ExerciseCombobox } from "./ExerciseCombobox";
-import { DragHandle } from "./DragHandle";
+
+const DOUBLE_TAP_MS = 280;
 
 interface TodayExerciseTileProps {
   exercise: Exercise;
@@ -15,10 +21,13 @@ interface TodayExerciseTileProps {
   excludeSwapIds: string[];
   reorderIndex: number;
   dragRowClassName: string;
-  onDragHandlePointerDown?: (e: PointerEvent) => void;
-  onDragHandlePointerMove?: (e: PointerEvent) => void;
-  onDragHandlePointerUp?: (e: PointerEvent) => void;
-  onDragHandlePointerCancel?: (e: PointerEvent) => void;
+  dragStyle?: CSSProperties;
+  onDragPointerDown?: (e: PointerEvent) => void;
+  onDragPointerMove?: (e: PointerEvent) => void;
+  onDragPointerUp?: (e: PointerEvent) => void;
+  onDragPointerCancel?: (e: PointerEvent) => void;
+  shouldSuppressClick?: () => boolean;
+  onToggle: () => void;
   onStartSwap: () => void;
   onCancelSwap: () => void;
   onSwapPick: (entry: ExerciseLibraryEntry) => void;
@@ -37,46 +46,76 @@ export function TodayExerciseTile({
   excludeSwapIds,
   reorderIndex,
   dragRowClassName,
-  onDragHandlePointerDown,
-  onDragHandlePointerMove,
-  onDragHandlePointerUp,
-  onDragHandlePointerCancel,
+  dragStyle,
+  onDragPointerDown,
+  onDragPointerMove,
+  onDragPointerUp,
+  onDragPointerCancel,
+  shouldSuppressClick,
+  onToggle,
   onStartSwap,
   onCancelSwap,
   onSwapPick,
   formatLoggedSet,
   children,
 }: TodayExerciseTileProps) {
+  const tapTimerRef = useRef<number | null>(null);
+
+  function clearTapTimer() {
+    if (tapTimerRef.current !== null) {
+      window.clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+    }
+  }
+
+  function handleHeaderClick() {
+    if (shouldSuppressClick?.()) {
+      clearTapTimer();
+      return;
+    }
+    if (tapTimerRef.current !== null) {
+      clearTapTimer();
+      onStartSwap();
+      return;
+    }
+    tapTimerRef.current = window.setTimeout(() => {
+      tapTimerRef.current = null;
+      if (shouldSuppressClick?.()) return;
+      onToggle();
+    }, DOUBLE_TAP_MS);
+  }
+
   return (
     <li
       data-reorder-index={reorderIndex}
-      className={[
-        "overflow-hidden rounded-xl glass",
-        dragRowClassName,
-      ]
+      style={dragStyle}
+      onPointerDown={onDragPointerDown}
+      onPointerMove={onDragPointerMove}
+      onPointerUp={onDragPointerUp}
+      onPointerCancel={onDragPointerCancel}
+      className={["overflow-hidden rounded-xl glass", dragRowClassName]
         .filter(Boolean)
         .join(" ")}
     >
       <div className="flex items-stretch gap-2 px-2 py-2">
-        <div className="flex shrink-0 items-center self-center">
-          <DragHandle
-            onPointerDown={onDragHandlePointerDown}
-            onPointerMove={onDragHandlePointerMove}
-            onPointerUp={onDragHandlePointerUp}
-            onPointerCancel={onDragHandlePointerCancel}
-          />
-        </div>
         <button
           type="button"
-          onClick={onStartSwap}
+          data-drag-surface=""
+          onClick={handleHeaderClick}
           className={[
-            "glass-chip flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-left",
+            "glass-chip flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-3 py-1.5 text-left",
             isActive ? "glass-chip-active" : "",
           ]
             .filter(Boolean)
             .join(" ")}
-          aria-expanded={isSwapping}
-          aria-label={`Replace ${exercise.name}`}
+          aria-expanded={isActive}
+          aria-label={
+            isSwapping
+              ? `Replace ${exercise.name}`
+              : isActive
+                ? `Collapse ${exercise.name}`
+                : `Expand ${exercise.name}`
+          }
         >
           <span className="min-w-0">
             <span className="block text-[17px] font-semibold tracking-tight">
@@ -93,7 +132,7 @@ export function TodayExerciseTile({
       </div>
 
       {isSwapping && (
-        <div className="border-t border-hairline px-4 py-3">
+        <div data-no-drag="" className="border-t border-hairline px-4 py-3">
           <ExerciseCombobox
             label="Replace with…"
             excludeIds={excludeSwapIds}
@@ -105,7 +144,10 @@ export function TodayExerciseTile({
       )}
 
       {logged.length > 0 && (
-        <div className="tnum flex flex-wrap gap-x-4 gap-y-1 border-t border-hairline px-4 py-2.5 text-sm text-muted">
+        <div
+          data-no-drag=""
+          className="tnum flex flex-wrap gap-x-4 gap-y-1 border-t border-hairline px-4 py-2.5 text-sm text-muted"
+        >
           {logged.map((s) => (
             <span key={s.id} className="text-ink">
               {formatLoggedSet(s)}
@@ -114,7 +156,7 @@ export function TodayExerciseTile({
         </div>
       )}
 
-      {children}
+      {children ? <div data-no-drag="">{children}</div> : null}
     </li>
   );
 }

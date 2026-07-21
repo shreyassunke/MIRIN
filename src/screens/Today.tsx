@@ -195,6 +195,8 @@ export function Today() {
   const data = useTodayData();
   const [unit] = useUnit();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** When false, derived auto-expand is paused (user closed the open card). */
+  const [followDerived, setFollowDerived] = useState(true);
   const [restDuration, setRestDuration] = useState(DEFAULT_REST_SECONDS);
   const [timerRun, setTimerRun] = useState(0);
   const [timerVisible, setTimerVisible] = useState(false);
@@ -237,9 +239,9 @@ export function Today() {
     return id;
   }, [data?.dayTemplateId, data?.sessionId]);
 
-  const { getItemProps, getHandleProps } = useDragReorder({
+  const { getItemProps, shouldSuppressClick } = useDragReorder({
     enabled: (data?.exercises.length ?? 0) > 1,
-    handleOnly: true,
+    handleOnly: false,
     onReorder: (from, to) => {
       void (async () => {
         const sessionId = await ensureSession();
@@ -260,7 +262,9 @@ export function Today() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, logsByExercise]);
 
-  const activeId = selectedId ?? derivedActiveId;
+  const activeId = followDerived
+    ? (selectedId ?? derivedActiveId)
+    : selectedId;
   const activeSetNumber = activeId
     ? (logsByExercise.get(activeId)?.length ?? 0) + 1
     : 1;
@@ -427,6 +431,7 @@ export function Today() {
     });
     // Stay on this exercise until its sets are done, then fall back to
     // the enforced order (first incomplete exercise).
+    setFollowDerived(true);
     setSelectedId(setNumber >= targetSetsFor(exerciseId) ? null : exerciseId);
     setTimerRun((n) => n + 1);
     setTimerVisible(true);
@@ -464,6 +469,7 @@ export function Today() {
   async function finishWorkout() {
     if (!data!.sessionId) return;
     await db.sessions.update(data!.sessionId, { completed: true });
+    setFollowDerived(true);
     setSelectedId(null);
     setTimerVisible(false);
     setAddingExercise(false);
@@ -474,11 +480,13 @@ export function Today() {
     const sessionId = await ensureSession();
     if (data!.exerciseIds.includes(exerciseId)) {
       setAddingExercise(false);
+      setFollowDerived(true);
       setSelectedId(exerciseId);
       return;
     }
     await appendSessionExercise(sessionId, exerciseId);
     setAddingExercise(false);
+    setFollowDerived(true);
     setSelectedId(exerciseId);
   }
 
@@ -487,6 +495,7 @@ export function Today() {
     const sessionId = await ensureSession();
     const outgoingId = await swapSessionExercise(sessionId, index, newExerciseId);
     setSwappingIndex(null);
+    setFollowDerived(true);
     if (
       selectedId === outgoingId ||
       (selectedId === null && activeId === outgoingId)
@@ -528,7 +537,6 @@ export function Today() {
                 .join("  ")}`
             : "First time — starting defaults ready";
           const dragProps = getItemProps(index);
-          const handleProps = getHandleProps(index);
 
           return (
             <TodayExerciseTile
@@ -543,16 +551,33 @@ export function Today() {
               excludeSwapIds={data.exerciseIds.filter((id) => id !== exercise.id)}
               reorderIndex={index}
               dragRowClassName={dragProps.className}
-              onDragHandlePointerDown={handleProps.onPointerDown}
-              onDragHandlePointerMove={handleProps.onPointerMove}
-              onDragHandlePointerUp={handleProps.onPointerUp}
-              onDragHandlePointerCancel={handleProps.onPointerCancel}
-              onStartSwap={() => {
-                if (swappingIndex === index) return;
-                const wasFocused = selectedId === exercise.id;
+              dragStyle={dragProps.style}
+              onDragPointerDown={dragProps.onPointerDown}
+              onDragPointerMove={dragProps.onPointerMove}
+              onDragPointerUp={dragProps.onPointerUp}
+              onDragPointerCancel={dragProps.onPointerCancel}
+              shouldSuppressClick={shouldSuppressClick}
+              onToggle={() => {
+                if (shouldSuppressClick()) return;
+                if (swappingIndex === index) {
+                  setSwappingIndex(null);
+                  return;
+                }
+                if (isActive) {
+                  setFollowDerived(false);
+                  setSelectedId(null);
+                  setSwappingIndex(null);
+                  return;
+                }
+                setFollowDerived(true);
                 setSelectedId(exercise.id);
-                if (wasFocused) setSwappingIndex(index);
-                else setSwappingIndex(null);
+                setSwappingIndex(null);
+              }}
+              onStartSwap={() => {
+                if (shouldSuppressClick()) return;
+                setFollowDerived(true);
+                setSelectedId(exercise.id);
+                setSwappingIndex(index);
               }}
               onCancelSwap={() => setSwappingIndex(null)}
               onSwapPick={(entry) => void handleSwapExercise(index, entry)}
