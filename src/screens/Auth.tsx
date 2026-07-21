@@ -6,7 +6,7 @@ import { GoogleMark } from "../components/GoogleMark";
 type Mode = "sign-in" | "sign-up";
 
 const inputClass =
-  "h-12 w-full rounded-md border border-hairline bg-bg px-3 text-[15px] text-ink placeholder:text-muted transition-colors duration-150 focus:border-muted";
+  "h-12 w-full rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted transition-colors duration-150 focus:border-muted";
 const primaryBtn =
   "btn-primary h-12 w-full rounded-pill bg-accent px-5 text-sm font-medium text-bg hover:bg-ink disabled:opacity-40";
 const googleBtn =

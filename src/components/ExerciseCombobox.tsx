@@ -57,7 +57,7 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
   const canSave = name.trim().length > 0 && !saving;
 
   const selectClass =
-    "h-11 w-full rounded-md border border-hairline bg-bg px-3 text-sm text-ink focus:border-muted";
+    "h-11 w-full rounded-md border border-hairline bg-bg px-3 text-base text-ink focus:border-muted";
 
   return (
     <div className="rounded-xl glass p-4">
@@ -74,7 +74,7 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
-            className="h-11 w-full rounded-md border border-hairline bg-bg px-3 text-sm text-ink placeholder:text-muted focus:border-muted"
+            className="h-11 w-full rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted focus:border-muted"
           />
         </label>
         <div className="grid grid-cols-2 gap-3">
@@ -274,7 +274,7 @@ export function ExerciseCombobox({
         placeholder={placeholder}
         autoComplete="off"
         spellCheck={false}
-        className="h-11 w-full rounded-md border border-hairline bg-bg px-3 text-sm text-ink placeholder:text-muted focus:border-muted"
+        className="h-11 w-full rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted focus:border-muted"
       />
 
       {hasQuery && (

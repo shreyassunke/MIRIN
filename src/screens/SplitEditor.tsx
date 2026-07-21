@@ -239,7 +239,7 @@ function DayCard({ day, exercises }: DayCardProps) {
               }
             }}
             aria-label="Day name"
-            className="h-9 w-full max-w-xs rounded-md border border-hairline bg-bg px-2 text-[15px] font-semibold text-ink focus:border-muted"
+            className="h-9 w-full max-w-xs rounded-md border border-hairline bg-bg px-2 text-base font-semibold text-ink focus:border-muted"
           />
         ) : (
           <button
@@ -636,7 +636,7 @@ export function SplitEditor() {
                 }}
                 placeholder="Split name"
                 aria-label="New split name"
-                className="h-11 flex-1 rounded-md border border-hairline bg-bg px-3 text-sm text-ink placeholder:text-muted focus:border-muted"
+                className="h-11 flex-1 rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted focus:border-muted"
               />
               <button
                 type="submit"

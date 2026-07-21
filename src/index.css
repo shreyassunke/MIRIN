@@ -66,6 +66,19 @@ a,
   touch-action: manipulation;
 }
 
+/*
+  iOS Safari auto-zooms focused fields under 16px. Default form controls
+  to 16px so focus never zooms; pinch gestures still work. Utilities like
+  text-lg can still override when larger.
+*/
+@layer base {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 .no-scrollbar {
   scrollbar-width: none;
 }
