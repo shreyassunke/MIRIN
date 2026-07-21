@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 const SPLASH_KEY = "mirin-boot-splash";
-const HOLD_MS = 900;
-const EXIT_MS = 380;
+const HOLD_MS = 520;
+const EXIT_MS = 220;
 
 type Phase = "show" | "exit" | "done";
 

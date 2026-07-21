@@ -8,7 +8,8 @@ import type { Exercise, SetLog } from "../db/db";
 import type { ExerciseLibraryEntry } from "../lib/library";
 import { ExerciseCombobox } from "./ExerciseCombobox";
 
-const DOUBLE_TAP_MS = 280;
+/** Second tap within this window = rename; first tap toggles immediately. */
+const DOUBLE_TAP_MS = 260;
 
 interface TodayExerciseTileProps {
   exercise: Exercise;
@@ -59,30 +60,20 @@ export function TodayExerciseTile({
   formatLoggedSet,
   children,
 }: TodayExerciseTileProps) {
-  const tapTimerRef = useRef<number | null>(null);
-
-  function clearTapTimer() {
-    if (tapTimerRef.current !== null) {
-      window.clearTimeout(tapTimerRef.current);
-      tapTimerRef.current = null;
-    }
-  }
+  const lastTapRef = useRef(0);
 
   function handleHeaderClick() {
-    if (shouldSuppressClick?.()) {
-      clearTapTimer();
-      return;
-    }
-    if (tapTimerRef.current !== null) {
-      clearTapTimer();
+    if (shouldSuppressClick?.()) return;
+
+    const now = performance.now();
+    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+      lastTapRef.current = 0;
       onStartSwap();
       return;
     }
-    tapTimerRef.current = window.setTimeout(() => {
-      tapTimerRef.current = null;
-      if (shouldSuppressClick?.()) return;
-      onToggle();
-    }, DOUBLE_TAP_MS);
+
+    lastTapRef.current = now;
+    onToggle();
   }
 
   return (

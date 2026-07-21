@@ -17,9 +17,9 @@ interface UseDragReorderOptions {
 }
 
 const REORDER_ATTR = "data-reorder-index";
-const MOVE_CANCEL_PX = 12;
+const MOVE_CANCEL_PX = 10;
 const EDGE_PX = 72;
-const SCROLL_MAX = 18;
+const SCROLL_MAX = 22;
 
 type DragLive = {
   from: number;
@@ -78,13 +78,52 @@ function shiftForIndex(
   return 0;
 }
 
+/** Imperative transforms — keeps drag at 60fps without React re-renders. */
+function paintDrag(live: DragLive) {
+  for (const row of rows()) {
+    const index = Number(row.getAttribute(REORDER_ATTR));
+    if (!Number.isInteger(index)) continue;
+
+    if (index === live.from) {
+      row.dataset.reorderDragging = "true";
+      row.classList.add("reorder-dragging");
+      row.classList.remove("reorder-slot");
+      row.style.transition = "none";
+      row.style.zIndex = "40";
+      row.style.transform = `translate3d(0, ${live.deltaY}px, 0) scale(1.03)`;
+      continue;
+    }
+
+    const shift = shiftForIndex(index, live.from, live.over, live.height);
+    row.dataset.reorderDragging = "false";
+    row.classList.remove("reorder-dragging");
+    row.classList.toggle(
+      "reorder-slot",
+      live.over === index && live.from !== index,
+    );
+    row.style.zIndex = shift !== 0 ? "1" : "";
+    row.style.transition = "transform 140ms var(--ease-out-expo)";
+    row.style.transform = shift ? `translate3d(0, ${shift}px, 0)` : "";
+  }
+}
+
+function clearDragPaint() {
+  for (const row of rows()) {
+    row.dataset.reorderDragging = "false";
+    row.classList.remove("reorder-dragging", "reorder-slot");
+    row.style.transition = "transform 140ms var(--ease-out-expo)";
+    row.style.transform = "";
+    row.style.zIndex = "";
+  }
+}
+
 export function useDragReorder({
   enabled = true,
   handleOnly = false,
-  longPressMs = 320,
+  longPressMs = 180,
   onReorder,
 }: UseDragReorderOptions) {
-  const [live, setLive] = useState<DragLive | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const liveRef = useRef<DragLive | null>(null);
   const draggingRef = useRef(false);
   const armingRef = useRef(false);
@@ -96,13 +135,10 @@ export function useDragReorder({
   const pointerIdRef = useRef<number | null>(null);
   const captureElRef = useRef<HTMLElement | null>(null);
   const scrollRafRef = useRef<number | null>(null);
+  const moveRafRef = useRef<number | null>(null);
+  const pendingYRef = useRef<number | null>(null);
   const suppressClickRef = useRef(false);
   const touchMoveBlockRef = useRef<((e: TouchEvent) => void) | null>(null);
-
-  const setLiveBoth = useCallback((next: DragLive | null) => {
-    liveRef.current = next;
-    setLive(next);
-  }, []);
 
   const clearPressTimer = useCallback(() => {
     if (pressTimerRef.current !== null) {
@@ -118,6 +154,14 @@ export function useDragReorder({
     }
   }, []);
 
+  const stopMoveRaf = useCallback(() => {
+    if (moveRafRef.current !== null) {
+      cancelAnimationFrame(moveRafRef.current);
+      moveRafRef.current = null;
+    }
+    pendingYRef.current = null;
+  }, []);
+
   const stopTouchMoveBlock = useCallback(() => {
     if (touchMoveBlockRef.current) {
       document.removeEventListener("touchmove", touchMoveBlockRef.current);
@@ -125,13 +169,10 @@ export function useDragReorder({
     }
   }, []);
 
-  /** Non-passive touchmove so iOS can't scroll-steal the long-press / drag. */
   const startTouchMoveBlock = useCallback(() => {
     if (touchMoveBlockRef.current) return;
     const block = (e: TouchEvent) => {
-      if (armingRef.current || draggingRef.current) {
-        e.preventDefault();
-      }
+      if (armingRef.current || draggingRef.current) e.preventDefault();
     };
     touchMoveBlockRef.current = block;
     document.addEventListener("touchmove", block, { passive: false });
@@ -140,6 +181,7 @@ export function useDragReorder({
   const reset = useCallback(() => {
     clearPressTimer();
     stopScrollLoop();
+    stopMoveRaf();
     stopTouchMoveBlock();
     draggingRef.current = false;
     armingRef.current = false;
@@ -147,9 +189,11 @@ export function useDragReorder({
     originRef.current = null;
     pointerIdRef.current = null;
     captureElRef.current = null;
+    liveRef.current = null;
     document.documentElement.classList.remove("reorder-active");
-    setLiveBoth(null);
-  }, [clearPressTimer, setLiveBoth, stopScrollLoop, stopTouchMoveBlock]);
+    clearDragPaint();
+    setDragIndex(null);
+  }, [clearPressTimer, stopMoveRaf, stopScrollLoop, stopTouchMoveBlock]);
 
   const beginDrag = useCallback(
     (index: number, clientY: number, el: HTMLElement) => {
@@ -164,7 +208,6 @@ export function useDragReorder({
       document.documentElement.classList.add("reorder-active");
       startTouchMoveBlock();
 
-      // Capture only once the drag is real — not during the press wait.
       captureElRef.current = el;
       if (pointerIdRef.current !== null) {
         try {
@@ -174,7 +217,7 @@ export function useDragReorder({
         }
       }
 
-      setLiveBoth({
+      const live: DragLive = {
         from: index,
         over: index,
         height: rect.height,
@@ -182,18 +225,39 @@ export function useDragReorder({
         startScrollY: window.scrollY,
         pointerY: clientY,
         deltaY: 0,
-      });
+      };
+      liveRef.current = live;
+      paintDrag(live);
+      setDragIndex(index);
 
       if (navigator.vibrate) {
         try {
-          navigator.vibrate(12);
+          navigator.vibrate(8);
         } catch {
           /* ignore */
         }
       }
     },
-    [enabled, setLiveBoth, startTouchMoveBlock],
+    [enabled, startTouchMoveBlock],
   );
+
+  const commitPointerY = useCallback((clientY: number) => {
+    const current = liveRef.current;
+    if (!current || !draggingRef.current) return;
+
+    const over = indexAtY(clientY) ?? current.over;
+    const deltaY =
+      clientY - current.startClientY + (window.scrollY - current.startScrollY);
+
+    if (over !== current.over || Math.abs(deltaY) > 1) {
+      movedRef.current = true;
+    }
+
+    current.pointerY = clientY;
+    current.over = over;
+    current.deltaY = deltaY;
+    paintDrag(current);
+  }, []);
 
   const autoScrollTick = useCallback(() => {
     const current = liveRef.current;
@@ -213,20 +277,11 @@ export function useDragReorder({
 
     if (dy !== 0) {
       window.scrollBy(0, dy);
-    }
-
-    const over = indexAtY(current.pointerY) ?? current.over;
-    const deltaY =
-      current.pointerY -
-      current.startClientY +
-      (window.scrollY - current.startScrollY);
-    if (over !== current.over || Math.abs(deltaY - current.deltaY) > 0.5) {
-      if (over !== current.over) movedRef.current = true;
-      setLiveBoth({ ...current, over, deltaY });
+      commitPointerY(current.pointerY);
     }
 
     scrollRafRef.current = requestAnimationFrame(autoScrollTick);
-  }, [setLiveBoth]);
+  }, [commitPointerY]);
 
   const ensureScrollLoop = useCallback(() => {
     if (scrollRafRef.current === null) {
@@ -234,27 +289,20 @@ export function useDragReorder({
     }
   }, [autoScrollTick]);
 
-  const updateDrag = useCallback(
+  const scheduleMove = useCallback(
     (clientY: number) => {
-      const current = liveRef.current;
-      if (!current || !draggingRef.current) return;
-
-      const over = indexAtY(clientY) ?? current.over;
-      const deltaY =
-        clientY - current.startClientY + (window.scrollY - current.startScrollY);
-      if (
-        Math.abs(clientY - current.pointerY) > 0.5 ||
-        over !== current.over ||
-        Math.abs(deltaY - current.deltaY) > 0.5
-      ) {
-        if (over !== current.over || Math.abs(deltaY) > 2) {
-          movedRef.current = true;
-        }
-        setLiveBoth({ ...current, pointerY: clientY, over, deltaY });
-      }
-      ensureScrollLoop();
+      pendingYRef.current = clientY;
+      if (moveRafRef.current !== null) return;
+      moveRafRef.current = requestAnimationFrame(() => {
+        moveRafRef.current = null;
+        const y = pendingYRef.current;
+        if (y === null) return;
+        pendingYRef.current = null;
+        commitPointerY(y);
+        ensureScrollLoop();
+      });
     },
-    [ensureScrollLoop, setLiveBoth],
+    [commitPointerY, ensureScrollLoop],
   );
 
   const cancelArm = useCallback(() => {
@@ -262,7 +310,6 @@ export function useDragReorder({
     stopTouchMoveBlock();
     armingRef.current = false;
     originRef.current = null;
-    // Leave pointerId so pointerup can clean up; do not capture.
   }, [clearPressTimer, stopTouchMoveBlock]);
 
   const endDrag = useCallback(() => {
@@ -290,7 +337,7 @@ export function useDragReorder({
 
     window.setTimeout(() => {
       suppressClickRef.current = false;
-    }, 320);
+    }, 220);
   }, [onReorder, reset]);
 
   useEffect(() => () => reset(), [reset]);
@@ -307,19 +354,17 @@ export function useDragReorder({
         const dx = e.clientX - origin.x;
         const dy = e.clientY - origin.y;
         if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
-          // Finger moved — this is a scroll, not a drag. Release cleanly.
           cancelArm();
           return;
         }
-        // Still within slop while waiting for long-press: hold the gesture.
         e.preventDefault();
         return;
       }
 
       e.preventDefault();
-      updateDrag(e.clientY);
+      scheduleMove(e.clientY);
     },
-    [cancelArm, updateDrag],
+    [cancelArm, scheduleMove],
   );
 
   const onPointerUp = useCallback(
@@ -374,7 +419,6 @@ export function useDragReorder({
         return;
       }
 
-      // Arm long-press without capturing yet — capture happens in beginDrag.
       armingRef.current = true;
       startTouchMoveBlock();
 
@@ -412,30 +456,13 @@ export function useDragReorder({
   const getItemProps = useCallback(
     (index: number) => {
       const handlers = pointerHandlers();
-      const isDragging = live?.from === index;
+      const isDragging = dragIndex === index;
 
-      let translateY = 0;
-      if (live) {
-        translateY = isDragging
-          ? live.deltaY
-          : shiftForIndex(index, live.from, live.over, live.height);
-      }
-
+      // Transforms are painted imperatively while dragging.
       const style: CSSProperties = {
-        transform: isDragging
-          ? `translate3d(0, ${translateY}px, 0) scale(1.03)`
-          : translateY
-            ? `translate3d(0, ${translateY}px, 0)`
-            : undefined,
-        transition: isDragging
-          ? "box-shadow 160ms var(--ease-out-quint), transform 0ms linear"
-          : "transform 220ms var(--ease-out-quint), box-shadow 180ms var(--ease-out-quint)",
-        zIndex: isDragging ? 40 : live && translateY !== 0 ? 1 : undefined,
         position: "relative",
-        // none: we own vertical gestures on cards so long-press isn't scroll-stolen.
-        // Scroll from page chrome / data-no-drag regions instead.
         touchAction: handleOnly ? undefined : "none",
-        willChange: live ? "transform" : undefined,
+        willChange: dragIndex !== null ? "transform" : undefined,
       };
 
       return {
@@ -451,26 +478,19 @@ export function useDragReorder({
         onPointerMove: handleOnly ? undefined : handlers.onPointerMove,
         onPointerUp: handleOnly ? undefined : handlers.onPointerUp,
         onPointerCancel: handleOnly ? undefined : handlers.onPointerCancel,
-        className: [
-          isDragging ? "reorder-dragging" : "",
-          live && live.over === index && live.from !== index
-            ? "reorder-slot"
-            : "",
-        ]
-          .filter(Boolean)
-          .join(" "),
+        className: isDragging ? "reorder-dragging" : "",
         "aria-grabbed": isDragging || undefined,
       };
     },
-    [armPress, handleOnly, live, pointerHandlers],
+    [armPress, dragIndex, handleOnly, pointerHandlers],
   );
 
   const shouldSuppressClick = useCallback(() => suppressClickRef.current, []);
 
   return {
-    dragIndex: live?.from ?? null,
-    overIndex: live?.over ?? null,
-    isDragging: live !== null,
+    dragIndex,
+    overIndex: liveRef.current?.over ?? null,
+    isDragging: dragIndex !== null,
     getItemProps,
     getHandleProps,
     shouldSuppressClick,

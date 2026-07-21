@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               to={to}
               className={({ isActive }) =>
                 [
-                  "glass-chip flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-pill px-1 py-1.5 text-[11px] font-medium",
+                  "glass-chip flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-pill px-1 py-1.5 text-[11px] font-medium will-change-transform",
                   isActive
                     ? "glass-chip-active text-ink"
                     : "text-muted hover:text-ink",
