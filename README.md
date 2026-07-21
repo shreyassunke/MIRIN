@@ -1,19 +1,43 @@
 # MIRIN
 
-A personal workout tracker for logging progressive overload with minimal friction. Fully client-side: React 18 + TypeScript + Vite + Tailwind CSS, with Dexie.js persisting everything to IndexedDB. No backend, no accounts.
+A personal workout tracker for logging progressive overload with minimal friction. React 18 + TypeScript + Vite + Tailwind CSS, with Dexie.js for offline IndexedDB persistence and Supabase for auth + background cloud sync.
 
 ## Run
 
 ```bash
 npm install
-npm run dev      # dev server
-npm run build    # type-check + production build
-npm run preview  # serve dist/ locally
+cp .env.example .env   # then fill in Supabase URL + anon key
+npm run dev            # dev server
+npm run build          # type-check + production build
+npm run preview        # serve dist/ locally
 ```
+
+### Supabase auth setup
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. In **Project Settings → API**, copy the Project URL and the `anon` `public` key into `.env` as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+3. In **Authentication → URL configuration**, add your local origin (e.g. `http://localhost:5174`) and production URL to the redirect allow list. Include the same origins under **Redirect URLs**.
+4. Restart `npm run dev` after changing `.env`.
+
+**Google** — Authentication → Providers → Google: enable it and add the Client ID / secret from [Google Cloud Console](https://console.cloud.google.com/) (OAuth web client). Authorized redirect URI should be `https://<project-ref>.supabase.co/auth/v1/callback`.
+
+**Name** — collected on email sign-up and editable under **Profile**. Google usually fills it from the Google account.
+
+Without those env vars the app opens the sign-in screen and explains what is missing. Email confirmation follows your Supabase Auth settings (disable it in Auth providers for the fastest local loop).
+
+### Supabase sync setup
+
+Logging still writes to IndexedDB first; sync runs in the background after sets are saved.
+
+1. In the Supabase SQL Editor, run [`supabase/migrations/20260720120000_sync_documents.sql`](supabase/migrations/20260720120000_sync_documents.sql). That creates the `sync_documents` table and row-level security (each user only sees their own rows).
+2. Sign in on a device — existing local history is uploaded on first bind. A second device pulls the same account after sign-in.
+3. Profile shows sync status and a **Sync now** control. Offline changes queue locally and flush when you reconnect.
+
+Free-tier Supabase is enough for personal use. Free projects pause after a week of inactivity; open the app (or the Supabase dashboard) to wake them.
 
 ## Deploy & use on iPhone
 
-MIRIN is a **Progressive Web App**: deploy the `dist/` folder to any static host, then install it to your home screen. Workout data stays on your device (IndexedDB); nothing is sent to a server.
+MIRIN is a **Progressive Web App**: deploy the `dist/` folder to any static host, then install it to your home screen. Set the same `VITE_SUPABASE_*` env vars in the host’s build settings. Workout logging writes to on-device IndexedDB first; auth and sync run through Supabase when online.
 
 ### 1. Deploy (pick one)
 
@@ -61,6 +85,8 @@ On iPhone Safari: `http://<your-computer-ip>:5174/today` (your PC must stay on; 
 - `/exercise/:id` — estimated 1RM trend (Epley) and the last 10 sessions.
 - `/trends` — overall volume per session, plus dedicated weak-point charts (Lateral Raise, Rear Delt Flye, Incline Press).
 - `/split` — reorder exercises within each day; order is enforced on the logging screen.
+- `/profile` — display name, cloud sync status, and sign out.
+- `/auth` — email or Google sign-in.
 
 ## Design
 

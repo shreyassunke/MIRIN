@@ -79,6 +79,22 @@ export interface Setting {
   value: string;
 }
 
+/** Pending cloud mutation. Flushed in the background after Dexie writes. */
+export interface SyncOutboxEntry {
+  id?: number;
+  collection:
+    | "exercises"
+    | "dayTemplates"
+    | "splits"
+    | "sessions"
+    | "setLogs"
+    | "exercisePrefs"
+    | "settings";
+  docId: string;
+  op: "upsert" | "delete";
+  updatedAt: string;
+}
+
 export const db = new Dexie("mirin") as Dexie & {
   exercises: EntityTable<Exercise, "id">;
   dayTemplates: EntityTable<DayTemplate, "id">;
@@ -87,6 +103,7 @@ export const db = new Dexie("mirin") as Dexie & {
   setLogs: EntityTable<SetLog, "id">;
   exercisePrefs: EntityTable<ExercisePreference, "exerciseId">;
   settings: EntityTable<Setting, "key">;
+  syncOutbox: EntityTable<SyncOutboxEntry, "id">;
 };
 
 db.version(1).stores({
@@ -158,5 +175,9 @@ db.version(4)
   });
 
 db.version(5).stores({});
+
+db.version(6).stores({
+  syncOutbox: "++id, [collection+docId], collection",
+});
 
 db.on("populate", seed);

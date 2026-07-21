@@ -17,7 +17,11 @@ import {
   newId,
   startWeightFor,
 } from "../lib/workout";
-import { dayTemplateIdForDate, nextWorkout } from "../lib/rotation";
+import {
+  dayTemplateIdForDate,
+  nextWorkout,
+  toLocalISODate,
+} from "../lib/rotation";
 import { REST_DAY_TEMPLATE } from "../db/seed";
 import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
 import {
@@ -82,12 +86,8 @@ function useTodayData(): TodayData | undefined {
       (await db.splits.toCollection().first());
     if (!split) return undefined;
 
-    const sessions = await db.sessions.toArray();
-    const open = sessions
-      .filter((s) => !s.completed)
-      .sort((a, b) => b.date.localeCompare(a.date))[0];
-
     const today = new Date();
+    const todayIso = toLocalISODate(today);
     const allDays = new Map(
       (await db.dayTemplates.toArray()).map((d) => [d.id, d] as const),
     );
@@ -95,15 +95,23 @@ function useTodayData(): TodayData | undefined {
       (allDays.get(id)?.isRestDay ?? false) ||
       (allDays.get(id)?.exerciseIds.length ?? 0) === 0;
 
+    // Active split schedule always owns what Today shows.
     const scheduledId = dayTemplateIdForDate(split, today);
-
-    // An open session pins its own day; if its template was deleted
-    // (split removed mid-session), fall back to today's schedule.
-    let dayTemplateId = open ? open.dayTemplateId : scheduledId;
-    if (dayTemplateId && !allDays.get(dayTemplateId)) {
-      dayTemplateId = scheduledId;
-    }
+    const dayTemplateId =
+      scheduledId && allDays.get(scheduledId) ? scheduledId : null;
     const day = dayTemplateId ? allDays.get(dayTemplateId) : undefined;
+
+    // Resume only today's open session for the scheduled day — never a
+    // leftover incomplete session from another calendar day or template.
+    const sessions = await db.sessions.toArray();
+    const open = sessions
+      .filter(
+        (s) =>
+          !s.completed &&
+          toLocalISODate(new Date(s.date)) === todayIso &&
+          s.dayTemplateId === dayTemplateId,
+      )
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
 
     if (!day || day.isRestDay) {
       const upcoming = nextWorkout(split, isRest, today, 1);

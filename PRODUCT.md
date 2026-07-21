@@ -6,15 +6,15 @@ product
 
 ## Users
 
-A single user (the owner), lifting 5 days a week on a fixed Push / Pull / Legs / Arms / Chest & Back rotation. Context of use: mid-workout, in a gym, one-handed on a phone, between sets, often with elevated heart rate and limited patience. The job to be done is logging a set — weight, reps — in under three seconds, and occasionally reviewing whether a lift is actually progressing.
+Each account is one lifter. Context of use: mid-workout, in a gym, one-handed on a phone, between sets, often with elevated heart rate and limited patience. The job to be done is logging a set — weight, reps — in under three seconds, and occasionally reviewing whether a lift is actually progressing.
 
-There is no second persona. No onboarding funnel, no sharing, no social layer. The app serves one person's daily habit.
+There is no coach persona, no onboarding funnel, no sharing, no social layer. Accounts exist so each person's log stays private and available across devices — not for community features.
 
 ## Product Purpose
 
 MIRIN is a personal workout tracker for progressive overload with minimal friction. It remembers what was lifted last time, prefills it, and asks only for a tap to confirm or a nudge to adjust. Success looks like: every set of every session logged without the app ever being the reason a rest period ran long, and trend data trustworthy enough to make programming decisions (especially for the priority lifts: Lateral Raise, Rear Delt Flye, Incline Press).
 
-Fully client-side (IndexedDB via Dexie). No accounts, no sync, no backend.
+Auth and cloud sync use Supabase. The client still writes to IndexedDB via Dexie first so logging stays fast offline; sync is a background concern, never the mid-set path.
 
 ## Brand Personality
 
