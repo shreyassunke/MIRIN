@@ -5,6 +5,7 @@ import { getContactLine, getDisplayName } from "../lib/user";
 
 const NAV_ITEMS = [
   { to: "/today", label: "Today", Icon: IconToday },
+  { to: "/history", label: "History", Icon: IconHistory },
   { to: "/progress", label: "Progress", Icon: IconProgress },
   { to: "/split", label: "Split", Icon: IconSplit },
   { to: "/profile", label: "Profile", Icon: IconProfile },
@@ -41,6 +42,31 @@ function IconToday(props: SVGProps<SVGSVGElement>) {
         strokeWidth="1.75"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function IconHistory(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="15"
+        rx="2.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path
+        d="M8 3.5v3M16 3.5v3M4 10h16"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <circle cx="8.5" cy="14" r="1.1" fill="currentColor" />
+      <circle cx="12" cy="14" r="1.1" fill="currentColor" />
+      <circle cx="15.5" cy="17.5" r="1.1" fill="currentColor" />
     </svg>
   );
 }
@@ -159,7 +185,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {({ isActive }) => (
                 <span
                   className={[
-                    "flex h-12 w-[4.5rem] flex-col items-center justify-center gap-1 rounded-pill",
+                    "flex h-12 w-[3.65rem] flex-col items-center justify-center gap-1 rounded-pill sm:w-[4.25rem]",
                     isActive
                       ? "bg-glass-highlight text-ink"
                       : "text-muted",

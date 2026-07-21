@@ -74,5 +74,7 @@ function tableForCollection(collection: SyncCollection) {
       return db.exercisePrefs;
     case "settings":
       return db.settings;
+    case "goals":
+      return db.goals;
   }
 }

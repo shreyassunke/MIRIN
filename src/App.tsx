@@ -22,6 +22,14 @@ const SplitEditor = lazy(() =>
 const Profile = lazy(() =>
   import("./screens/Profile").then((m) => ({ default: m.Profile })),
 );
+const History = lazy(() =>
+  import("./screens/History").then((m) => ({ default: m.History })),
+);
+const SessionDetail = lazy(() =>
+  import("./screens/SessionDetail").then((m) => ({
+    default: m.SessionDetail,
+  })),
+);
 
 function ProtectedLayout() {
   return (
@@ -46,6 +54,8 @@ export default function App() {
         <Route path="/today" element={<Today />} />
         <Route path="/exercise/:id" element={<ExerciseDetail />} />
         <Route path="/progress" element={<Trends />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/history/session/:sessionId" element={<SessionDetail />} />
         <Route path="/split" element={<SplitEditor />} />
         <Route path="/profile" element={<Profile />} />
       </Route>

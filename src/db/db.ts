@@ -79,6 +79,15 @@ export interface Setting {
   value: string;
 }
 
+/** A target working-set PR for one exercise. */
+export interface Goal {
+  id: string;
+  exerciseId: string;
+  /** Target weight in canonical lbs. */
+  targetWeight: number;
+  createdAt: string;
+}
+
 /** Pending cloud mutation. Flushed in the background after Dexie writes. */
 export interface SyncOutboxEntry {
   id?: number;
@@ -89,7 +98,8 @@ export interface SyncOutboxEntry {
     | "sessions"
     | "setLogs"
     | "exercisePrefs"
-    | "settings";
+    | "settings"
+    | "goals";
   docId: string;
   op: "upsert" | "delete";
   updatedAt: string;
@@ -103,6 +113,7 @@ export const db = new Dexie("mirin") as Dexie & {
   setLogs: EntityTable<SetLog, "id">;
   exercisePrefs: EntityTable<ExercisePreference, "exerciseId">;
   settings: EntityTable<Setting, "key">;
+  goals: EntityTable<Goal, "id">;
   syncOutbox: EntityTable<SyncOutboxEntry, "id">;
 };
 
@@ -178,6 +189,10 @@ db.version(5).stores({});
 
 db.version(6).stores({
   syncOutbox: "++id, [collection+docId], collection",
+});
+
+db.version(7).stores({
+  goals: "id, exerciseId",
 });
 
 db.on("populate", seed);
