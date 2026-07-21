@@ -173,7 +173,7 @@ The signature control. A weight/reps stepper is a horizontal group — minus but
 ### Navigation
 - **Mobile:** Floating pill tab bar above the safe area — frosted glass, icon + label per tab, active item seated in a translucent highlight pill. Accent fill stays on the log action, not the nav.
 - **Desktop:** Slim sidebar, solid surface, hairline border. Active item: ink text; inactive: muted ink.
-- **Cold open:** Logo + wordmark hold ~900ms, then blur-fade into the shell (once per browser session). Skip under reduced motion.
+- **Cold open:** Logo mark alone holds ~900ms, then blur-fade into the shell (once per browser session). Skip under reduced motion.
 
 ### Rest Timer (signature component)
 Floating glass chip above the mobile nav. Subtle progress ring, 1.5px stroke in #d4d4d4 on a #232323 track, tabular-figure countdown centered. Dismissible with one tap. Under `prefers-reduced-motion`, the ring is replaced by the numeric countdown alone.

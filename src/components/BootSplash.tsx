@@ -55,7 +55,7 @@ export function BootSplash({ children }: { children: ReactNode }) {
             .join(" ")}
           aria-hidden="true"
         >
-          <div className="mirin-splash-mark flex flex-col items-center gap-4">
+          <div className="mirin-splash-mark">
             <img
               src="/logo.png"
               alt=""
@@ -63,9 +63,6 @@ export function BootSplash({ children }: { children: ReactNode }) {
               width="64"
               height="64"
             />
-            <span className="text-xl font-semibold tracking-tight text-ink">
-              MIRIN
-            </span>
           </div>
         </div>
       ) : null}
