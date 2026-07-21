@@ -143,34 +143,30 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <main className="mx-auto w-full max-w-2xl px-4 pb-28 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-12 md:pt-10">
+        <main className="mx-auto w-full max-w-2xl px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-12 md:pt-10">
           {children}
         </main>
       </div>
 
-      {/* Mobile tab bar — Duet sizing: full-width, compact, even slots */}
+      {/* Floating glass pill — Tinder proportions, content-sized tabs */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-glass-border glass pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:hidden"
         aria-label="Primary"
       >
-        <div className="flex h-14 items-stretch px-1">
+        <div className="pointer-events-auto flex items-center gap-0.5 rounded-pill glass p-1.5 shadow-glass">
           {NAV_ITEMS.map(({ to, label, Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className="flex min-w-0 flex-1 items-center justify-center"
-            >
+            <NavLink key={to} to={to} className="block">
               {({ isActive }) => (
                 <span
                   className={[
-                    "flex flex-col items-center justify-center gap-0.5 rounded-full px-3.5 py-1",
+                    "flex h-12 w-[4.5rem] flex-col items-center justify-center gap-1 rounded-pill",
                     isActive
                       ? "bg-glass-highlight text-ink"
                       : "text-muted",
                   ].join(" ")}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-[11px] font-medium leading-none">
+                  <Icon className="h-[22px] w-[22px]" />
+                  <span className="text-[11px] font-medium leading-none tracking-tight">
                     {label}
                   </span>
                 </span>
