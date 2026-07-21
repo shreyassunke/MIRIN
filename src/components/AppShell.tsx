@@ -169,30 +169,34 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <main className="mx-auto w-full max-w-2xl px-4 pb-32 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-12 md:pt-10">
+        <main className="mx-auto w-full max-w-2xl px-4 pb-40 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8 md:pb-12 md:pt-10">
           {children}
         </main>
       </div>
 
-      {/* Floating glass pill — Tinder proportions, content-sized tabs */}
+      {/* Floating glass pill — Tinder structure: near-full width, equal slots, tall hits */}
       <nav
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:hidden"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
         aria-label="Primary"
       >
-        <div className="pointer-events-auto flex items-center gap-0.5 rounded-pill glass p-1.5 shadow-glass">
+        <div className="pointer-events-auto flex w-full items-stretch rounded-pill glass p-2 shadow-glass">
           {NAV_ITEMS.map(({ to, label, Icon }) => (
-            <NavLink key={to} to={to} className="block">
+            <NavLink
+              key={to}
+              to={to}
+              className="min-w-0 flex-1"
+            >
               {({ isActive }) => (
                 <span
                   className={[
-                    "flex h-12 w-[3.65rem] flex-col items-center justify-center gap-1 rounded-pill sm:w-[4.25rem]",
+                    "flex h-14 w-full flex-col items-center justify-center gap-1.5 rounded-pill",
                     isActive
                       ? "bg-glass-highlight text-ink"
                       : "text-muted",
                   ].join(" ")}
                 >
-                  <Icon className="h-[22px] w-[22px]" />
-                  <span className="text-[11px] font-medium leading-none tracking-tight">
+                  <Icon className="h-7 w-7" />
+                  <span className="text-[12px] font-medium leading-none tracking-tight">
                     {label}
                   </span>
                 </span>
