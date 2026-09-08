@@ -25,6 +25,9 @@ const Profile = lazy(() =>
 const History = lazy(() =>
   import("./screens/History").then((m) => ({ default: m.History })),
 );
+const Nutrition = lazy(() =>
+  import("./screens/Nutrition").then((m) => ({ default: m.Nutrition })),
+);
 const SessionDetail = lazy(() =>
   import("./screens/SessionDetail").then((m) => ({
     default: m.SessionDetail,
@@ -53,9 +56,14 @@ export default function App() {
         <Route path="/" element={<Navigate to="/today" replace />} />
         <Route path="/today" element={<Today />} />
         <Route path="/exercise/:id" element={<ExerciseDetail />} />
-        <Route path="/progress" element={<Trends />} />
+        <Route
+          path="/progress"
+          element={<Navigate to="/history/progress" replace />}
+        />
         <Route path="/history" element={<History />} />
+        <Route path="/history/progress" element={<Trends />} />
         <Route path="/history/session/:sessionId" element={<SessionDetail />} />
+        <Route path="/nutrition" element={<Nutrition />} />
         <Route path="/split" element={<SplitEditor />} />
         <Route path="/profile" element={<Profile />} />
       </Route>

@@ -55,10 +55,22 @@ await run("exercise", mobile, async (page) => {
   await page.screenshot({ path: `${OUT}/exercise-mobile.png`, fullPage: true });
 });
 
+await run("history", mobile, async (page) => {
+  await page.goto(`${BASE}/history`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/history-mobile.png`, fullPage: true });
+});
+
 await run("trends", mobile, async (page) => {
-  await page.goto(`${BASE}/progress`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/history/progress`, { waitUntil: "networkidle" });
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/trends-mobile.png`, fullPage: true });
+});
+
+await run("nutrition", mobile, async (page) => {
+  await page.goto(`${BASE}/nutrition`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/nutrition-mobile.png`, fullPage: true });
 });
 
 await run("split", mobile, async (page) => {

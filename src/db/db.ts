@@ -88,6 +88,14 @@ export interface Goal {
   createdAt: string;
 }
 
+/** One calendar day's protein and calories. `id` is YYYY-MM-DD local. */
+export interface NutritionLog {
+  id: string;
+  proteinG: number;
+  calories: number;
+  updatedAt: string;
+}
+
 /** Pending cloud mutation. Flushed in the background after Dexie writes. */
 export interface SyncOutboxEntry {
   id?: number;
@@ -99,7 +107,8 @@ export interface SyncOutboxEntry {
     | "setLogs"
     | "exercisePrefs"
     | "settings"
-    | "goals";
+    | "goals"
+    | "nutritionLogs";
   docId: string;
   op: "upsert" | "delete";
   updatedAt: string;
@@ -114,6 +123,7 @@ export const db = new Dexie("mirin") as Dexie & {
   exercisePrefs: EntityTable<ExercisePreference, "exerciseId">;
   settings: EntityTable<Setting, "key">;
   goals: EntityTable<Goal, "id">;
+  nutritionLogs: EntityTable<NutritionLog, "id">;
   syncOutbox: EntityTable<SyncOutboxEntry, "id">;
 };
 
@@ -193,6 +203,10 @@ db.version(6).stores({
 
 db.version(7).stores({
   goals: "id, exerciseId",
+});
+
+db.version(8).stores({
+  nutritionLogs: "id",
 });
 
 db.on("populate", seed);

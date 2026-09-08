@@ -11,6 +11,7 @@ export const SYNC_COLLECTIONS = [
   "exercisePrefs",
   "settings",
   "goals",
+  "nutritionLogs",
 ] as const;
 
 export type SyncCollection = (typeof SYNC_COLLECTIONS)[number];
@@ -53,5 +54,7 @@ export function tableFor(collection: SyncCollection): Table {
       return db.settings;
     case "goals":
       return db.goals;
+    case "nutritionLogs":
+      return db.nutritionLogs;
   }
 }

@@ -85,6 +85,7 @@ async function resetLocalData(): Promise<void> {
         db.exercisePrefs,
         db.settings,
         db.goals,
+        db.nutritionLogs,
         db.syncOutbox,
       ],
       async () => {
@@ -97,6 +98,7 @@ async function resetLocalData(): Promise<void> {
           db.exercisePrefs.clear(),
           db.settings.clear(),
           db.goals.clear(),
+          db.nutritionLogs.clear(),
           db.syncOutbox.clear(),
         ]);
       },
@@ -264,6 +266,7 @@ async function pullRemote(userId: string): Promise<void> {
         db.exercisePrefs,
         db.settings,
         db.goals,
+        db.nutritionLogs,
       ],
       async () => {
         for (const doc of docs) {

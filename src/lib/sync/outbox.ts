@@ -1,3 +1,4 @@
+import Dexie from "dexie";
 import { db, type SyncOutboxEntry } from "../../db/db";
 import {
   SYNC_COLLECTIONS,
@@ -61,12 +62,19 @@ async function coalesceOutbox(
   docId: string,
   op: SyncOutboxEntry["op"],
 ): Promise<void> {
-  await db.syncOutbox.where("[collection+docId]").equals([collection, docId]).delete();
-  await db.syncOutbox.add({
-    collection,
-    docId,
-    op,
-    updatedAt: new Date().toISOString(),
+  // Dexie hooks fire inside the mutated table's transaction, which does not
+  // include syncOutbox. Escape it so the queue write has its own scope.
+  await Dexie.ignoreTransaction(async () => {
+    await db.syncOutbox
+      .where("[collection+docId]")
+      .equals([collection, docId])
+      .delete();
+    await db.syncOutbox.add({
+      collection,
+      docId,
+      op,
+      updatedAt: new Date().toISOString(),
+    });
   });
 }
 

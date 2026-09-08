@@ -14,7 +14,7 @@ import { getContactLine, getDisplayName } from "../lib/user";
 const NAV_ITEMS = [
   { to: "/today", label: "Today", Icon: IconToday },
   { to: "/history", label: "History", Icon: IconHistory },
-  { to: "/progress", label: "Progress", Icon: IconProgress },
+  { to: "/nutrition", label: "Nutrition", Icon: IconNutrition },
   { to: "/split", label: "Split", Icon: IconSplit },
   { to: "/profile", label: "Profile", Icon: IconProfile },
 ] as const;
@@ -86,22 +86,26 @@ function IconHistory(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconProgress(props: SVGProps<SVGSVGElement>) {
+function IconNutrition(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
       <path
-        d="M4 16.5 9 11l3.5 3.5L20 7"
+        d="M4.5 12h15"
         stroke="currentColor"
         strokeWidth="1.75"
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
       <path
-        d="M15 7h5v5"
+        d="M6 12c.4 4.2 3 7.5 6 7.5s5.6-3.3 6-7.5"
         stroke="currentColor"
         strokeWidth="1.75"
         strokeLinecap="round"
-        strokeLinejoin="round"
+      />
+      <path
+        d="M12 4.5v5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -289,7 +293,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       isActive ? "scale-105" : "scale-100",
                     ].join(" ")}
                   />
-                  <span className="text-[12px] font-medium leading-none tracking-tight">
+                  <span className="whitespace-nowrap text-[12px] font-medium leading-none tracking-tight">
                     {label}
                   </span>
                 </span>

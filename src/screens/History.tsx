@@ -17,6 +17,7 @@ import { MANUAL_STEP, toCanonical, toDisplay } from "../lib/units";
 import { useUnit } from "../lib/settings";
 import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
+import { HistoryNav } from "../components/HistoryNav";
 import { Stepper } from "../components/Stepper";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -130,12 +131,7 @@ export function History() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">History</h1>
-        <p className="mt-1 text-sm text-muted">
-          Past sessions, corrections, and PR targets
-        </p>
-      </header>
+      <HistoryNav />
 
       <section className="mb-8" aria-label="Training calendar">
         <div className="mb-3 flex items-center justify-between gap-3">

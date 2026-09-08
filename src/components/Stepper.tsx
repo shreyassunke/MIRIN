@@ -23,7 +23,7 @@ export function Stepper({ label, value, step, min = 0, onChange }: StepperProps)
         >
           &minus;
         </button>
-        <span className="tnum min-w-12 text-center text-xl font-semibold tracking-tight">
+        <span className="tnum min-w-[4.75rem] text-center text-xl font-semibold tracking-tight">
           {formatWeight(value)}
         </span>
         <button
