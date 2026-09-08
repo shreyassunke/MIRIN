@@ -729,19 +729,26 @@ export function Today() {
         </div>
       )}
 
-      {anyLogged && (
+      {data.exercises.length > 0 && (
         <div className="mt-6">
           <button
             type="button"
-            onClick={finishWorkout}
-            className={
+            onClick={() => void finishWorkout()}
+            disabled={!allDone}
+            className={[
+              "h-12 w-full rounded-pill text-[15px] font-semibold",
               allDone
-                ? "btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
-                : "glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
-            }
+                ? "btn-primary bg-accent text-bg hover:bg-ink"
+                : "glass-btn text-muted",
+            ].join(" ")}
           >
-            Finish workout
+            Completed all exercises
           </button>
+          {!allDone ? (
+            <p className="mt-2 text-center text-[13px] text-muted">
+              Log every set to finish the workout.
+            </p>
+          ) : null}
         </div>
       )}
 

@@ -9,7 +9,6 @@ import {
   sessionDateKey,
   updateSetLog,
 } from "../lib/history";
-import { formatWeight } from "../lib/workout";
 import {
   appendSessionExercise,
   resolveSessionExerciseIds,
@@ -308,8 +307,11 @@ function SetEditor({
         Set {set.setNumber}
       </span>
       <div className="flex flex-wrap items-center gap-4">
-        <MiniStepper
-          label={unit}
+        <Stepper
+          layout="inline"
+          inlineSuffix={unit}
+          size="compact"
+          label={`Weight (${unit})`}
           value={weightDisplay}
           step={step}
           min={0}
@@ -317,8 +319,11 @@ function SetEditor({
             void updateSetLog(set.id, { weight: toCanonical(v, unit) })
           }
         />
-        <MiniStepper
-          label="reps"
+        <Stepper
+          layout="inline"
+          inlineSuffix="reps"
+          size="compact"
+          label="Reps"
           value={set.reps}
           step={1}
           min={1}
@@ -331,47 +336,5 @@ function SetEditor({
         />
       </div>
     </li>
-  );
-}
-
-/** Compact stepper for correcting a logged set inline. */
-function MiniStepper({
-  label,
-  value,
-  step,
-  min,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  step: number;
-  min: number;
-  onChange: (value: number) => void;
-}) {
-  const btn =
-    "glass-btn flex h-11 w-11 items-center justify-center rounded-pill text-lg leading-none text-ink";
-  return (
-    <div className="flex items-center gap-1.5">
-      <button
-        type="button"
-        className={btn}
-        aria-label={`Decrease ${label}`}
-        onClick={() => onChange(Math.max(min, value - step))}
-      >
-        &minus;
-      </button>
-      <span className="tnum min-w-14 text-center text-base font-semibold tracking-tight">
-        {formatWeight(value)}
-        <span className="ml-1 text-[12px] font-medium text-muted">{label}</span>
-      </span>
-      <button
-        type="button"
-        className={btn}
-        aria-label={`Increase ${label}`}
-        onClick={() => onChange(value + step)}
-      >
-        +
-      </button>
-    </div>
   );
 }
