@@ -90,22 +90,12 @@ function IconMacros(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
       <path
-        d="M4.5 12h15"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
+        fill="currentColor"
+        d="M12 20.5c-3.55 0-6.5-2.75-6.5-6.25 0-2.45 1.35-4.55 3.35-5.45-.4-1.35 0-2.75.85-3.85.35.65.7 1 1.05 1.15-.45-.85-.35-1.85.45-2.55.5-.45 1.15-.7 1.85-.7.6 0 1.2.2 1.65.55.45-.35 1.05-.55 1.65-.55.7 0 1.35.25 1.85.7.8.7.9 1.7.45 2.55.35-.15.7-.5 1.05-1.15.85 1.1 1.25 2.5.85 3.85 2 0.9 3.35 3 3.35 5.45 0 3.5-2.95 6.25-6.5 6.25z"
       />
       <path
-        d="M6 12c.4 4.2 3 7.5 6 7.5s5.6-3.3 6-7.5"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 4.5v5"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
+        fill="currentColor"
+        d="M15.4 4.35c1-.1 1.85.35 2.25 1.15-.6-.2-1.2-.15-1.75.1-.4.2-.75.5-.95.9.55-.45 1.2-.65 1.9-.55-.25-.35-.6-.6-1-.7-.3-.05-.6 0-.9.1.45-.2.95-.3 1.45-.25.25.03.5.1.7.25-.1-.15-.25-.25-.45-.3z"
       />
     </svg>
   );
