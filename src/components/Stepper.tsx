@@ -5,10 +5,21 @@ interface StepperProps {
   value: number;
   step: number;
   min?: number;
+  max?: number;
   onChange: (value: number) => void;
+  /** Custom value rendering (feet and inches, units, and so on). */
+  format?: (value: number) => string;
 }
 
-export function Stepper({ label, value, step, min = 0, onChange }: StepperProps) {
+export function Stepper({
+  label,
+  value,
+  step,
+  min = 0,
+  max,
+  onChange,
+  format,
+}: StepperProps) {
   const btn =
     "glass-btn flex h-12 w-12 items-center justify-center rounded-pill text-xl leading-none text-ink";
   return (
@@ -24,13 +35,15 @@ export function Stepper({ label, value, step, min = 0, onChange }: StepperProps)
           &minus;
         </button>
         <span className="tnum min-w-[4.75rem] text-center text-xl font-semibold tracking-tight">
-          {formatWeight(value)}
+          {format ? format(value) : formatWeight(value)}
         </span>
         <button
           type="button"
           className={btn}
           aria-label={`Increase ${label}`}
-          onClick={() => onChange(value + step)}
+          onClick={() =>
+            onChange(max === undefined ? value + step : Math.min(max, value + step))
+          }
         >
           +
         </button>

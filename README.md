@@ -86,7 +86,7 @@ On iPhone Safari: `http://<your-computer-ip>:5174/today` (your PC must stay on; 
 - `/history` — session calendar and PR targets. The **Progress** tab (`/history/progress`) holds overall volume per session plus the weak-point charts (Lateral Raise, Rear Delt Flye, Incline Press).
 - `/macros` — protein and calories per day, prefilled from the last logged day.
 - `/split` — reorder exercises within each day; order is enforced on the logging screen.
-- `/profile` — display name, cloud sync status, and sign out.
+- `/profile` — display name, cloud sync status, and sign out. The **Measurements** tab (`/profile/measurements`) holds gender, height, and dated tape readings (waist, neck, hips, chest, arm, wrist, plus your own fields), with BMI, US Navy body fat, lean/fat mass, FFMI, and progress against per-field targets.
 - `/auth` — email or Google sign-in.
 
 ## Design
@@ -97,4 +97,5 @@ Design context lives in `PRODUCT.md` (strategy, register, anti-references) and `
 
 - `node scripts/screenshot.mjs` — screenshots every screen and exercises the logging flow in a headless browser (requires the dev server running and Playwright's Chromium installed).
 - `node scripts/verify-with-data.mjs` — seeds three weeks of demo history into a throwaway browser profile and screenshots the data-filled charts.
-- `node scripts/verify-mobile.mjs` — mobile wheel picker, logo, and lazy-route checks (set `BASE_URL` for preview builds).
+- `node scripts/verify-mobile.mjs` — mobile wheel picker, nav, and lazy-route checks (set `BASE_URL` for preview builds).
+- `node scripts/verify-measurements.mjs` — body-measurements empty state, inline editor, and seeded history at mobile/tablet/desktop widths, including a metric-unit pass.

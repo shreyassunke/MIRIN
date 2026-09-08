@@ -1,9 +1,19 @@
 export type Unit = "lb" | "kg";
+export type LengthUnit = "in" | "cm";
 export type InputMethod = "barbell" | "dumbbell" | "manual";
 
 const LB_PER_KG = 2.2046226218;
+const CM_PER_IN = 2.54;
 
 export const round2 = (x: number) => Math.round(x * 100) / 100;
+
+/**
+ * One decimal, trailing zero trimmed. Tape readings and body-composition
+ * estimates are not precise to a hundredth, so displaying one would lie.
+ */
+export const formatMeasure = (v: number) => String(parseFloat(v.toFixed(1)));
+
+export const KG_PER_LB = 1 / LB_PER_KG;
 
 /** Canonical storage is always pounds. Convert for display. */
 export const toDisplay = (lbs: number, unit: Unit) =>
@@ -106,3 +116,29 @@ export function decomposePlates(
 export const MANUAL_STEP: Record<Unit, number> = { lb: 5, kg: 2.5 };
 
 export const unitLabel = (unit: Unit) => unit;
+
+/* ---------- Tape measurements: canonical storage is always centimetres ---------- */
+
+export const toLengthDisplay = (cm: number, unit: LengthUnit) =>
+  unit === "cm" ? round2(cm) : round2(cm / CM_PER_IN);
+
+export const toLengthCanonical = (value: number, unit: LengthUnit) =>
+  unit === "cm" ? round2(value) : round2(value * CM_PER_IN);
+
+export const cmToInches = (cm: number) => cm / CM_PER_IN;
+
+/** Tape increments: half an inch is the finest a tape reliably reads. */
+export const LENGTH_STEP: Record<LengthUnit, number> = { in: 0.5, cm: 1 };
+export const HEIGHT_STEP: Record<LengthUnit, number> = { in: 1, cm: 1 };
+
+/** Body weight moves in smaller steps than a loaded bar. */
+export const BODY_WEIGHT_STEP: Record<Unit, number> = { lb: 1, kg: 0.5 };
+
+/** Feet and inches when imperial; whole centimetres when metric. */
+export function formatHeight(cm: number, unit: LengthUnit): string {
+  if (unit === "cm") return `${Math.round(cm)} cm`;
+  const totalInches = Math.round(cmToInches(cm));
+  const feet = Math.floor(totalInches / 12);
+  const inches = totalInches - feet * 12;
+  return `${feet}′ ${inches}″`;
+}

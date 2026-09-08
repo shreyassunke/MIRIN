@@ -55,9 +55,9 @@ await page.evaluate(async () => {
 await page.reload({ waitUntil: "networkidle" });
 await page.waitForTimeout(700);
 
-// Logo in the mobile top bar.
-await expect("logo visible in mobile corner", () =>
-  page.locator('header img[alt="MIRIN"]').isVisible(),
+// Mobile has no top bar by design; the floating pill nav is the chrome.
+await expect("mobile nav pill visible", () =>
+  page.getByRole("link", { name: "Today" }).isVisible(),
 );
 
 // Open Lateral Raise -> dumbbell wheel, prefilled at 15 lb.
@@ -142,6 +142,22 @@ await page.goto(`${BASE}/split`, { waitUntil: "networkidle" });
 await page.waitForTimeout(600);
 await expect("split renders (lazy)", () =>
   page.getByRole("heading", { name: "Split" }).isVisible(),
+);
+await page.goto(`${BASE}/history`, { waitUntil: "networkidle" });
+await page.waitForTimeout(600);
+await expect("history sessions tab renders", () =>
+  page.getByRole("link", { name: "Sessions", exact: true }).isVisible(),
+);
+await page.goto(`${BASE}/profile/measurements`, { waitUntil: "networkidle" });
+await page.waitForTimeout(800);
+await expect("measurements renders (lazy)", () =>
+  page.getByRole("heading", { name: "Body" }).isVisible(),
+);
+await expect("profile tabs render", () =>
+  page.getByRole("link", { name: "Measurements", exact: true }).isVisible(),
+);
+await expect("core fields seeded", () =>
+  page.getByRole("button", { name: /^Body weight/ }).isVisible(),
 );
 
 await browser.close();

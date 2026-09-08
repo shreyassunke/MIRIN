@@ -78,5 +78,9 @@ function tableForCollection(collection: SyncCollection) {
       return db.goals;
     case "nutritionLogs":
       return db.nutritionLogs;
+    case "measurementFields":
+      return db.measurementFields;
+    case "measurementEntries":
+      return db.measurementEntries;
   }
 }

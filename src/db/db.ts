@@ -96,6 +96,31 @@ export interface NutritionLog {
   updatedAt: string;
 }
 
+export type MeasurementKind = "mass" | "length";
+
+/** A tracked body measurement. Seeded core fields plus user-added ones. */
+export interface MeasurementField {
+  id: string;
+  label: string;
+  kind: MeasurementKind;
+  order: number;
+  /** Core fields are seeded and cannot be removed. */
+  isCore?: boolean;
+  /** Target in canonical units (lbs for mass, cm for length). Absent = none. */
+  target?: number;
+  createdAt: string;
+}
+
+/** One dated reading for one field. Canonical: lbs for mass, cm for length. */
+export interface MeasurementEntry {
+  id: string;
+  fieldId: string;
+  /** Local calendar date, YYYY-MM-DD. */
+  dateKey: string;
+  value: number;
+  updatedAt: string;
+}
+
 /** Pending cloud mutation. Flushed in the background after Dexie writes. */
 export interface SyncOutboxEntry {
   id?: number;
@@ -108,7 +133,9 @@ export interface SyncOutboxEntry {
     | "exercisePrefs"
     | "settings"
     | "goals"
-    | "nutritionLogs";
+    | "nutritionLogs"
+    | "measurementFields"
+    | "measurementEntries";
   docId: string;
   op: "upsert" | "delete";
   updatedAt: string;
@@ -124,6 +151,8 @@ export const db = new Dexie("mirin") as Dexie & {
   settings: EntityTable<Setting, "key">;
   goals: EntityTable<Goal, "id">;
   nutritionLogs: EntityTable<NutritionLog, "id">;
+  measurementFields: EntityTable<MeasurementField, "id">;
+  measurementEntries: EntityTable<MeasurementEntry, "id">;
   syncOutbox: EntityTable<SyncOutboxEntry, "id">;
 };
 
@@ -207,6 +236,11 @@ db.version(7).stores({
 
 db.version(8).stores({
   nutritionLogs: "id",
+});
+
+db.version(9).stores({
+  measurementFields: "id, order",
+  measurementEntries: "id, fieldId, dateKey, [fieldId+dateKey]",
 });
 
 db.on("populate", seed);

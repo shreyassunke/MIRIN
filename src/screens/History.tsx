@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db/db";
@@ -16,6 +16,7 @@ import { formatWeight } from "../lib/workout";
 import { MANUAL_STEP, toCanonical, toDisplay } from "../lib/units";
 import { useUnit } from "../lib/settings";
 import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
+import { ConfirmDelete } from "../components/ConfirmDelete";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { HistoryNav } from "../components/HistoryNav";
 import { Stepper } from "../components/Stepper";
@@ -26,24 +27,6 @@ const iconBtn =
   "glass-btn flex h-11 w-11 items-center justify-center rounded-pill text-ink disabled:pointer-events-none disabled:opacity-40";
 const secondaryBtn =
   "glass-btn h-11 rounded-pill px-4 text-sm font-medium text-ink";
-
-function ConfirmDelete({ onConfirm }: { onConfirm: () => void }) {
-  const [armed, setArmed] = useState(false);
-  useEffect(() => {
-    if (!armed) return;
-    const t = setTimeout(() => setArmed(false), 4000);
-    return () => clearTimeout(t);
-  }, [armed]);
-  return (
-    <button
-      type="button"
-      onClick={() => (armed ? onConfirm() : setArmed(true))}
-      className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-    >
-      {armed ? "Confirm remove" : "Remove"}
-    </button>
-  );
-}
 
 export function History() {
   const [unit] = useUnit();

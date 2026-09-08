@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthProvider";
+import { ProfileNav } from "../components/ProfileNav";
 import { getContactLine, getDisplayName } from "../lib/user";
 import { useSync } from "../sync/SyncProvider";
 
@@ -76,12 +77,9 @@ export function Profile() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-      <p className="mt-2 max-w-[65ch] text-[15px] leading-relaxed text-muted">
-        Name and account details for this log.
-      </p>
+      <ProfileNav />
 
-      <section className="mt-8 rounded-xl glass p-4 md:p-6">
+      <section className="rounded-xl glass p-4 md:p-6">
         <p className="text-[15px] font-semibold tracking-tight">
           {displayName || "No name set"}
         </p>

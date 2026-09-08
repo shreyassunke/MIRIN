@@ -86,6 +86,8 @@ async function resetLocalData(): Promise<void> {
         db.settings,
         db.goals,
         db.nutritionLogs,
+        db.measurementFields,
+        db.measurementEntries,
         db.syncOutbox,
       ],
       async () => {
@@ -99,6 +101,8 @@ async function resetLocalData(): Promise<void> {
           db.settings.clear(),
           db.goals.clear(),
           db.nutritionLogs.clear(),
+          db.measurementFields.clear(),
+          db.measurementEntries.clear(),
           db.syncOutbox.clear(),
         ]);
       },
@@ -267,6 +271,8 @@ async function pullRemote(userId: string): Promise<void> {
         db.settings,
         db.goals,
         db.nutritionLogs,
+        db.measurementFields,
+        db.measurementEntries,
       ],
       async () => {
         for (const doc of docs) {
