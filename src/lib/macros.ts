@@ -7,7 +7,7 @@ export const DEFAULT_CALORIES = 2400;
 export const PROTEIN_STEP = 5;
 export const CALORIE_STEP = 50;
 
-export function todayNutritionKey(): string {
+export function todayMacroKey(): string {
   return toLocalISODate(new Date());
 }
 
@@ -20,7 +20,7 @@ export async function lastLogBefore(
     .sort((a, b) => b.id.localeCompare(a.id))[0];
 }
 
-export async function saveNutritionDay(
+export async function saveMacroDay(
   dateKey: string,
   proteinG: number,
   calories: number,

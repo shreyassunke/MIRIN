@@ -14,7 +14,7 @@ import { getContactLine, getDisplayName } from "../lib/user";
 const NAV_ITEMS = [
   { to: "/today", label: "Today", Icon: IconToday },
   { to: "/history", label: "History", Icon: IconHistory },
-  { to: "/nutrition", label: "Nutrition", Icon: IconNutrition },
+  { to: "/macros", label: "Macros", Icon: IconMacros },
   { to: "/split", label: "Split", Icon: IconSplit },
   { to: "/profile", label: "Profile", Icon: IconProfile },
 ] as const;
@@ -86,7 +86,7 @@ function IconHistory(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconNutrition(props: SVGProps<SVGSVGElement>) {
+function IconMacros(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
       <path

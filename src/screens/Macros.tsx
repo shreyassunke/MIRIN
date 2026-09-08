@@ -9,12 +9,12 @@ import {
   DEFAULT_PROTEIN_G,
   PROTEIN_STEP,
   lastLogBefore,
-  saveNutritionDay,
-  todayNutritionKey,
-} from "../lib/nutrition";
+  saveMacroDay,
+  todayMacroKey,
+} from "../lib/macros";
 
-export function Nutrition() {
-  const todayKey = todayNutritionKey();
+export function Macros() {
+  const todayKey = todayMacroKey();
   const data = useLiveQuery(async () => {
     const [existing, recent] = await Promise.all([
       db.nutritionLogs.get(todayKey),
@@ -42,21 +42,21 @@ export function Nutrition() {
   const recent = (data?.recent ?? []).filter((log) => log.id !== todayKey);
 
   const save = () => {
-    void saveNutritionDay(todayKey, protein, calories);
+    void saveMacroDay(todayKey, protein, calories);
   };
 
   return (
     <div>
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Nutrition</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Macros</h1>
         <p className="mt-1 text-sm text-muted">
           Protein and calories for the day. Last log is the default.
         </p>
       </header>
 
-      <section className="mb-10" aria-labelledby="today-nutrition">
+      <section className="mb-10" aria-labelledby="today-macros">
         <h2
-          id="today-nutrition"
+          id="today-macros"
           className="mb-4 text-[13px] font-medium text-muted"
         >
           {formatDayHeading(todayKey)}
@@ -89,9 +89,9 @@ export function Nutrition() {
         </div>
       </section>
 
-      <section aria-labelledby="recent-nutrition">
+      <section aria-labelledby="recent-macros">
         <h2
-          id="recent-nutrition"
+          id="recent-macros"
           className="mb-2 text-[13px] font-medium text-muted"
         >
           Recent
@@ -106,7 +106,7 @@ export function Nutrition() {
         ) : (
           <ul className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
             {loggedToday && data.existing ? (
-              <NutritionRow
+              <MacroRow
                 dateKey={data.existing.id}
                 proteinG={data.existing.proteinG}
                 calories={data.existing.calories}
@@ -114,7 +114,7 @@ export function Nutrition() {
               />
             ) : null}
             {recent.map((log) => (
-              <NutritionRow
+              <MacroRow
                 key={log.id}
                 dateKey={log.id}
                 proteinG={log.proteinG}
@@ -128,7 +128,7 @@ export function Nutrition() {
   );
 }
 
-function NutritionRow({
+function MacroRow({
   dateKey,
   proteinG,
   calories,

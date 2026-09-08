@@ -133,10 +133,10 @@ await page.waitForTimeout(800);
 await expect("progress renders under history", () =>
   page.getByRole("link", { name: "Progress", exact: true }).isVisible(),
 );
-await page.goto(`${BASE}/nutrition`, { waitUntil: "networkidle" });
+await page.goto(`${BASE}/macros`, { waitUntil: "networkidle" });
 await page.waitForTimeout(600);
-await expect("nutrition renders (lazy)", () =>
-  page.getByRole("heading", { name: "Nutrition" }).isVisible(),
+await expect("macros renders (lazy)", () =>
+  page.getByRole("heading", { name: "Macros" }).isVisible(),
 );
 await page.goto(`${BASE}/split`, { waitUntil: "networkidle" });
 await page.waitForTimeout(600);

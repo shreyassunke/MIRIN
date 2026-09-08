@@ -67,10 +67,10 @@ await run("trends", mobile, async (page) => {
   await page.screenshot({ path: `${OUT}/trends-mobile.png`, fullPage: true });
 });
 
-await run("nutrition", mobile, async (page) => {
-  await page.goto(`${BASE}/nutrition`, { waitUntil: "networkidle" });
+await run("macros", mobile, async (page) => {
+  await page.goto(`${BASE}/macros`, { waitUntil: "networkidle" });
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/nutrition-mobile.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/macros-mobile.png`, fullPage: true });
 });
 
 await run("split", mobile, async (page) => {
