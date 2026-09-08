@@ -4,6 +4,7 @@ import { ConfirmDelete } from "../components/ConfirmDelete";
 import { ProfileNav } from "../components/ProfileNav";
 import { Stepper } from "../components/Stepper";
 import { TrendChart, type TrendPoint } from "../components/TrendChart";
+import { UnitToggle } from "../components/UnitToggle";
 import { db, type MeasurementKind } from "../db/db";
 import {
   DEFAULT_HEIGHT_CM,
@@ -97,6 +98,44 @@ function formatList(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
+const DEFAULT_WEIGHT_LBS = 175;
+
+/** Current body weight — writes today's reading the moment it changes. */
+function BodyWeightControl({
+  latestLbs,
+  unit,
+}: {
+  latestLbs: number | null;
+  unit: Unit;
+}) {
+  const [value, setValue] = useState(() =>
+    toDisplay(latestLbs ?? DEFAULT_WEIGHT_LBS, unit),
+  );
+
+  const commit = (next: number) => {
+    setValue(next);
+    void saveMeasurement(WEIGHT_FIELD_ID, toCanonical(next, unit));
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <Stepper
+        label={`Weight (${unit})`}
+        value={value}
+        step={BODY_WEIGHT_STEP[unit]}
+        min={0}
+        format={formatMeasure}
+        onChange={commit}
+      />
+      {latestLbs == null ? (
+        <p className="mt-2 text-[13px] text-muted">
+          Not logged yet — adjust to save it.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function Measurements() {
   const [unit] = useUnit();
   const [lengthUnit, setLengthUnit] = useLengthUnit();
@@ -151,6 +190,7 @@ export function Measurements() {
       : toLengthDisplay(heightCm ?? DEFAULT_HEIGHT_CM, "in"),
   );
 
+  const tapeSeries = series.filter((s) => s.field.id !== WEIGHT_FIELD_ID);
   const chartable = series.filter((s) => s.entries.length >= 2);
   const activeChart =
     chartable.find((s) => s.field.id === chartField) ?? chartable[0] ?? null;
@@ -164,26 +204,29 @@ export function Measurements() {
           <h2 id="body-heading" className="text-lg font-semibold tracking-tight">
             Body
           </h2>
-          <div
-            role="group"
-            aria-label="Tape unit"
-            className="glass flex overflow-hidden rounded-pill p-0.5"
-          >
-            {(["in", "cm"] as LengthUnit[]).map((u) => (
-              <button
-                key={u}
-                type="button"
-                aria-pressed={lengthUnit === u}
-                onClick={() => setLengthUnit(u)}
-                className={`${chipClass(lengthUnit === u)} h-9 min-w-10 px-3 text-[13px]`}
-              >
-                {u}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <UnitToggle />
+            <div
+              role="group"
+              aria-label="Tape unit"
+              className="glass flex overflow-hidden rounded-pill p-0.5"
+            >
+              {(["in", "cm"] as LengthUnit[]).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  aria-pressed={lengthUnit === u}
+                  onClick={() => setLengthUnit(u)}
+                  className={`${chipClass(lengthUnit === u)} h-9 min-w-10 px-3 text-[13px]`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="space-y-5 rounded-xl glass p-4 shadow-glass sm:p-5">
+        <div className="space-y-6 rounded-xl glass p-4 shadow-glass sm:p-5">
           <div>
             <span
               id="gender-label"
@@ -208,35 +251,39 @@ export function Measurements() {
                 </button>
               ))}
             </div>
-            {gender === null ? (
-              <p className="mt-2 text-[13px] text-muted">
-                Needed for the body fat estimate.
-              </p>
-            ) : null}
           </div>
 
-          <div className="flex flex-col items-start">
-            <Stepper
-              label="Height"
-              value={heightDisplay}
-              step={HEIGHT_STEP[lengthUnit]}
-              min={lengthUnit === "cm" ? 120 : 48}
-              max={lengthUnit === "cm" ? 230 : 90}
-              format={(v) =>
-                formatHeight(
-                  lengthUnit === "cm" ? v : toLengthCanonical(v, "in"),
-                  lengthUnit,
-                )
-              }
-              onChange={(v) =>
-                setHeightCm(lengthUnit === "cm" ? v : toLengthCanonical(v, "in"))
-              }
+          <div className="flex flex-wrap justify-center gap-8">
+            <BodyWeightControl
+              key={unit}
+              latestLbs={weightLbs}
+              unit={unit}
             />
-            {heightCm === null ? (
-              <p className="mt-2 text-[13px] text-muted">
-                Not set yet — adjust to save it.
-              </p>
-            ) : null}
+            <div className="flex flex-col items-center">
+              <Stepper
+                label="Height"
+                value={heightDisplay}
+                step={HEIGHT_STEP[lengthUnit]}
+                min={lengthUnit === "cm" ? 120 : 48}
+                max={lengthUnit === "cm" ? 230 : 90}
+                format={(v) =>
+                  formatHeight(
+                    lengthUnit === "cm" ? v : toLengthCanonical(v, "in"),
+                    lengthUnit,
+                  )
+                }
+                onChange={(v) =>
+                  setHeightCm(
+                    lengthUnit === "cm" ? v : toLengthCanonical(v, "in"),
+                  )
+                }
+              />
+              {heightCm === null ? (
+                <p className="mt-2 text-[13px] text-muted">
+                  Not set yet — adjust to save it.
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
       </section>
@@ -249,8 +296,8 @@ export function Measurements() {
           Derived
         </h2>
         <p className="mb-4 max-w-[65ch] text-sm leading-relaxed text-muted">
-          Calculated from the readings below. BMI reads high on muscular builds —
-          FFMI is the lean-mass equivalent.
+          Calculated from gender, height, weight, and the tape readings. BMI
+          reads high on muscular builds — FFMI is the lean-mass equivalent.
         </p>
         <dl className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
           <MetricRow
@@ -326,7 +373,10 @@ export function Measurements() {
           <div className="mb-4">
             <AddFieldForm
               onDone={() => setAdding(false)}
-              existingLabels={series.map((s) => s.field.label.toLowerCase())}
+              existingLabels={[
+                "body weight",
+                ...tapeSeries.map((s) => s.field.label.toLowerCase()),
+              ]}
             />
           </div>
         ) : null}
@@ -335,7 +385,7 @@ export function Measurements() {
           <p className="text-sm text-muted">Loading…</p>
         ) : (
           <ul className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
-            {series.map((entry) => (
+            {tapeSeries.map((entry) => (
               <FieldRow
                 key={entry.field.id}
                 series={entry}
