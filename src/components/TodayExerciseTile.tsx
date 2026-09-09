@@ -14,9 +14,9 @@ const DOUBLE_TAP_MS = 260;
 interface TodayExerciseTileProps {
   exercise: Exercise;
   logged: SetLog[];
-  target: number;
   isActive: boolean;
-  complete: boolean;
+  /** The user called this exercise done; there is no fixed set target. */
+  finished: boolean;
   lastSummary: string;
   isSwapping: boolean;
   excludeSwapIds: string[];
@@ -39,9 +39,8 @@ interface TodayExerciseTileProps {
 export function TodayExerciseTile({
   exercise,
   logged,
-  target,
   isActive,
-  complete,
+  finished,
   lastSummary,
   isSwapping,
   excludeSwapIds,
@@ -117,7 +116,11 @@ export function TodayExerciseTile({
             </span>
           </span>
           <span className="tnum shrink-0 text-[13px] font-medium text-muted">
-            {complete ? "Done" : `${logged.length} of ${target}`}
+            {finished
+              ? `Done · ${logged.length}`
+              : logged.length === 0
+                ? "No sets"
+                : `${logged.length} ${logged.length === 1 ? "set" : "sets"}`}
           </span>
         </button>
       </div>

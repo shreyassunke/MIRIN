@@ -48,11 +48,26 @@ export interface WorkoutSession {
   sessionExerciseIds?: string[];
   /** Maps replacement exerciseId → outgoing exerciseId at swap time (for SetLog audit). */
   exerciseSwapOrigins?: Record<string, string>;
+  /**
+   * Exercises the user called done. Set counts are unfixed, so this is the
+   * only signal that an exercise is finished; it drives the auto-advance order.
+   */
+  finishedExerciseIds?: string[];
 }
 
 export interface LoadBreakdown {
   barWeight?: number; // canonical lbs
   platesPerSide?: number[]; // canonical lbs
+}
+
+/**
+ * One drop taken after the parent set, performed without rest. Not a set of
+ * its own: it never carries a set number and never counts toward set totals.
+ */
+export interface SetDrop {
+  weight: number; // canonical, stored in lbs
+  reps: number;
+  loadBreakdown?: LoadBreakdown;
 }
 
 export interface SetLog {
@@ -67,6 +82,8 @@ export interface SetLog {
   loadBreakdown?: LoadBreakdown;
   /** Set only when logged via a mid-workout exercise swap. */
   swappedFromExerciseId?: string;
+  /** Drops taken off this set, in the order performed. */
+  drops?: SetDrop[];
 }
 
 export interface ExercisePreference {

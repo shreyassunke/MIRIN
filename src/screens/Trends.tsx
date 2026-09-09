@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type SetLog, type WorkoutSession } from "../db/db";
-import { formatDate } from "../lib/workout";
+import { formatDate, setVolume } from "../lib/workout";
 import { toDisplay, type Unit } from "../lib/units";
 import { useUnit } from "../lib/settings";
 import { HistoryNav } from "../components/HistoryNav";
@@ -29,7 +29,7 @@ function volumeTrend(
     if (filter && !filter.has(log.exerciseId)) continue;
     bySession.set(
       log.sessionId,
-      (bySession.get(log.sessionId) ?? 0) + log.weight * log.reps,
+      (bySession.get(log.sessionId) ?? 0) + setVolume(log),
     );
   }
   return sessions

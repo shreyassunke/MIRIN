@@ -4,9 +4,11 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type SetLog } from "../db/db";
 import {
   addSetToSession,
+  deleteSetDrop,
   deleteSetLog,
   formatDayHeading,
   sessionDateKey,
+  updateSetDrop,
   updateSetLog,
 } from "../lib/history";
 import {
@@ -302,39 +304,81 @@ function SetEditor({
   const step = MANUAL_STEP[unit];
 
   return (
-    <li className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <span className="tnum shrink-0 text-[13px] font-medium text-muted">
-        Set {set.setNumber}
-      </span>
-      <div className="flex flex-wrap items-center gap-4">
-        <Stepper
-          layout="inline"
-          inlineSuffix={unit}
-          size="compact"
-          label={`Weight (${unit})`}
-          value={weightDisplay}
-          step={step}
-          min={0}
-          onChange={(v) =>
-            void updateSetLog(set.id, { weight: toCanonical(v, unit) })
-          }
-        />
-        <Stepper
-          layout="inline"
-          inlineSuffix="reps"
-          size="compact"
-          label="Reps"
-          value={set.reps}
-          step={1}
-          min={1}
-          onChange={(v) => void updateSetLog(set.id, { reps: v })}
-        />
-        <ConfirmButton
-          label="Delete"
-          confirmLabel="Confirm"
-          onConfirm={onDelete}
-        />
+    <li className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <span className="tnum shrink-0 text-[13px] font-medium text-muted">
+          Set {set.setNumber}
+        </span>
+        <div className="flex flex-wrap items-center gap-4">
+          <Stepper
+            layout="inline"
+            inlineSuffix={unit}
+            size="compact"
+            label={`Weight (${unit})`}
+            value={weightDisplay}
+            step={step}
+            min={0}
+            onChange={(v) =>
+              void updateSetLog(set.id, { weight: toCanonical(v, unit) })
+            }
+          />
+          <Stepper
+            layout="inline"
+            inlineSuffix="reps"
+            size="compact"
+            label="Reps"
+            value={set.reps}
+            step={1}
+            min={1}
+            onChange={(v) => void updateSetLog(set.id, { reps: v })}
+          />
+          <ConfirmButton
+            label="Delete"
+            confirmLabel="Confirm"
+            onConfirm={onDelete}
+          />
+        </div>
       </div>
+
+      {set.drops?.map((drop, i) => (
+        <div
+          key={i}
+          className="flex flex-col gap-2 pl-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span className="tnum shrink-0 text-[13px] font-medium text-muted">
+            Drop {i + 1}
+          </span>
+          <div className="flex flex-wrap items-center gap-4">
+            <Stepper
+              layout="inline"
+              inlineSuffix={unit}
+              size="compact"
+              label={`Drop weight (${unit})`}
+              value={toDisplay(drop.weight, unit)}
+              step={step}
+              min={0}
+              onChange={(v) =>
+                void updateSetDrop(set.id, i, { weight: toCanonical(v, unit) })
+              }
+            />
+            <Stepper
+              layout="inline"
+              inlineSuffix="reps"
+              size="compact"
+              label="Drop reps"
+              value={drop.reps}
+              step={1}
+              min={1}
+              onChange={(v) => void updateSetDrop(set.id, i, { reps: v })}
+            />
+            <ConfirmButton
+              label="Delete"
+              confirmLabel="Confirm"
+              onConfirm={() => void deleteSetDrop(set.id, i)}
+            />
+          </div>
+        </div>
+      ))}
     </li>
   );
 }

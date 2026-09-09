@@ -1,4 +1,10 @@
-import { db, type SetLog, type WorkoutSession } from "../db/db";
+import {
+  db,
+  type LoadBreakdown,
+  type SetDrop,
+  type SetLog,
+  type WorkoutSession,
+} from "../db/db";
 import type { InputMethod } from "./units";
 
 /** Estimated 1RM, Epley formula. */
@@ -68,7 +74,63 @@ export const startWeightFor = (exerciseId: string) =>
 export const defaultRepsFor = (dayTemplateId: string) =>
   dayTemplateId === "chest-back" ? 12 : 8;
 
-export const DEFAULT_TARGET_SETS = 3;
+/** Total weight×reps for a set, drops included. */
+export const setVolume = (log: SetLog) =>
+  log.weight * log.reps +
+  (log.drops ?? []).reduce((sum, d) => sum + d.weight * d.reps, 0);
+
+/**
+ * A set as one ledger entry: "135×8" plain, "135×8 → 105×6" once dropped.
+ * `display` converts canonical lbs to the reader's unit.
+ */
+export const formatSet = (log: SetLog, display: (lb: number) => number) =>
+  [log, ...(log.drops ?? [])]
+    .map((s) => `${formatWeight(display(s.weight))}×${s.reps}`)
+    .join(" → ");
+
+/** One set copied forward from a previous session, ready to insert. */
+export interface PlannedSet {
+  exerciseId: string;
+  setNumber: number;
+  weight: number;
+  reps: number;
+  inputMethod?: InputMethod;
+  loadBreakdown?: LoadBreakdown;
+  drops?: SetDrop[];
+}
+
+/**
+ * Sets that would bring each exercise up to the count it carried last session,
+ * copied verbatim from it. Exercises with no history are skipped — the log
+ * never invents a lift that was not performed. So are exercises the user
+ * already called done, whose set count is a deliberate choice.
+ */
+export function planFillFromLastTime(
+  exercises: { id: string }[],
+  prefills: Record<string, SetLog[]>,
+  loggedByExercise: Map<string, SetLog[]>,
+  finishedExerciseIds: ReadonlySet<string> = new Set(),
+): PlannedSet[] {
+  const planned: PlannedSet[] = [];
+  for (const exercise of exercises) {
+    if (finishedExerciseIds.has(exercise.id)) continue;
+    const prior = prefills[exercise.id] ?? [];
+    const alreadyLogged = loggedByExercise.get(exercise.id)?.length ?? 0;
+    for (let i = alreadyLogged; i < prior.length; i++) {
+      const source = prior[i];
+      planned.push({
+        exerciseId: exercise.id,
+        setNumber: i + 1,
+        weight: source.weight,
+        reps: source.reps,
+        inputMethod: source.inputMethod,
+        loadBreakdown: source.loadBreakdown,
+        drops: source.drops,
+      });
+    }
+  }
+  return planned;
+}
 
 export interface SessionSets {
   session: WorkoutSession;

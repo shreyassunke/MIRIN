@@ -77,6 +77,23 @@ export async function reorderSessionExercises(
   });
 }
 
+/** Mark an exercise done, or reopen it. Set counts are the user's to choose. */
+export async function setExerciseFinished(
+  sessionId: string,
+  exerciseId: string,
+  finished: boolean,
+): Promise<void> {
+  const session = await db.sessions.get(sessionId);
+  if (!session) throw new Error("Session not found");
+  const current = session.finishedExerciseIds ?? [];
+  if (current.includes(exerciseId) === finished) return;
+  await db.sessions.update(sessionId, {
+    finishedExerciseIds: finished
+      ? [...current, exerciseId]
+      : current.filter((id) => id !== exerciseId),
+  });
+}
+
 /** Append an ad-hoc exercise to the session list. */
 export async function appendSessionExercise(
   sessionId: string,

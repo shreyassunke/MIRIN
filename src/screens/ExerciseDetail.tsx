@@ -5,6 +5,7 @@ import {
   epley,
   exerciseHistory,
   formatDate,
+  formatSet,
   formatWeight,
 } from "../lib/workout";
 import { toDisplay, type Unit } from "../lib/units";
@@ -121,11 +122,8 @@ export function ExerciseDetail() {
                   <span>
                     <span className="tnum block text-sm text-ink">
                       {sets
-                        .map(
-                          (s) =>
-                            `${formatWeight(toDisplay(s.weight, unit))}×${s.reps}`,
-                        )
-                        .join("  ")}
+                        .map((s) => formatSet(s, (lb) => toDisplay(lb, unit)))
+                        .join(" · ")}
                     </span>
                     {breakdown && (
                       <span className="tnum mt-0.5 block text-[12px] text-muted">

@@ -121,6 +121,30 @@ export async function updateSetLog(
   await db.setLogs.update(setId, patch);
 }
 
+/** Correct one drop on a set. Drops are positional, so index identifies it. */
+export async function updateSetDrop(
+  setId: string,
+  index: number,
+  patch: { weight?: number; reps?: number },
+): Promise<void> {
+  const row = await db.setLogs.get(setId);
+  if (!row?.drops?.[index]) return;
+  const drops = row.drops.map((d, i) => (i === index ? { ...d, ...patch } : d));
+  await db.setLogs.update(setId, { drops });
+}
+
+export async function deleteSetDrop(
+  setId: string,
+  index: number,
+): Promise<void> {
+  const row = await db.setLogs.get(setId);
+  if (!row?.drops?.[index]) return;
+  const drops = row.drops.filter((_, i) => i !== index);
+  await db.setLogs.update(setId, {
+    drops: drops.length > 0 ? drops : undefined,
+  });
+}
+
 /** Delete a set and renumber remaining sets for that exercise in the session. */
 export async function deleteSetLog(setId: string): Promise<void> {
   const row = await db.setLogs.get(setId);

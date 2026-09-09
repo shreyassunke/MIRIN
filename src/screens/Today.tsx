@@ -5,16 +5,18 @@ import {
   db,
   type Exercise,
   type LoadBreakdown,
+  type SetDrop,
   type SetLog,
 } from "../db/db";
 import {
   DEFAULT_REST_SECONDS,
-  DEFAULT_TARGET_SETS,
   defaultInputMethodFor,
   defaultRepsFor,
+  formatSet,
   formatWeight,
   lastSets,
   newId,
+  planFillFromLastTime,
   startWeightFor,
 } from "../lib/workout";
 import {
@@ -28,6 +30,7 @@ import {
   appendSessionExercise,
   reorderSessionExercises,
   resolveSessionExerciseIds,
+  setExerciseFinished,
   swapSessionExercise,
 } from "../lib/session";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
@@ -60,6 +63,8 @@ interface TodayData {
   logs: SetLog[];
   prefills: Record<string, SetLog[]>;
   modePrefs: Record<string, InputMethod>;
+  /** Exercises the user called done; sets per exercise are otherwise unfixed. */
+  finishedExerciseIds: string[];
   isRestDay: boolean;
   nextUp: { dayName: string; daysAway: number } | null;
 }
@@ -140,6 +145,7 @@ function useTodayData(): TodayData | undefined {
         logs,
         prefills,
         modePrefs,
+        finishedExerciseIds: open?.finishedExerciseIds ?? [],
         isRestDay: !open && exerciseIds.length === 0,
         nextUp: upcoming
           ? {
@@ -179,6 +185,7 @@ function useTodayData(): TodayData | undefined {
       logs,
       prefills,
       modePrefs,
+      finishedExerciseIds: open?.finishedExerciseIds ?? [],
       isRestDay: false,
       nextUp: null,
     };
@@ -202,6 +209,8 @@ export function Today() {
   const [timerVisible, setTimerVisible] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
+  /** Completing fills sets from last session, so it takes a second tap. */
+  const [finishArmed, setFinishArmed] = useState(false);
 
   // Input state for the active exercise, all in the current display unit.
   const [mode, setModeState] = useState<InputMethod>("manual");
@@ -250,17 +259,31 @@ export function Today() {
     },
   });
 
-  const targetSetsFor = (exerciseId: string) =>
-    data?.prefills[exerciseId]?.length || DEFAULT_TARGET_SETS;
+  const finishedIds = useMemo(
+    () => new Set(data?.finishedExerciseIds ?? []),
+    [data?.finishedExerciseIds],
+  );
 
+  /** First exercise the user has not called done. Set counts are unfixed. */
   const derivedActiveId = useMemo(() => {
     if (!data) return null;
-    const next = data.exercises.find(
-      (e) => (logsByExercise.get(e.id)?.length ?? 0) < targetSetsFor(e.id),
-    );
+    const next = data.exercises.find((e) => !finishedIds.has(e.id));
     return next?.id ?? null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, logsByExercise]);
+  }, [data, finishedIds]);
+
+  /** What "Complete all exercises" would write, recomputed as sets land. */
+  const fillPlan = useMemo(
+    () =>
+      data
+        ? planFillFromLastTime(
+            data.exercises,
+            data.prefills,
+            logsByExercise,
+            finishedIds,
+          )
+        : [],
+    [data, logsByExercise, finishedIds],
+  );
 
   const activeId = followDerived
     ? (selectedId ?? derivedActiveId)
@@ -332,6 +355,13 @@ export function Today() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillKey, unit, mode, data === undefined]);
 
+  // Never leave the fill-and-complete confirmation armed behind the user.
+  useEffect(() => {
+    if (!finishArmed) return;
+    const timeout = setTimeout(() => setFinishArmed(false), 5000);
+    return () => clearTimeout(timeout);
+  }, [finishArmed]);
+
   if (!data) {
     return <p className="text-sm text-muted">Loading…</p>;
   }
@@ -393,12 +423,8 @@ export function Today() {
         ? dumbbell
         : manualWeight;
 
-  const allDone =
-    data.exercises.length > 0 &&
-    data.exercises.every(
-      (e) => (logsByExercise.get(e.id)?.length ?? 0) >= targetSetsFor(e.id),
-    );
   const anyLogged = data.logs.length > 0;
+  const fillExerciseCount = new Set(fillPlan.map((p) => p.exerciseId)).size;
 
   function setMode(next: InputMethod, exerciseId: string) {
     setModeState(next);
@@ -429,12 +455,52 @@ export function Today() {
       loadBreakdown,
       swappedFromExerciseId: session?.exerciseSwapOrigins?.[exerciseId],
     });
-    // Stay on this exercise until its sets are done, then fall back to
-    // the enforced order (first incomplete exercise).
+    // A logged set reopens an exercise that was called done.
+    if (finishedIds.has(exerciseId)) {
+      await setExerciseFinished(sessionId, exerciseId, false);
+    }
+    // Set counts are unfixed, so nothing advances on its own: stay here
+    // until the user says this exercise is done.
     setFollowDerived(true);
-    setSelectedId(setNumber >= targetSetsFor(exerciseId) ? null : exerciseId);
+    setSelectedId(exerciseId);
     setTimerRun((n) => n + 1);
     setTimerVisible(true);
+  }
+
+  /**
+   * Append the current weight and reps as a drop on the exercise's last set.
+   * Drops are taken without rest, so the timer only starts once logged.
+   */
+  async function logDrop(exerciseId: string) {
+    const logged = logsByExercise.get(exerciseId) ?? [];
+    const parent = logged[logged.length - 1];
+    if (!parent) return;
+    const drop: SetDrop = {
+      weight: toCanonical(totalDisplay, unit),
+      reps,
+      loadBreakdown:
+        mode === "barbell"
+          ? {
+              barWeight: toCanonical(barWeight, unit),
+              platesPerSide: plates.map((p) => toCanonical(p, unit)),
+            }
+          : undefined,
+    };
+    await db.setLogs.update(parent.id, {
+      drops: [...(parent.drops ?? []), drop],
+    });
+    setFollowDerived(true);
+    setSelectedId(exerciseId);
+    setTimerRun((n) => n + 1);
+    setTimerVisible(true);
+  }
+
+  async function toggleExerciseFinished(exerciseId: string, finished: boolean) {
+    const sessionId = await ensureSession();
+    await setExerciseFinished(sessionId, exerciseId, finished);
+    setFollowDerived(true);
+    setSelectedId(null);
+    if (finished) setTimerVisible(false);
   }
 
   async function logCurrent(exerciseId: string) {
@@ -466,9 +532,35 @@ export function Today() {
     );
   }
 
+  /**
+   * Fill every set still missing against last session, then close the session.
+   * Available at any point in the workout, including before the first set.
+   */
   async function finishWorkout() {
-    if (!data!.sessionId) return;
-    await db.sessions.update(data!.sessionId, { completed: true });
+    const sessionId = await ensureSession();
+    const session = await db.sessions.get(sessionId);
+    if (fillPlan.length > 0) {
+      await db.setLogs.bulkAdd(
+        fillPlan.map((planned) => ({
+          id: newId(),
+          sessionId,
+          exerciseId: planned.exerciseId,
+          setNumber: planned.setNumber,
+          weight: planned.weight,
+          reps: planned.reps,
+          inputMethod: planned.inputMethod,
+          loadBreakdown: planned.loadBreakdown,
+          drops: planned.drops,
+          swappedFromExerciseId:
+            session?.exerciseSwapOrigins?.[planned.exerciseId],
+        })),
+      );
+    }
+    await db.sessions.update(sessionId, {
+      completed: true,
+      finishedExerciseIds: data!.exercises.map((e) => e.id),
+    });
+    setFinishArmed(false);
     setFollowDerived(true);
     setSelectedId(null);
     setTimerVisible(false);
@@ -527,14 +619,14 @@ export function Today() {
       <ul className="space-y-3">
         {data.exercises.map((exercise, index) => {
           const logged = logsByExercise.get(exercise.id) ?? [];
-          const target = targetSetsFor(exercise.id);
           const isActive = exercise.id === activeId;
-          const complete = logged.length >= target;
+          const finished = finishedIds.has(exercise.id);
           const prior = data.prefills[exercise.id] ?? [];
           const lastSummary = prior.length
             ? `Last: ${prior
-                .map((s) => `${formatWeight(toDisplay(s.weight, unit))}×${s.reps}`)
-                .join("  ")}`
+                .map((s) => formatSet(s, (lb) => toDisplay(lb, unit)))
+                // Explicit separator: a drop chain already reads as one set.
+                .join(" · ")}`
             : "First time — starting defaults ready";
           const dragProps = getItemProps(index);
 
@@ -543,9 +635,8 @@ export function Today() {
               key={exercise.id}
               exercise={exercise}
               logged={logged}
-              target={target}
               isActive={isActive}
-              complete={complete}
+              finished={finished}
               lastSummary={lastSummary}
               isSwapping={swappingIndex === index}
               excludeSwapIds={data.exerciseIds.filter((id) => id !== exercise.id)}
@@ -581,9 +672,7 @@ export function Today() {
               }}
               onCancelSwap={() => setSwappingIndex(null)}
               onSwapPick={(entry) => void handleSwapExercise(index, entry)}
-              formatLoggedSet={(s) =>
-                `${formatWeight(toDisplay(s.weight, unit))}×${s.reps}`
-              }
+              formatLoggedSet={(s) => formatSet(s, (lb) => toDisplay(lb, unit))}
             >
               {isActive && (
                 <div className="border-t border-hairline px-4 py-4">
@@ -683,7 +772,7 @@ export function Today() {
                     >
                       Log set {logged.length + 1}
                     </button>
-                    {prior.length > 0 && !complete && (
+                    {prior.length > 0 && (
                       <button
                         type="button"
                         onClick={() => logSameAsLastTime(exercise.id)}
@@ -693,6 +782,29 @@ export function Today() {
                       </button>
                     )}
                   </div>
+
+                  {logged.length > 0 && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void logDrop(exercise.id)}
+                        aria-label={`Add a drop to set ${logged.length} of ${exercise.name}`}
+                        className="glass-btn h-12 flex-1 rounded-pill text-[15px] font-medium text-ink"
+                      >
+                        Add drop to set {logged.length}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void toggleExerciseFinished(exercise.id, true)
+                        }
+                        aria-label={`Mark ${exercise.name} done`}
+                        className="glass-btn h-12 rounded-pill px-5 text-[15px] font-medium text-ink"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  )}
                   <Link
                     to={`/exercise/${exercise.id}`}
                     className="mt-3 inline-block text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
@@ -733,22 +845,33 @@ export function Today() {
         <div className="mt-6">
           <button
             type="button"
-            onClick={() => void finishWorkout()}
-            disabled={!allDone}
+            onClick={() =>
+              finishArmed ? void finishWorkout() : setFinishArmed(true)
+            }
             className={[
               "h-12 w-full rounded-pill text-[15px] font-semibold",
-              allDone
+              // The One Accent Rule: an open exercise owns the accent for its
+              // log button, so this takes it only once nothing is logging.
+              activeId === null
                 ? "btn-primary bg-accent text-bg hover:bg-ink"
-                : "glass-btn text-muted",
+                : "glass-btn text-ink",
             ].join(" ")}
           >
-            Completed all exercises
+            {finishArmed ? "Confirm" : "Complete all exercises"}
           </button>
-          {!allDone ? (
-            <p className="mt-2 text-center text-[13px] text-muted">
-              Log every set to finish the workout.
-            </p>
-          ) : null}
+          <p className="mt-2 text-center text-[13px] text-muted">
+            {fillPlan.length > 0
+              ? `${finishArmed ? "Logs" : "Fills"} ${fillPlan.length} ${
+                  fillPlan.length === 1 ? "set" : "sets"
+                } from last session across ${fillExerciseCount} ${
+                  fillExerciseCount === 1 ? "exercise" : "exercises"
+                }, then completes.`
+              : anyLogged
+                ? `Completes the workout with ${data.logs.length} ${
+                    data.logs.length === 1 ? "set" : "sets"
+                  } logged.`
+                : "Nothing recorded to fill from. Completes an empty session."}
+          </p>
         </div>
       )}
 
