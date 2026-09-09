@@ -3,6 +3,29 @@ import { db, type Exercise } from "../db/db";
 import type { InputMethod } from "./units";
 
 /**
+ * How the load is applied. Drives which weight-input buttons appear and
+ * what they are called — distinct from the raw equipment slug (kettlebell,
+ * band, other) which stays on the library row for search.
+ *
+ * - barbell: free weight + barbell
+ * - free-weight: dumbbells / kettlebells
+ * - bodyweight
+ * - machine: selectorized / plate-loaded machines (manual stepper)
+ * - cable: cable stack (manual stepper)
+ */
+export type AttachmentType =
+  | "barbell"
+  | "free-weight"
+  | "bodyweight"
+  | "machine"
+  | "cable";
+
+export interface InputModeOption {
+  id: InputMethod;
+  label: string;
+}
+
+/**
  * One entry in the exercise library. The static portion is vendored at
  * build time from free-exercise-db (see scripts/build-exercise-library.mjs);
  * user-created custom exercises are stored in Dexie and merged at query time.
@@ -13,13 +36,88 @@ export interface ExerciseLibraryEntry {
   aliases: string[];
   category: string;
   equipment: string;
+  attachment: AttachmentType;
   primaryMuscles: string[];
   secondaryMuscles: string[];
   inputMethodHint: InputMethod;
   isCustom?: boolean;
 }
 
-export const STATIC_LIBRARY: ExerciseLibraryEntry[] = staticLibrary;
+export const attachmentForEquipment = (equipment: string): AttachmentType => {
+  switch (equipment) {
+    case "barbell":
+      return "barbell";
+    case "dumbbell":
+    case "kettlebell":
+      return "free-weight";
+    case "bodyweight":
+      return "bodyweight";
+    case "cable":
+      return "cable";
+    default:
+      return "machine";
+  }
+};
+
+/** Buttons shown for an exercise, labeled in attachment-type language. */
+export const inputModesForEquipment = (
+  equipment: string,
+): InputModeOption[] => {
+  switch (attachmentForEquipment(equipment)) {
+    case "barbell":
+      return [
+        { id: "barbell", label: "Barbell" },
+        { id: "dumbbell", label: "Dumbbell" },
+        { id: "manual", label: "Manual" },
+      ];
+    case "free-weight":
+      return equipment === "kettlebell"
+        ? [{ id: "manual", label: "Free Weight" }]
+        : [
+            { id: "dumbbell", label: "Dumbbell" },
+            { id: "manual", label: "Manual" },
+          ];
+    case "bodyweight":
+      return [{ id: "manual", label: "Bodyweight" }];
+    case "cable":
+      return [{ id: "manual", label: "Cable" }];
+    case "machine":
+      return [{ id: "manual", label: "Manual" }];
+  }
+};
+
+export const resolveInputMethod = (
+  equipment: string,
+  preferred?: InputMethod,
+): InputMethod => {
+  const modes = inputModesForEquipment(equipment);
+  if (preferred && modes.some((m) => m.id === preferred)) return preferred;
+  return modes[0]?.id ?? "manual";
+};
+
+/**
+ * Equipment slug used for attachment / input UI. Static library rows win
+ * over a stale Dexie copy so recategorization (e.g. lat pulldown → machine)
+ * applies immediately; custom exercises keep the stored slug.
+ */
+export const equipmentForExercise = (exercise: {
+  id: string;
+  equipment?: string;
+  isCustom?: boolean;
+}): string => {
+  if (exercise.isCustom) return exercise.equipment ?? "other";
+  return libraryEntry(exercise.id)?.equipment ?? exercise.equipment ?? "other";
+};
+
+const withAttachment = (
+  entry: Omit<ExerciseLibraryEntry, "attachment">,
+): ExerciseLibraryEntry => ({
+  ...entry,
+  attachment: attachmentForEquipment(entry.equipment),
+});
+
+export const STATIC_LIBRARY: ExerciseLibraryEntry[] =
+  staticLibrary.map(withAttachment);
 
 const staticById = new Map(STATIC_LIBRARY.map((e) => [e.id, e]));
 
@@ -50,7 +148,19 @@ export const muscleLabel = (muscle: string) =>
   MUSCLE_LABELS[muscle.toLowerCase()] ??
   muscle.charAt(0).toUpperCase() + muscle.slice(1);
 
+const EQUIPMENT_LABELS: Record<string, string> = {
+  barbell: "Barbell",
+  dumbbell: "Free weight",
+  kettlebell: "Kettlebell",
+  bodyweight: "Bodyweight",
+  machine: "Machine",
+  cable: "Cable",
+  band: "Band",
+  other: "Other",
+};
+
 export const equipmentLabel = (equipment: string) =>
+  EQUIPMENT_LABELS[equipment] ??
   equipment.charAt(0).toUpperCase() + equipment.slice(1);
 
 /** Equipment options for the create-custom form. */
@@ -74,19 +184,22 @@ export const inputMethodForEquipment = (equipment: string): InputMethod =>
       ? "dumbbell"
       : "manual";
 
-const customToEntry = (exercise: Exercise): ExerciseLibraryEntry => ({
-  id: exercise.id,
-  name: exercise.name,
-  aliases: [],
-  category: "custom",
-  equipment: exercise.equipment ?? "other",
-  primaryMuscles: [exercise.muscleGroup],
-  secondaryMuscles: [],
-  inputMethodHint:
-    exercise.inputMethodHint ??
-    inputMethodForEquipment(exercise.equipment ?? "other"),
-  isCustom: true,
-});
+const customToEntry = (exercise: Exercise): ExerciseLibraryEntry => {
+  const equipment = exercise.equipment ?? "other";
+  return {
+    id: exercise.id,
+    name: exercise.name,
+    aliases: [],
+    category: "custom",
+    equipment,
+    attachment: attachmentForEquipment(equipment),
+    primaryMuscles: [exercise.muscleGroup],
+    secondaryMuscles: [],
+    inputMethodHint:
+      exercise.inputMethodHint ?? inputMethodForEquipment(equipment),
+    isCustom: true,
+  };
+};
 
 /** Static library plus the user's custom exercises, custom first. */
 export async function fullLibrary(): Promise<ExerciseLibraryEntry[]> {

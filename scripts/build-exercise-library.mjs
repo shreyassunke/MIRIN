@@ -18,6 +18,21 @@ const slug = (name) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
+/**
+ * Seated lat-pulldown stations are machines, even when the dataset tags
+ * them as cable. Straight-arm variants stay cable.
+ */
+const LAT_PULLDOWN_MACHINE_IDS = new Set([
+  "close-grip-front-lat-pulldown",
+  "full-range-of-motion-lat-pulldown",
+  "lat-pulldown",
+  "one-arm-lat-pulldown",
+  "v-bar-pulldown",
+  "wide-grip-pulldown",
+  "wide-grip-pulldown-behind-the-neck",
+  "underhand-cable-pulldowns",
+]);
+
 /** Dataset equipment -> the app's equipment enum. */
 const EQUIPMENT_MAP = {
   "body only": "bodyweight",
@@ -163,7 +178,7 @@ const EXTRA_ENTRIES = [
     name: "Lat Pulldown",
     aliases: ["Machine Lat Pulldown"],
     category: "bodybuilding",
-    equipment: "cable",
+    equipment: "machine",
     primaryMuscles: ["lats"],
     secondaryMuscles: ["biceps", "middle back"],
     inputMethodHint: "manual",
@@ -253,11 +268,12 @@ function addAliases(entry, aliases) {
 for (const raw of dataset) {
   const rawName = raw.name.replace(/\s+/g, " ").trim();
   const seedMatch = SEED_MATCHES[rawName];
-  const equipment = EQUIPMENT_MAP[raw.equipment ?? "other"] ?? "other";
+  let equipment = EQUIPMENT_MAP[raw.equipment ?? "other"] ?? "other";
 
   const name = seedMatch ? seedMatch.name : cleanName(rawName);
   const id = seedMatch ? seedMatch.id : slug(name);
   if (seedMatch) matchedSeeds.add(rawName);
+  if (LAT_PULLDOWN_MACHINE_IDS.has(id)) equipment = "machine";
 
   const aliases = [];
   if (rawName.toLowerCase() !== name.toLowerCase()) aliases.push(rawName);

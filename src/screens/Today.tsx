@@ -25,7 +25,14 @@ import {
   toLocalISODate,
 } from "../lib/rotation";
 import { REST_DAY_TEMPLATE } from "../db/seed";
-import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
+import {
+  attachmentForEquipment,
+  ensureExerciseRow,
+  equipmentForExercise,
+  inputModesForEquipment,
+  resolveInputMethod,
+  type ExerciseLibraryEntry,
+} from "../lib/library";
 import {
   appendSessionExercise,
   reorderSessionExercises,
@@ -192,12 +199,6 @@ function useTodayData(): TodayData | undefined {
   }, []);
 }
 
-const MODES: { id: InputMethod; label: string }[] = [
-  { id: "barbell", label: "Barbell" },
-  { id: "dumbbell", label: "Dumbbell" },
-  { id: "manual", label: "Manual" },
-];
-
 export function Today() {
   const data = useTodayData();
   const [unit] = useUnit();
@@ -309,16 +310,24 @@ export function Today() {
   }, [data, activeId, activeSetNumber, logsByExercise]);
 
   // Choose the input mode when the active exercise changes:
-  // saved preference > last logged method > seeded/library default.
+  // saved preference > last logged method > seeded/library default,
+  // then clamped to the attachment type's allowed buttons.
   useEffect(() => {
     if (!data || !activeId) return;
+    const exercise = data.exercises.find((e) => e.id === activeId);
+    const equipment = exercise
+      ? equipmentForExercise(exercise)
+      : "other";
     const prior = data.prefills[activeId] ?? [];
     const lastMethod = prior[prior.length - 1]?.inputMethod;
-    const hint = data.exercises.find((e) => e.id === activeId)?.inputMethodHint;
+    const hint = exercise?.inputMethodHint;
     setModeState(
-      data.modePrefs[activeId] ??
-        lastMethod ??
-        defaultInputMethodFor(activeId, hint),
+      resolveInputMethod(
+        equipment,
+        data.modePrefs[activeId] ??
+          lastMethod ??
+          defaultInputMethodFor(activeId, hint),
+      ),
     );
     setPair(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -328,7 +337,13 @@ export function Today() {
   const prefillKey = `${data?.dayTemplateId}:${activeId}:${activeSetNumber}`;
   useEffect(() => {
     if (!data || !activeId || !data.dayTemplateId) return;
-    const startLb = sourceSet?.weight ?? startWeightFor(activeId);
+    const exercise = data.exercises.find((e) => e.id === activeId);
+    const equipment = exercise ? equipmentForExercise(exercise) : "other";
+    const startLb =
+      sourceSet?.weight ??
+      (attachmentForEquipment(equipment) === "bodyweight"
+        ? 0
+        : startWeightFor(activeId));
     const w = toDisplay(startLb, unit);
     setReps(sourceSet?.reps ?? defaultRepsFor(data.dayTemplateId));
 
@@ -416,10 +431,15 @@ export function Today() {
     );
   }
 
+  const activeExercise = data.exercises.find((e) => e.id === activeId);
+  const inputMode = activeExercise
+    ? resolveInputMethod(equipmentForExercise(activeExercise), mode)
+    : mode;
+
   const totalDisplay =
-    mode === "barbell"
+    inputMode === "barbell"
       ? round2(barWeight + 2 * plates.reduce((a, b) => a + b, 0))
-      : mode === "dumbbell"
+      : inputMode === "dumbbell"
         ? dumbbell
         : manualWeight;
 
@@ -479,7 +499,7 @@ export function Today() {
       weight: toCanonical(totalDisplay, unit),
       reps,
       loadBreakdown:
-        mode === "barbell"
+        inputMode === "barbell"
           ? {
               barWeight: toCanonical(barWeight, unit),
               platesPerSide: plates.map((p) => toCanonical(p, unit)),
@@ -505,7 +525,7 @@ export function Today() {
 
   async function logCurrent(exerciseId: string) {
     const breakdown: LoadBreakdown | undefined =
-      mode === "barbell"
+      inputMode === "barbell"
         ? {
             barWeight: toCanonical(barWeight, unit),
             platesPerSide: plates.map((p) => toCanonical(p, unit)),
@@ -515,7 +535,7 @@ export function Today() {
       exerciseId,
       toCanonical(totalDisplay, unit),
       reps,
-      mode,
+      inputMode,
       breakdown,
     );
   }
@@ -527,7 +547,7 @@ export function Today() {
       exerciseId,
       sourceSet.weight,
       sourceSet.reps,
-      sourceSet.inputMethod ?? mode,
+      sourceSet.inputMethod ?? inputMode,
       sourceSet.loadBreakdown,
     );
   }
@@ -629,6 +649,10 @@ export function Today() {
                 .join(" · ")}`
             : "First time — starting defaults ready";
           const dragProps = getItemProps(index);
+          const modes = inputModesForEquipment(equipmentForExercise(exercise));
+          const activeMode = modes.some((m) => m.id === mode)
+            ? mode
+            : modes[0]?.id ?? "manual";
 
           return (
             <TodayExerciseTile
@@ -683,15 +707,15 @@ export function Today() {
                       aria-label="Weight input method"
                       className="glass flex overflow-hidden rounded-pill p-0.5"
                     >
-                      {MODES.map((m) => (
+                      {modes.map((m) => (
                         <button
                           key={m.id}
                           type="button"
-                          aria-pressed={mode === m.id}
+                          aria-pressed={activeMode === m.id}
                           onClick={() => setMode(m.id, exercise.id)}
                           className={[
                             "glass-chip h-10 rounded-pill px-4 text-[13px] font-medium",
-                            mode === m.id
+                            activeMode === m.id
                               ? "glass-chip-active text-ink"
                               : "text-muted hover:text-ink",
                           ].join(" ")}
@@ -708,21 +732,21 @@ export function Today() {
                       {formatWeight(totalDisplay)}
                     </span>
                     <span className="ml-1.5 text-sm text-muted">{unit}</span>
-                    {mode === "barbell" && (
+                    {activeMode === "barbell" && (
                       <p className="tnum mt-0.5 text-[13px] text-muted">
                         {formatWeight(barWeight)} bar
                         {plates.length > 0 &&
                           ` + 2 × ${formatWeight(round2(plates.reduce((a, b) => a + b, 0)))}`}
                       </p>
                     )}
-                    {mode === "dumbbell" && (
+                    {activeMode === "dumbbell" && (
                       <p className="mt-0.5 text-[13px] text-muted">
                         {pair ? "per hand, pair" : "single arm"}
                       </p>
                     )}
                   </div>
 
-                  {mode === "barbell" && (
+                  {activeMode === "barbell" && (
                     <BarbellPicker
                       key={`${exercise.id}:${unit}`}
                       unit={unit}
@@ -734,7 +758,7 @@ export function Today() {
                       }}
                     />
                   )}
-                  {mode === "dumbbell" && (
+                  {activeMode === "dumbbell" && (
                     <DumbbellPicker
                       unit={unit}
                       value={dumbbell}
@@ -743,7 +767,7 @@ export function Today() {
                       onPairChange={setPair}
                     />
                   )}
-                  {mode === "manual" && (
+                  {activeMode === "manual" && (
                     <div className="flex justify-center">
                       <Stepper
                         label={`Weight (${unit})`}

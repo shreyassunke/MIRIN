@@ -1,5 +1,6 @@
 // Type declaration for the vendored exercise library (requires
-// `allowArbitraryExtensions`). Shape matches ExerciseLibraryEntry.
+// `allowArbitraryExtensions`). Attachment type is derived from equipment
+// in library.ts and is not stored in this file.
 declare const entries: {
   id: string;
   name: string;

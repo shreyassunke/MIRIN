@@ -1,6 +1,9 @@
 import type { Transaction } from "dexie";
 import type { DayTemplate, Exercise, Split } from "./db";
 import { DEFAULT_ANCHOR_DATE } from "../lib/rotation";
+import staticLibrary from "../data/exercises.json";
+
+const libraryById = new Map(staticLibrary.map((e) => [e.id, e]));
 
 const slug = (name: string) =>
   name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -77,7 +80,15 @@ export async function seed(tx: Transaction) {
     for (const [name, muscleGroup] of day.exercises) {
       const id = slug(name);
       if (!exercises.has(id)) {
-        exercises.set(id, { id, name, muscleGroup, priorityOrder: order++ });
+        const lib = libraryById.get(id);
+        exercises.set(id, {
+          id,
+          name,
+          muscleGroup,
+          priorityOrder: order++,
+          equipment: lib?.equipment,
+          inputMethodHint: lib?.inputMethodHint,
+        });
       }
     }
   }
