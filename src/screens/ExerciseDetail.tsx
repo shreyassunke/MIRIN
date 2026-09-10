@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type LoadBreakdown, type SetLog } from "../db/db";
@@ -11,7 +12,7 @@ import {
 import { toDisplay, type Unit } from "../lib/units";
 import { useUnit } from "../lib/settings";
 import { TrendChart, type TrendPoint } from "../components/TrendChart";
-import { FormVideos } from "../components/FormVideo";
+import { FormVideoButton, FormVideoPanel } from "../components/FormVideo";
 
 /** "Bar 45 + 45 · 25 per side" from the stored canonical breakdown. */
 function breakdownText(breakdown: LoadBreakdown, unit: Unit): string | null {
@@ -37,6 +38,9 @@ function sessionBreakdown(sets: SetLog[], unit: Unit): string | null {
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
   const [unit] = useUnit();
+  // Keyed by exercise so the panel closes when routing to a different lift.
+  const [formOpenFor, setFormOpenFor] = useState<string | null>(null);
+  const formOpen = formOpenFor === id;
 
   const data = useLiveQuery(async () => {
     if (!id) return undefined;
@@ -85,13 +89,21 @@ export function ExerciseDetail() {
         >
           Today
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          {exercise.name}
-        </h1>
+        {/* The help control belongs to the lift, so it rides the name line. */}
+        <div className="mt-1 flex items-center justify-between gap-4">
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
+            {exercise.name}
+          </h1>
+          <FormVideoButton
+            exerciseId={exercise.id}
+            open={formOpen}
+            onToggle={() => setFormOpenFor(formOpen ? null : (id ?? null))}
+          />
+        </div>
         <p className="mt-1 text-sm text-muted">{exercise.muscleGroup}</p>
       </header>
 
-      <FormVideos exerciseId={exercise.id} />
+      <FormVideoPanel exerciseId={exercise.id} open={formOpen} />
 
       <section className="mb-8">
         <h2 className="mb-2 text-[13px] font-medium text-muted">
