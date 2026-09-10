@@ -27,6 +27,13 @@ const iconBtn =
 const secondaryBtn =
   "glass-btn h-11 rounded-pill px-4 text-sm font-medium text-ink";
 
+function workoutDayCount(split: Split, days: Map<string, DayTemplate>) {
+  return split.dayTemplateIds.filter((id) => {
+    const day = days.get(id);
+    return day && !day.isRestDay;
+  }).length;
+}
+
 /** Two-tap destructive action: no modal, no accidental taps. */
 function ConfirmButton({
   label,
@@ -54,18 +61,55 @@ function ConfirmButton({
   );
 }
 
-interface RotationEditorProps {
-  split: Split;
-  dayNames: Map<string, string>;
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={[
+        "h-4 w-4 shrink-0 text-muted transition-transform duration-150 motion-reduce:transition-none",
+        open ? "rotate-180" : "",
+      ].join(" ")}
+      aria-hidden="true"
+    >
+      <path
+        d="M4 6.5 8 10.5 12 6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
-function RotationEditor({ split, dayNames }: RotationEditorProps) {
+interface RotationEditorProps {
+  split: Split;
+  days: Map<string, DayTemplate>;
+  exercises: Map<string, Exercise>;
+}
+
+function RotationEditor({ split, days, exercises }: RotationEditorProps) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setOpenIndex(null);
+  }, [split.id]);
+
   const reorder = (from: number, to: number) => {
+    setOpenIndex((current) => {
+      if (current === null) return null;
+      if (current === from) return to;
+      if (from < to && current > from && current <= to) return current - 1;
+      if (from > to && current >= to && current < from) return current + 1;
+      return current;
+    });
     void reorderRotation(split, from, to);
   };
   const { getItemProps, getHandleProps } = useDragReorder({
     enabled: split.dayTemplateIds.length > 1,
     handleOnly: true,
+    group: `rotation-${split.id}`,
     onReorder: reorder,
   });
 
@@ -74,69 +118,104 @@ function RotationEditor({ split, dayNames }: RotationEditorProps) {
 
   return (
     <section>
-      <h3 className="mb-2 text-[15px] font-semibold tracking-tight">
-        Rotation
-      </h3>
-      <p className="mb-3 max-w-[65ch] text-[13px] leading-relaxed text-muted">
-        {labels
-          ? "One slot per calendar day, repeating weekly."
-          : split.dayTemplateIds.length === 1
-            ? "The same day, every calendar day."
-            : `Repeats every ${split.dayTemplateIds.length} days, one slot per calendar day.`}{" "}
-        Drag the handle to reorder.
-      </p>
       <ol className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
         {split.dayTemplateIds.map((dayTemplateId, index) => {
           const dragProps = getItemProps(index);
           const handleProps = getHandleProps(index);
-          const isRest = dayTemplateId === REST_DAY_TEMPLATE.id;
+          const day =
+            days.get(dayTemplateId) ??
+            (dayTemplateId === REST_DAY_TEMPLATE.id
+              ? REST_DAY_TEMPLATE
+              : undefined);
+          const isRest =
+            dayTemplateId === REST_DAY_TEMPLATE.id || Boolean(day?.isRestDay);
           const isToday = todayIndex === index;
+          const isOpen = openIndex === index;
+          const dayName = day?.name ?? dayTemplateId;
+          const exerciseCount = day?.exerciseIds.length ?? 0;
+          const panelId = `split-day-${split.id}-${index}`;
           return (
             <li
               key={`${index}-${dayTemplateId}`}
               {...dragProps}
-              className={["flex items-center gap-2 px-2 py-1.5", dragProps.className]
-                .filter(Boolean)
-                .join(" ")}
+              className={dragProps.className}
             >
-              <DragHandle
-                onPointerDown={handleProps.onPointerDown}
-                onPointerMove={handleProps.onPointerMove}
-                onPointerUp={handleProps.onPointerUp}
-                onPointerCancel={handleProps.onPointerCancel}
-              />
-              <span className="tnum w-12 shrink-0 text-[13px] text-muted">
-                {labels ? labels[index] : index + 1}
-              </span>
-              <span
-                className={[
-                  "min-w-0 flex-1 px-1 text-sm",
-                  isRest ? "text-muted" : "font-medium text-ink",
-                ].join(" ")}
-              >
-                {dayNames.get(dayTemplateId) ?? dayTemplateId}
-                {isToday && (
-                  <span className="ml-2 text-[13px] text-muted">· Today</span>
-                )}
-              </span>
-              {split.isActive && !split.isDefault && !isToday && (
+              <div className="flex items-center gap-1 px-2">
+                <DragHandle
+                  onPointerDown={handleProps.onPointerDown}
+                  onPointerMove={handleProps.onPointerMove}
+                  onPointerUp={handleProps.onPointerUp}
+                  onPointerCancel={handleProps.onPointerCancel}
+                />
                 <button
                   type="button"
-                  onClick={() => void setRotationToday(split.id, index)}
-                  className="shrink-0 px-2 text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
+                  onClick={() =>
+                    setOpenIndex((current) =>
+                      current === index ? null : index,
+                    )
+                  }
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 text-left transition-colors duration-150 hover:bg-surface-raised/40 motion-reduce:transition-none"
                 >
-                  Set as today
+                  <span className="tnum w-10 shrink-0 text-[13px] text-muted">
+                    {labels ? labels[index] : index + 1}
+                  </span>
+                  <span
+                    className={[
+                      "min-w-0 flex-1 truncate text-sm",
+                      isRest ? "text-muted" : "font-medium text-ink",
+                    ].join(" ")}
+                  >
+                    {dayName}
+                    {isToday && (
+                      <span className="ml-2 font-medium text-muted">
+                        · Today
+                      </span>
+                    )}
+                  </span>
+                  {!isRest && exerciseCount > 0 && (
+                    <span className="tnum shrink-0 text-[13px] text-muted">
+                      {exerciseCount}
+                    </span>
+                  )}
+                  <Chevron open={isOpen} />
                 </button>
+                {split.isActive && !split.isDefault && !isToday && (
+                  <button
+                    type="button"
+                    onClick={() => void setRotationToday(split.id, index)}
+                    className="shrink-0 px-2 text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+                  >
+                    Set as today
+                  </button>
+                )}
+                <button
+                  type="button"
+                  aria-label={`Remove slot ${index + 1}`}
+                  disabled={split.dayTemplateIds.length <= 1}
+                  onClick={() => {
+                    if (openIndex === index) setOpenIndex(null);
+                    void removeDaySlot(split, index);
+                  }}
+                  className={iconBtn}
+                >
+                  ×
+                </button>
+              </div>
+              {isOpen && (
+                <div
+                  id={panelId}
+                  data-no-drag
+                  className="panel-in border-t border-hairline bg-bg px-4 py-3"
+                >
+                  {day && !isRest ? (
+                    <DayExerciseList day={day} exercises={exercises} />
+                  ) : (
+                    <p className="text-sm text-muted">Rest day — no exercises.</p>
+                  )}
+                </div>
               )}
-              <button
-                type="button"
-                aria-label={`Remove slot ${index + 1}`}
-                disabled={split.dayTemplateIds.length <= 1}
-                onClick={() => void removeDaySlot(split, index)}
-                className={iconBtn}
-              >
-                ×
-              </button>
             </li>
           );
         })}
@@ -161,12 +240,12 @@ function RotationEditor({ split, dayNames }: RotationEditorProps) {
   );
 }
 
-interface DayCardProps {
+interface DayExerciseListProps {
   day: DayTemplate;
   exercises: Map<string, Exercise>;
 }
 
-function DayCard({ day, exercises }: DayCardProps) {
+function DayExerciseList({ day, exercises }: DayExerciseListProps) {
   const [adding, setAdding] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState(day.name);
@@ -187,6 +266,7 @@ function DayCard({ day, exercises }: DayCardProps) {
   const { getItemProps, getHandleProps } = useDragReorder({
     enabled: day.exerciseIds.length > 1,
     handleOnly: true,
+    group: `exercises-${day.id}`,
     onReorder: reorder,
   });
 
@@ -222,7 +302,7 @@ function DayCard({ day, exercises }: DayCardProps) {
   };
 
   return (
-    <section>
+    <div>
       <div className="mb-2">
         {renaming ? (
           <input
@@ -245,22 +325,20 @@ function DayCard({ day, exercises }: DayCardProps) {
           <button
             type="button"
             onClick={() => setRenaming(true)}
-            className="rounded-md text-left transition-colors duration-150 hover:text-muted"
+            className="rounded-md text-left text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
             aria-label={`Rename ${day.name}`}
           >
-            <h3 className="text-[15px] font-semibold tracking-tight">
-              {day.name}
-            </h3>
+            Rename
           </button>
         )}
       </div>
 
       {day.exerciseIds.length === 0 ? (
-        <p className="rounded-md border border-hairline bg-surface px-4 py-3 text-sm text-muted">
+        <p className="text-sm text-muted">
           No exercises yet — add the first one below.
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-hairline">
           {day.exerciseIds.map((exerciseId, index) => {
             const exercise = exercises.get(exerciseId);
             if (!exercise) return null;
@@ -272,14 +350,9 @@ function DayCard({ day, exercises }: DayCardProps) {
               <li
                 key={exerciseId}
                 {...dragProps}
-                className={[
-                  "rounded-md border border-hairline bg-surface",
-                  dragProps.className,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={dragProps.className}
               >
-                <div className="flex items-stretch gap-2 px-2 py-2">
+                <div className="flex items-stretch gap-1 py-1.5">
                   <div className="flex shrink-0 items-center self-center">
                     <DragHandle
                       onPointerDown={handleProps.onPointerDown}
@@ -299,17 +372,12 @@ function DayCard({ day, exercises }: DayCardProps) {
                         setSwappingIndex(null);
                       }
                     }}
-                    className={[
-                      "flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-colors duration-150 motion-reduce:transition-none",
-                      isFocused
-                        ? "bg-surface-raised/50"
-                        : "hover:bg-surface-raised/30",
-                    ].join(" ")}
+                    className="flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-1 py-1.5 text-left transition-colors duration-150 hover:bg-surface-raised/30 motion-reduce:transition-none"
                     aria-expanded={isSwapping}
                     aria-label={`Replace ${exercise.name}`}
                   >
                     <span className="min-w-0">
-                      <span className="block text-[17px] font-semibold tracking-tight">
+                      <span className="block text-[15px] font-semibold tracking-tight">
                         {exercise.name}
                       </span>
                       <span className="mt-0.5 block text-[13px] text-muted">
@@ -333,7 +401,7 @@ function DayCard({ day, exercises }: DayCardProps) {
                 </div>
 
                 {isSwapping && (
-                  <div className="border-t border-hairline px-4 py-3">
+                  <div className="pb-3">
                     <ExerciseCombobox
                       label="Replace with…"
                       excludeIds={day.exerciseIds.filter((id) => id !== exerciseId)}
@@ -374,7 +442,7 @@ function DayCard({ day, exercises }: DayCardProps) {
           </button>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -395,25 +463,15 @@ function SplitDetail({
 }: SplitDetailProps) {
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState(split.name);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
 
   useEffect(() => {
     setRenaming(false);
     setNameDraft(split.name);
+    setCreating(false);
+    setNewName("");
   }, [split.id, split.name]);
-
-  const dayNames = new Map(
-    [...days.values()].map((d) => [d.id, d.name] as const),
-  );
-
-  // Each unique workout template once, in rotation order.
-  const uniqueDays: DayTemplate[] = [];
-  const seen = new Set<string>();
-  for (const id of split.dayTemplateIds) {
-    if (seen.has(id) || id === REST_DAY_TEMPLATE.id) continue;
-    seen.add(id);
-    const day = days.get(id);
-    if (day && !day.isRestDay) uniqueDays.push(day);
-  }
 
   const commitRename = () => {
     setRenaming(false);
@@ -425,7 +483,7 @@ function SplitDetail({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           {renaming ? (
@@ -458,39 +516,90 @@ function SplitDetail({
             </button>
           )}
           <p className="mt-0.5 text-[13px] text-muted">
-            {split.isDefault
-              ? "Default split"
-              : split.isActive
-                ? "Active split"
-                : "Custom split"}
+            {split.isDefault && split.isActive
+              ? "Current split — default"
+              : split.isDefault
+                ? "Default split"
+                : split.isActive
+                  ? "Active split"
+                  : "Custom split"}
+            {" · "}
+            {workoutDayCount(split, days)} workout{" "}
+            {workoutDayCount(split, days) === 1 ? "day" : "days"} ·{" "}
+            {split.dayTemplateIds.length}-day rotation
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={async () => onDuplicated(await duplicateSplit(split))}
-            className={secondaryBtn}
-          >
-            Duplicate
-          </button>
-          {!split.isDefault && (
-            <ConfirmButton
-              label="Delete"
-              confirmLabel="Delete split?"
-              onConfirm={async () => {
-                await deleteSplit(split);
-                onDeleted();
+          {creating ? (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const id = await createSplit(newName);
+                setCreating(false);
+                setNewName("");
+                onDuplicated(id);
               }}
-            />
+              className="flex min-w-0 flex-1 flex-wrap gap-2"
+            >
+              <input
+                type="text"
+                value={newName}
+                autoFocus
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setCreating(false);
+                }}
+                placeholder="Split name"
+                aria-label="New split name"
+                className="h-11 min-w-[10rem] flex-1 rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted focus:border-muted"
+              />
+              <button
+                type="submit"
+                disabled={!newName.trim()}
+                className="btn-primary h-11 rounded-pill bg-accent px-4 text-sm font-semibold text-bg hover:bg-ink disabled:opacity-40"
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreating(false)}
+                className={secondaryBtn}
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className={secondaryBtn}
+              >
+                Create new split
+              </button>
+              <button
+                type="button"
+                onClick={async () => onDuplicated(await duplicateSplit(split))}
+                className={secondaryBtn}
+              >
+                Duplicate
+              </button>
+              {!split.isDefault && (
+                <ConfirmButton
+                  label="Delete"
+                  confirmLabel="Delete split?"
+                  onConfirm={async () => {
+                    await deleteSplit(split);
+                    onDeleted();
+                  }}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
 
-      <RotationEditor split={split} dayNames={dayNames} />
-
-      {uniqueDays.map((day) => (
-        <DayCard key={day.id} day={day} exercises={exercises} />
-      ))}
+      <RotationEditor split={split} days={days} exercises={exercises} />
     </div>
   );
 }
@@ -516,8 +625,6 @@ export function SplitEditor() {
   }, []);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
   const [blockedSplitId, setBlockedSplitId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -535,12 +642,6 @@ export function SplitEditor() {
     data.splits.find((s) => s.isActive) ??
     data.splits[0];
 
-  const workoutDayCount = (split: Split) =>
-    split.dayTemplateIds.filter((id) => {
-      const day = data.days.get(id);
-      return day && !day.isRestDay;
-    }).length;
-
   return (
     <div>
       <header className="mb-6">
@@ -551,119 +652,61 @@ export function SplitEditor() {
         </p>
       </header>
 
-      <section className="mb-8">
-        <ul className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
-          {data.splits.map((split) => {
-            const isSelected = split.id === selected?.id;
-            return (
-              <li key={split.id} className="flex items-center gap-3 px-4 py-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(split.id)}
-                  className="min-w-0 flex-1 text-left"
-                  aria-current={isSelected ? "true" : undefined}
-                >
-                  <span
-                    className={[
-                      "block truncate text-sm font-semibold",
-                      isSelected ? "text-ink" : "text-muted",
-                    ].join(" ")}
+      {data.splits.length > 1 && (
+        <section className="mb-8">
+          <ul className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
+            {data.splits.map((split) => {
+              const isSelected = split.id === selected?.id;
+              return (
+                <li key={split.id} className="flex items-center gap-3 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(split.id)}
+                    className="min-w-0 flex-1 text-left"
+                    aria-current={isSelected ? "true" : undefined}
                   >
-                    {split.name}
-                    {split.isDefault && split.isActive && (
-                      <span className="ml-2 font-medium text-muted">
-                        Current split — default
-                      </span>
-                    )}
-                    {split.isDefault && !split.isActive && (
-                      <span className="ml-2 font-medium text-muted">
-                        Default
-                      </span>
-                    )}
-                  </span>
-                  <span className="tnum mt-0.5 block text-[13px] text-muted">
-                    {workoutDayCount(split)} workout{" "}
-                    {workoutDayCount(split) === 1 ? "day" : "days"} ·{" "}
-                    {split.dayTemplateIds.length}-day rotation
-                  </span>
-                </button>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <ToggleSwitch
-                    checked={split.isActive}
-                    label={`${split.name} active`}
-                    onChange={(next) => {
-                      if (next) {
-                        void activateSplit(split.id);
-                        return;
-                      }
-                      void (async () => {
-                        if (!(await canDeactivateSplit(split.id))) {
-                          setBlockedSplitId(split.id);
-                        }
-                      })();
-                    }}
-                  />
-                  {blockedSplitId === split.id && (
-                    <span className="text-[12px] text-muted">
-                      Activate another split first
+                    <span
+                      className={[
+                        "block truncate text-sm font-semibold",
+                        isSelected ? "text-ink" : "text-muted",
+                      ].join(" ")}
+                    >
+                      {split.name}
+                      {split.isDefault && (
+                        <span className="ml-2 font-medium text-muted">
+                          Default
+                        </span>
+                      )}
                     </span>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-
-        <div className="mt-3">
-          {creating ? (
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const id = await createSplit(newName);
-                setCreating(false);
-                setNewName("");
-                setSelectedId(id);
-              }}
-              className="flex gap-2"
-            >
-              <input
-                type="text"
-                value={newName}
-                autoFocus
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") setCreating(false);
-                }}
-                placeholder="Split name"
-                aria-label="New split name"
-                className="h-11 flex-1 rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted focus:border-muted"
-              />
-              <button
-                type="submit"
-                disabled={!newName.trim()}
-                className="btn-primary h-11 rounded-pill bg-accent px-4 text-sm font-semibold text-bg hover:bg-ink disabled:opacity-40"
-              >
-                Create
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreating(false)}
-                className={secondaryBtn}
-              >
-                Cancel
-              </button>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              className={secondaryBtn}
-            >
-              Create new split
-            </button>
-          )}
-        </div>
-      </section>
+                  </button>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <ToggleSwitch
+                      checked={split.isActive}
+                      label={`${split.name} active`}
+                      onChange={(next) => {
+                        if (next) {
+                          void activateSplit(split.id);
+                          return;
+                        }
+                        void (async () => {
+                          if (!(await canDeactivateSplit(split.id))) {
+                            setBlockedSplitId(split.id);
+                          }
+                        })();
+                      }}
+                    />
+                    {blockedSplitId === split.id && (
+                      <span className="text-[12px] text-muted">
+                        Activate another split first
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {selected && (
         <SplitDetail

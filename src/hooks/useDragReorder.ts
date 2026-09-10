@@ -13,10 +13,13 @@ interface UseDragReorderOptions {
   handleOnly?: boolean;
   /** Long-press delay before a card body drag starts (ms). */
   longPressMs?: number;
+  /** Isolates this list from other reorder groups on the page. */
+  group?: string;
   onReorder: (from: number, to: number) => void;
 }
 
 const REORDER_ATTR = "data-reorder-index";
+const REORDER_GROUP_ATTR = "data-reorder-group";
 const MOVE_CANCEL_PX = 10;
 const EDGE_PX = 72;
 const SCROLL_MAX = 22;
@@ -31,14 +34,17 @@ type DragLive = {
   deltaY: number;
 };
 
-function rows(): HTMLElement[] {
+function rows(group?: string): HTMLElement[] {
   return Array.from(
     document.querySelectorAll<HTMLElement>(`[${REORDER_ATTR}]`),
-  );
+  ).filter((el) => {
+    const g = el.getAttribute(REORDER_GROUP_ATTR);
+    return group ? g === group : !g;
+  });
 }
 
-function indexAtY(y: number): number | null {
-  const list = rows();
+function indexAtY(y: number, group?: string): number | null {
+  const list = rows(group);
   if (list.length === 0) return null;
 
   for (const row of list) {
@@ -79,8 +85,8 @@ function shiftForIndex(
 }
 
 /** Imperative transforms — keeps drag at 60fps without React re-renders. */
-function paintDrag(live: DragLive) {
-  for (const row of rows()) {
+function paintDrag(live: DragLive, group?: string) {
+  for (const row of rows(group)) {
     const index = Number(row.getAttribute(REORDER_ATTR));
     if (!Number.isInteger(index)) continue;
 
@@ -107,8 +113,8 @@ function paintDrag(live: DragLive) {
   }
 }
 
-function clearDragPaint() {
-  for (const row of rows()) {
+function clearDragPaint(group?: string) {
+  for (const row of rows(group)) {
     row.dataset.reorderDragging = "false";
     row.classList.remove("reorder-dragging", "reorder-slot");
     row.style.transition = "transform 140ms var(--ease-out-expo)";
@@ -121,6 +127,7 @@ export function useDragReorder({
   enabled = true,
   handleOnly = false,
   longPressMs = 180,
+  group,
   onReorder,
 }: UseDragReorderOptions) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -191,9 +198,9 @@ export function useDragReorder({
     captureElRef.current = null;
     liveRef.current = null;
     document.documentElement.classList.remove("reorder-active");
-    clearDragPaint();
+    clearDragPaint(group);
     setDragIndex(null);
-  }, [clearPressTimer, stopMoveRaf, stopScrollLoop, stopTouchMoveBlock]);
+  }, [clearPressTimer, group, stopMoveRaf, stopScrollLoop, stopTouchMoveBlock]);
 
   const beginDrag = useCallback(
     (index: number, clientY: number, el: HTMLElement) => {
@@ -227,7 +234,7 @@ export function useDragReorder({
         deltaY: 0,
       };
       liveRef.current = live;
-      paintDrag(live);
+      paintDrag(live, group);
       setDragIndex(index);
 
       if (navigator.vibrate) {
@@ -238,14 +245,14 @@ export function useDragReorder({
         }
       }
     },
-    [enabled, startTouchMoveBlock],
+    [enabled, group, startTouchMoveBlock],
   );
 
   const commitPointerY = useCallback((clientY: number) => {
     const current = liveRef.current;
     if (!current || !draggingRef.current) return;
 
-    const over = indexAtY(clientY) ?? current.over;
+    const over = indexAtY(clientY, group) ?? current.over;
     const deltaY =
       clientY - current.startClientY + (window.scrollY - current.startScrollY);
 
@@ -256,8 +263,8 @@ export function useDragReorder({
     current.pointerY = clientY;
     current.over = over;
     current.deltaY = deltaY;
-    paintDrag(current);
-  }, []);
+    paintDrag(current, group);
+  }, [group]);
 
   const autoScrollTick = useCallback(() => {
     const current = liveRef.current;
@@ -466,6 +473,7 @@ export function useDragReorder({
 
       return {
         [REORDER_ATTR]: index,
+        ...(group ? { [REORDER_GROUP_ATTR]: group } : {}),
         "data-reorder-dragging": isDragging ? "true" : undefined,
         style,
         onPointerDown: handleOnly
@@ -481,7 +489,7 @@ export function useDragReorder({
         "aria-grabbed": isDragging || undefined,
       };
     },
-    [armPress, dragIndex, handleOnly, pointerHandlers],
+    [armPress, dragIndex, group, handleOnly, pointerHandlers],
   );
 
   const shouldSuppressClick = useCallback(() => suppressClickRef.current, []);
