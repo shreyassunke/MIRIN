@@ -153,6 +153,23 @@ export function Profile() {
           </button>
         </div>
       </form>
+
+      <section className="mt-10">
+        <h2 className="text-[13px] font-medium text-muted">About</h2>
+        <p className="mt-1.5 max-w-[65ch] text-[13px] leading-relaxed text-muted">
+          Form videos play through the embedded YouTube player and stay the
+          property of their creators. By watching them here you agree to the{" "}
+          <a
+            href="https://www.youtube.com/t/terms"
+            target="_blank"
+            rel="noreferrer"
+            className="text-ink transition-colors duration-150 hover:text-muted"
+          >
+            YouTube Terms of Service
+          </a>
+          .
+        </p>
+      </section>
     </div>
   );
 }

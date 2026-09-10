@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "build:exercises": "node scripts/build-exercise-library.mjs",
+    "add:form-video": "node scripts/add-form-video.mjs",
+    "verify:form-videos": "node scripts/verify-form-videos.mjs",
     "verify:rotation": "node --experimental-strip-types scripts/verify-rotation-parity.mjs",
     "verify:splits": "node scripts/verify-splits.mjs"
   },

@@ -11,6 +11,7 @@ import {
 import { toDisplay, type Unit } from "../lib/units";
 import { useUnit } from "../lib/settings";
 import { TrendChart, type TrendPoint } from "../components/TrendChart";
+import { FormVideos } from "../components/FormVideo";
 
 /** "Bar 45 + 45 · 25 per side" from the stored canonical breakdown. */
 function breakdownText(breakdown: LoadBreakdown, unit: Unit): string | null {
@@ -89,6 +90,8 @@ export function ExerciseDetail() {
         </h1>
         <p className="mt-1 text-sm text-muted">{exercise.muscleGroup}</p>
       </header>
+
+      <FormVideos exerciseId={exercise.id} />
 
       <section className="mb-8">
         <h2 className="mb-2 text-[13px] font-medium text-muted">

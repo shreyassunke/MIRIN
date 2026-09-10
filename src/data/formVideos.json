@@ -1,0 +1,160 @@
+{
+  "barbell-bench-press": [
+    {
+      "videoId": "vcBig73ojpE",
+      "creator": "nippard",
+      "label": "Full technique breakdown"
+    }
+  ],
+  "barbell-curl": [
+    {
+      "videoId": "i1YgFZB6alI",
+      "creator": "nippard",
+      "label": "Curling technique",
+      "start": 249,
+      "end": 404
+    },
+    {
+      "videoId": "i1YgFZB6alI",
+      "creator": "nippard",
+      "label": "Most common errors",
+      "start": 404
+    }
+  ],
+  "barbell-deadlift": [
+    {
+      "videoId": "VL5Ab0T07e4",
+      "creator": "nippard",
+      "label": "Conventional pull, full breakdown"
+    }
+  ],
+  "barbell-row": [
+    {
+      "videoId": "axoeDmW0oAY",
+      "creator": "nippard",
+      "label": "Pendlay and Helms row technique"
+    }
+  ],
+  "cable-fly": [
+    {
+      "videoId": "-EIhKMDSjBY",
+      "creator": "nippard",
+      "label": "Isolating the chest on flyes"
+    }
+  ],
+  "calf-raise": [
+    {
+      "videoId": "hRZ5MM6gmlE",
+      "creator": "nippard",
+      "label": "Why depth beats bouncing"
+    }
+  ],
+  "chin-up": [
+    {
+      "videoId": "Hdc7Mw6BIEE",
+      "creator": "nippard",
+      "label": "Optimal pull-up technique"
+    }
+  ],
+  "hammer-curl": [
+    {
+      "videoId": "i1YgFZB6alI",
+      "creator": "nippard",
+      "label": "Curl technique fundamentals"
+    }
+  ],
+  "incline-barbell-press": [
+    {
+      "videoId": "B_2meD6SSNA",
+      "creator": "nippard",
+      "label": "Choosing an incline angle"
+    }
+  ],
+  "lat-pulldown": [
+    {
+      "videoId": "O94yEoGXtBY",
+      "creator": "nippard",
+      "label": "Pulldown dos and don'ts"
+    }
+  ],
+  "lateral-raise": [
+    {
+      "videoId": "v_ZkxWzYnMc",
+      "creator": "nippard",
+      "label": "Full technique breakdown"
+    },
+    {
+      "videoId": "f_OGBg2KxgY",
+      "creator": "nippard",
+      "label": "Three quick cable fixes"
+    }
+  ],
+  "leg-press": [
+    {
+      "videoId": "nDh_BlnLCGc",
+      "creator": "nippard",
+      "label": "Five-point checklist"
+    }
+  ],
+  "overhead-press": [
+    {
+      "videoId": "_RlRDWO2jfg",
+      "creator": "nippard",
+      "label": "Full technique breakdown"
+    }
+  ],
+  "overhead-tricep-extension": [
+    {
+      "videoId": "OpRMRhr0Ycc",
+      "creator": "nippard",
+      "label": "Where overhead extensions rank"
+    }
+  ],
+  "pullups": [
+    {
+      "videoId": "Hdc7Mw6BIEE",
+      "creator": "nippard",
+      "label": "Optimal pull-up technique"
+    }
+  ],
+  "skull-crusher": [
+    {
+      "videoId": "OpRMRhr0Ycc",
+      "creator": "nippard",
+      "label": "Arcing back instead of stopping at the skull"
+    }
+  ],
+  "squat": [
+    {
+      "videoId": "bEv6CCg2BC8",
+      "creator": "nippard",
+      "label": "Full technique breakdown"
+    },
+    {
+      "videoId": "nEQQle9-0NA",
+      "creator": "athleanx",
+      "label": "Squaring the hips before the descent"
+    }
+  ],
+  "sumo-deadlift": [
+    {
+      "videoId": "XsrD5y8EIKU",
+      "creator": "nippard",
+      "label": "Sumo pull, full breakdown"
+    }
+  ],
+  "tricep-pushdown": [
+    {
+      "videoId": "OpRMRhr0Ycc",
+      "creator": "nippard",
+      "label": "Rope, bar and reverse grip compared"
+    }
+  ],
+  "wide-grip-pulldown": [
+    {
+      "videoId": "O94yEoGXtBY",
+      "creator": "nippard",
+      "label": "Pulldown dos and don'ts"
+    }
+  ]
+}
