@@ -44,6 +44,15 @@ export function formatMonthLabel(year: number, monthIndex: number): string {
   });
 }
 
+/** Compact "Sep 9" label for axis ticks and dense rows. */
+export function shortDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function formatDayHeading(isoDate: string): string {
   const [y, m, d] = isoDate.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined, {

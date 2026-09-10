@@ -28,8 +28,11 @@ const History = lazy(() =>
 const Log = lazy(() =>
   import("./screens/Log").then((m) => ({ default: m.Log })),
 );
-const Measurements = lazy(() =>
-  import("./screens/Measurements").then((m) => ({ default: m.Measurements })),
+const LogDaily = lazy(() =>
+  import("./screens/LogDaily").then((m) => ({ default: m.LogDaily })),
+);
+const LogBody = lazy(() =>
+  import("./screens/LogBody").then((m) => ({ default: m.LogBody })),
 );
 const SessionDetail = lazy(() =>
   import("./screens/SessionDetail").then((m) => ({
@@ -68,10 +71,16 @@ export default function App() {
         <Route path="/history/session/:sessionId" element={<SessionDetail />} />
         <Route path="/nutrition" element={<Navigate to="/log" replace />} />
         <Route path="/macros" element={<Navigate to="/log" replace />} />
-        <Route path="/log" element={<Log />} />
+        <Route path="/log" element={<Log />}>
+          <Route index element={<LogDaily />} />
+          <Route path="body" element={<LogBody />} />
+        </Route>
         <Route path="/split" element={<SplitEditor />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/profile/measurements" element={<Measurements />} />
+        <Route
+          path="/profile/measurements"
+          element={<Navigate to="/log/body" replace />}
+        />
       </Route>
       <Route path="*" element={<Navigate to="/today" replace />} />
     </Routes>

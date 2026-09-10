@@ -1,17 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ConfirmDelete } from "../components/ConfirmDelete";
-import { ProfileNav } from "../components/ProfileNav";
 import { Stepper } from "../components/Stepper";
-import { TrendChart, type TrendPoint } from "../components/TrendChart";
-import { UnitToggle } from "../components/UnitToggle";
+import { chipClass, chipTrackClass } from "../components/chip";
 import { db, type MeasurementKind } from "../db/db";
 import {
   BODY_WEIGHT_FIELD_ID,
   DEFAULT_HEIGHT_CM,
   addCustomField,
   buildSeries,
-  ensureCoreFields,
   fallbackFor,
   removeField,
   saveMeasurement,
@@ -22,11 +19,12 @@ import {
   type Gender,
 } from "../lib/body";
 import { deriveMetrics, fieldProgress } from "../lib/bodyMetrics";
+import { shortDate } from "../lib/history";
 import { useLengthUnit, useUnit } from "../lib/settings";
 import {
-  BODY_WEIGHT_STEP,
   HEIGHT_STEP,
   LENGTH_STEP,
+  BODY_WEIGHT_STEP,
   formatHeight,
   formatMeasure,
   toCanonical,
@@ -36,8 +34,6 @@ import {
   type LengthUnit,
   type Unit,
 } from "../lib/units";
-
-const WEIGHT_FIELD_ID = BODY_WEIGHT_FIELD_ID;
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: "male", label: "Male" },
@@ -53,20 +49,11 @@ const secondaryBtn =
   "glass-btn h-11 rounded-pill px-4 text-sm font-medium text-ink";
 const quietBtn =
   "text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink";
-const chipClass = (active: boolean) =>
-  [
-    "glass-chip rounded-pill text-sm font-medium",
-    active ? "glass-chip-active text-ink" : "text-muted hover:text-ink",
-  ].join(" ");
-
-/** Short label from a YYYY-MM-DD key. */
-function shortDate(dateKey: string): string {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
+const listClass =
+  "divide-y divide-hairline rounded-md border border-hairline bg-surface";
+const rowButtonClass =
+  "flex min-h-[56px] w-full items-baseline justify-between gap-4 px-4 py-3 text-left transition-colors duration-150 hover:bg-surface-raised";
+const sectionHeading = "text-lg font-semibold tracking-tight";
 
 interface UnitContext {
   unit: Unit;
@@ -99,57 +86,20 @@ function formatList(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
-const DEFAULT_WEIGHT_LBS = 175;
-
-/** Current body weight — writes today's reading the moment it changes. */
-function BodyWeightControl({
-  latestLbs,
-  unit,
-}: {
-  latestLbs: number | null;
-  unit: Unit;
-}) {
-  const [value, setValue] = useState(() =>
-    toDisplay(latestLbs ?? DEFAULT_WEIGHT_LBS, unit),
-  );
-
-  const commit = (next: number) => {
-    setValue(next);
-    void saveMeasurement(WEIGHT_FIELD_ID, toCanonical(next, unit));
-  };
-
-  return (
-    <div className="flex flex-col items-center">
-      <Stepper
-        label={`Weight (${unit})`}
-        value={value}
-        step={BODY_WEIGHT_STEP[unit]}
-        min={0}
-        format={formatMeasure}
-        onChange={commit}
-      />
-      {latestLbs == null ? (
-        <p className="mt-2 text-[13px] text-muted">
-          Not logged yet — adjust to save it.
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-export function Measurements() {
+/**
+ * The body profile: the two fixed inputs the estimates need, the tape
+ * readings, and what falls out of them. Body weight is absent on purpose —
+ * it is a daily number and lives on the Daily tab.
+ */
+export function LogBody() {
   const [unit] = useUnit();
-  const [lengthUnit, setLengthUnit] = useLengthUnit();
+  const [lengthUnit] = useLengthUnit();
   const [gender, setGender] = useGender();
   const [heightCm, setHeightCm] = useHeightCm();
   const ctx = useMemo<UnitContext>(
     () => ({ unit, lengthUnit }),
     [unit, lengthUnit],
   );
-
-  useEffect(() => {
-    void ensureCoreFields();
-  }, []);
 
   const data = useLiveQuery(async () => {
     const [fields, entries] = await Promise.all([
@@ -159,16 +109,16 @@ export function Measurements() {
     return buildSeries(fields, entries);
   }, []);
 
-  // Only one accent action is ever on screen: opening one closes the other.
-  const [openField, setOpenField] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [chartField, setChartField] = useState<string | null>(null);
+  // Exactly one editor is ever open: opening one closes the rest.
+  const [open, setOpen] = useState<string | null>(null);
+  const close = () => setOpen(null);
+  const toggle = (key: string) => setOpen((prev) => (prev === key ? null : key));
 
   const series = data ?? [];
   const latestOf = (fieldId: string) =>
     series.find((s) => s.field.id === fieldId)?.latest?.value ?? null;
 
-  const weightLbs = latestOf(WEIGHT_FIELD_ID);
+  const weightLbs = latestOf(BODY_WEIGHT_FIELD_ID);
   const metrics = deriveMetrics({
     gender,
     heightCm,
@@ -178,90 +128,36 @@ export function Measurements() {
     hipsCm: latestOf("hips"),
   });
 
-  // Composition metrics hang off the body fat estimate, so point at the row
-  // above rather than repeating its whole list of unmet inputs.
-  const compositionNote =
-    weightLbs == null
-      ? "Needs body weight"
-      : "Follows from the body fat estimate";
-
   const heightDisplay = Math.round(
     lengthUnit === "cm"
       ? (heightCm ?? DEFAULT_HEIGHT_CM)
       : toLengthDisplay(heightCm ?? DEFAULT_HEIGHT_CM, "in"),
   );
 
-  const tapeSeries = series.filter((s) => s.field.id !== WEIGHT_FIELD_ID);
-  const chartable = series.filter((s) => s.entries.length >= 2);
-  const activeChart =
-    chartable.find((s) => s.field.id === chartField) ?? chartable[0] ?? null;
+  const tapeSeries = series.filter(
+    (s) => s.field.id !== BODY_WEIGHT_FIELD_ID,
+  );
 
   return (
     <div>
-      <ProfileNav />
-
-      <section className="mb-10" aria-labelledby="body-heading">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 id="body-heading" className="text-lg font-semibold tracking-tight">
-            Body
-          </h2>
-          <div className="flex flex-wrap items-center gap-2">
-            <UnitToggle />
-            <div
-              role="group"
-              aria-label="Tape unit"
-              className="glass flex overflow-hidden rounded-pill p-0.5"
-            >
-              {(["in", "cm"] as LengthUnit[]).map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  aria-pressed={lengthUnit === u}
-                  onClick={() => setLengthUnit(u)}
-                  className={`${chipClass(lengthUnit === u)} h-9 min-w-10 px-3 text-[13px]`}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6 rounded-xl glass p-4 shadow-glass sm:p-5">
-          <div>
-            <span
-              id="gender-label"
-              className="mb-2 block text-[13px] font-medium text-muted"
-            >
-              Gender
-            </span>
-            <div
-              role="group"
-              aria-labelledby="gender-label"
-              className="glass flex w-fit overflow-hidden rounded-pill p-0.5"
-            >
-              {GENDERS.map((g) => (
-                <button
-                  key={g.value}
-                  type="button"
-                  aria-pressed={gender === g.value}
-                  onClick={() => setGender(g.value)}
-                  className={`${chipClass(gender === g.value)} h-11 px-5`}
-                >
-                  {g.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-8">
-            <BodyWeightControl
-              key={unit}
-              latestLbs={weightLbs}
-              unit={unit}
-            />
-            <div className="flex flex-col items-center">
+      <section className="mb-10" aria-labelledby="basics-heading">
+        <h2 id="basics-heading" className={`mb-3 ${sectionHeading}`}>
+          Height and gender
+        </h2>
+        <ul className={listClass}>
+          <SettingRow
+            label="Height"
+            value={
+              heightCm == null ? null : formatHeight(heightCm, lengthUnit)
+            }
+            numeric
+            open={open === "height"}
+            onToggle={() => toggle("height")}
+          >
+            <div className="flex justify-center">
               <Stepper
+                // Re-seed the stepper when the tape unit changes under it.
+                key={lengthUnit}
                 label="Height"
                 value={heightDisplay}
                 step={HEIGHT_STEP[lengthUnit]}
@@ -279,101 +175,64 @@ export function Measurements() {
                   )
                 }
               />
-              {heightCm === null ? (
-                <p className="mt-2 text-[13px] text-muted">
-                  Not set yet — adjust to save it.
-                </p>
-              ) : null}
             </div>
-          </div>
-        </div>
-      </section>
+            <div className="mt-4 flex justify-center">
+              <button type="button" className={secondaryBtn} onClick={close}>
+                Done
+              </button>
+            </div>
+          </SettingRow>
 
-      <section className="mb-10" aria-labelledby="derived-heading">
-        <h2
-          id="derived-heading"
-          className="mb-1 text-lg font-semibold tracking-tight"
-        >
-          Derived
-        </h2>
-        <p className="mb-4 max-w-[65ch] text-sm leading-relaxed text-muted">
-          Calculated from gender, height, weight, and the tape readings. BMI
-          reads high on muscular builds — FFMI is the lean-mass equivalent.
-        </p>
-        <dl className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
-          <MetricRow
-            term="BMI"
-            value={metrics.bmi != null ? formatMeasure(metrics.bmi) : null}
-            note={metrics.bmiBand ?? undefined}
-            missingNote={`Needs ${formatList(metrics.bmiNeeds)}`}
-          />
-          <MetricRow
-            term="Body fat"
-            value={
-              metrics.bodyFatPct != null
-                ? `${formatMeasure(metrics.bodyFatPct)}%`
-                : null
-            }
-            note="US Navy tape method"
-            missingNote={`Needs ${formatList(metrics.bodyFatNeeds)}`}
-          />
-          <MetricRow
-            term="Lean mass"
-            value={
-              metrics.leanLbs != null
-                ? withUnit(metrics.leanLbs, "mass", ctx)
-                : null
-            }
-            missingNote={compositionNote}
-          />
-          <MetricRow
-            term="Fat mass"
-            value={
-              metrics.fatLbs != null ? withUnit(metrics.fatLbs, "mass", ctx) : null
-            }
-            missingNote={compositionNote}
-          />
-          <MetricRow
-            term="FFMI"
-            value={metrics.ffmi != null ? formatMeasure(metrics.ffmi) : null}
-            note="Lean mass for your height"
-            missingNote={
-              heightCm == null ? "Needs height" : "Follows from lean mass"
-            }
-          />
-        </dl>
+          <SettingRow
+            label="Gender"
+            value={gender == null ? null : gender === "male" ? "Male" : "Female"}
+            open={open === "gender"}
+            onToggle={() => toggle("gender")}
+          >
+            <div
+              role="group"
+              aria-label="Gender"
+              className={`${chipTrackClass} mx-auto`}
+            >
+              {GENDERS.map((g) => (
+                <button
+                  key={g.value}
+                  type="button"
+                  aria-pressed={gender === g.value}
+                  onClick={() => {
+                    setGender(g.value);
+                    close();
+                  }}
+                  className={`${chipClass(gender === g.value)} h-11 px-5 text-sm`}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </SettingRow>
+        </ul>
       </section>
 
       <section className="mb-10" aria-labelledby="readings-heading">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2
-            id="readings-heading"
-            className="text-lg font-semibold tracking-tight"
-          >
+          <h2 id="readings-heading" className={sectionHeading}>
             Measurements
           </h2>
-          {!adding ? (
+          {open !== "add" ? (
             <button
               type="button"
               className={quietBtn}
-              onClick={() => {
-                setAdding(true);
-                setOpenField(null);
-              }}
+              onClick={() => setOpen("add")}
             >
               Add field
             </button>
           ) : null}
         </div>
-        <p className="mb-4 max-w-[65ch] text-sm leading-relaxed text-muted">
-          Tap a row to log today’s reading. One reading per field per day —
-          logging again the same day corrects it.
-        </p>
 
-        {adding ? (
+        {open === "add" ? (
           <div className="mb-4">
             <AddFieldForm
-              onDone={() => setAdding(false)}
+              onDone={close}
               existingLabels={[
                 "body weight",
                 ...tapeSeries.map((s) => s.field.label.toLowerCase()),
@@ -385,69 +244,129 @@ export function Measurements() {
         {data === undefined ? (
           <p className="text-sm text-muted">Loading…</p>
         ) : (
-          <ul className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
+          <ul className={listClass}>
             {tapeSeries.map((entry) => (
               <FieldRow
                 key={entry.field.id}
                 series={entry}
                 ctx={ctx}
-                open={openField === entry.field.id}
-                onOpen={() => {
-                  setOpenField(entry.field.id);
-                  setAdding(false);
-                }}
-                onClose={() => setOpenField(null)}
+                open={open === `field:${entry.field.id}`}
+                onOpen={() => setOpen(`field:${entry.field.id}`)}
+                onClose={close}
               />
             ))}
           </ul>
         )}
       </section>
 
-      <section aria-labelledby="trend-heading">
-        <h2
-          id="trend-heading"
-          className="mb-3 text-lg font-semibold tracking-tight"
-        >
-          Trend
+      <section aria-labelledby="derived-heading">
+        <h2 id="derived-heading" className={`mb-3 ${sectionHeading}`}>
+          Derived
         </h2>
-        {chartable.length === 0 ? (
-          <p className="max-w-[65ch] text-sm leading-relaxed text-muted">
-            Log a field on two separate days to see its trend.
-          </p>
-        ) : (
-          <>
-            {chartable.length > 1 ? (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {chartable.map((s) => {
-                  const isActive = activeChart?.field.id === s.field.id;
-                  return (
-                    <button
-                      key={s.field.id}
-                      type="button"
-                      aria-pressed={isActive}
-                      onClick={() => setChartField(s.field.id)}
-                      className={`${chipClass(isActive)} h-9 px-3 text-[13px]`}
-                    >
-                      {s.field.label}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-            {activeChart ? (
-              <TrendChart
-                data={activeChart.entries.map<TrendPoint>((e) => ({
-                  date: shortDate(e.dateKey),
-                  value: displayOf(e.value, activeChart.field.kind, ctx),
-                }))}
-                height={200}
-                valueLabel={suffixFor(activeChart.field.kind, ctx)}
-              />
-            ) : null}
-          </>
-        )}
+        <dl className={listClass}>
+          <MetricRow
+            term="BMI"
+            value={metrics.bmi != null ? formatMeasure(metrics.bmi) : null}
+            note={
+              metrics.bmi != null
+                ? (metrics.bmiBand ?? undefined)
+                : `Needs ${formatList(metrics.bmiNeeds)}`
+            }
+          />
+          <MetricRow
+            term="Body fat"
+            value={
+              metrics.bodyFatPct != null
+                ? `${formatMeasure(metrics.bodyFatPct)}%`
+                : null
+            }
+            note={
+              metrics.bodyFatPct != null
+                ? undefined
+                : `Needs ${formatList(metrics.bodyFatNeeds)}`
+            }
+          />
+          {/* The three below hang off the body fat estimate, so they stay
+              bare rather than repeating its unmet inputs three times. */}
+          <MetricRow
+            term="Lean mass"
+            value={
+              metrics.leanLbs != null
+                ? withUnit(metrics.leanLbs, "mass", ctx)
+                : null
+            }
+            note={weightLbs == null ? "Needs body weight" : undefined}
+          />
+          <MetricRow
+            term="Fat mass"
+            value={
+              metrics.fatLbs != null
+                ? withUnit(metrics.fatLbs, "mass", ctx)
+                : null
+            }
+          />
+          <MetricRow
+            term="FFMI"
+            value={metrics.ffmi != null ? formatMeasure(metrics.ffmi) : null}
+          />
+        </dl>
+        <p className="mt-3 max-w-[65ch] text-[13px] leading-relaxed text-muted">
+          Body fat uses the US Navy tape method. BMI reads high on muscular
+          builds — FFMI is the lean-mass equivalent.
+        </p>
       </section>
     </div>
+  );
+}
+
+/** A set-once value: label, current reading, and an inline editor. */
+function SettingRow({
+  label,
+  value,
+  numeric = false,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string;
+  /** Null renders the quiet "Set" affordance instead. */
+  value: string | null;
+  numeric?: boolean;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={rowButtonClass}
+      >
+        <span className="text-[15px] font-semibold tracking-tight text-ink">
+          {label}
+        </span>
+        {value == null ? (
+          <span className="shrink-0 text-[13px] text-muted">Set</span>
+        ) : (
+          <span
+            className={
+              numeric
+                ? "tnum shrink-0 text-xl font-semibold tracking-tight text-ink"
+                : "shrink-0 text-[15px] font-medium text-ink"
+            }
+          >
+            {value}
+          </span>
+        )}
+      </button>
+      {open ? (
+        <div className="panel-in border-t border-hairline bg-bg px-4 py-4">
+          {children}
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -455,27 +374,22 @@ function MetricRow({
   term,
   value,
   note,
-  missingNote,
 }: {
   term: string;
   value: string | null;
+  /** Classifies the number, or names what is still missing. */
   note?: string;
-  /** Shown in place of the note when the metric cannot be computed. */
-  missingNote: string;
 }) {
   const missing = value === null;
-  // The unmet-input list belongs under the label, where the note already
-  // lives: right-aligning a sentence against a number column cramps both.
-  const subnote = missing ? missingNote : note;
   return (
     <div className="flex items-baseline justify-between gap-4 px-4 py-3">
       <dt className="min-w-0">
         <span className="block text-[15px] font-semibold tracking-tight text-ink">
           {term}
         </span>
-        {subnote ? (
+        {note ? (
           <span className="mt-0.5 block text-[13px] leading-snug text-muted">
-            {subnote}
+            {note}
           </span>
         ) : null}
       </dt>
@@ -520,7 +434,7 @@ function FieldRow({
         type="button"
         onClick={() => (open ? onClose() : onOpen())}
         aria-expanded={open}
-        className="flex min-h-[56px] w-full items-baseline justify-between gap-4 px-4 py-3 text-left transition-colors duration-150 hover:bg-surface-raised"
+        className={rowButtonClass}
       >
         <span className="min-w-0">
           <span className="block text-[15px] font-semibold tracking-tight text-ink">
@@ -724,7 +638,7 @@ function AddFieldForm({
           <div
             role="group"
             aria-labelledby="kind-label"
-            className="glass flex w-fit overflow-hidden rounded-pill p-0.5"
+            className={chipTrackClass}
           >
             {KINDS.map((option) => (
               <button
@@ -732,7 +646,7 @@ function AddFieldForm({
                 type="button"
                 aria-pressed={kind === option.value}
                 onClick={() => setKind(option.value)}
-                className={`${chipClass(kind === option.value)} h-11 px-5`}
+                className={`${chipClass(kind === option.value)} h-11 px-5 text-sm`}
               >
                 {option.label}
               </button>

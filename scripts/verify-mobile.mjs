@@ -148,16 +148,26 @@ await page.waitForTimeout(600);
 await expect("history sessions tab renders", () =>
   page.getByRole("link", { name: "Sessions", exact: true }).isVisible(),
 );
-await page.goto(`${BASE}/profile/measurements`, { waitUntil: "networkidle" });
+await page.goto(`${BASE}/log/body`, { waitUntil: "networkidle" });
 await page.waitForTimeout(800);
-await expect("measurements renders (lazy)", () =>
-  page.getByRole("heading", { name: "Body" }).isVisible(),
+await expect("log body tab renders (lazy)", () =>
+  page.getByRole("heading", { name: "Measurements" }).isVisible(),
 );
-await expect("profile tabs render", () =>
-  page.getByRole("link", { name: "Measurements", exact: true }).isVisible(),
+await expect("log tabs render", () =>
+  page.getByRole("link", { name: "Body", exact: true }).isVisible(),
 );
 await expect("core fields seeded", () =>
-  page.getByRole("button", { name: /^Body weight/ }).isVisible(),
+  page.getByRole("button", { name: /^Waist/ }).isVisible(),
+);
+await expect("derived section renders", () =>
+  page.getByRole("heading", { name: "Derived" }).isVisible(),
+);
+// Body weight is a daily number; a second stepper here would be the old
+// duplicate coming back.
+await expect(
+  "body weight is not duplicated on the body tab",
+  async () =>
+    (await page.getByRole("button", { name: /^Body weight/ }).count()) === 0,
 );
 
 await browser.close();

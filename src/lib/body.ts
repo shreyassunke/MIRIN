@@ -16,6 +16,9 @@ const HEIGHT_KEY = "body.heightCm";
 /** A sensible starting height so the stepper is never a blank field. */
 export const DEFAULT_HEIGHT_CM = 178;
 
+/** Starting body weight, in canonical pounds, before anything is logged. */
+export const DEFAULT_WEIGHT_LBS = 175;
+
 interface CoreFieldSpec {
   id: string;
   label: string;
@@ -31,7 +34,12 @@ interface CoreFieldSpec {
 export const BODY_WEIGHT_FIELD_ID = "body-weight";
 
 export const CORE_FIELDS: CoreFieldSpec[] = [
-  { id: BODY_WEIGHT_FIELD_ID, label: "Body weight", kind: "mass", fallback: 175 },
+  {
+    id: BODY_WEIGHT_FIELD_ID,
+    label: "Body weight",
+    kind: "mass",
+    fallback: DEFAULT_WEIGHT_LBS,
+  },
   { id: "waist", label: "Waist", kind: "length", fallback: 86.4 },
   { id: "neck", label: "Neck", kind: "length", fallback: 38.1 },
   { id: "hips", label: "Hips", kind: "length", fallback: 96.5 },
@@ -46,7 +54,7 @@ const CORE_BY_ID = new Map(CORE_FIELDS.map((f) => [f.id, f] as const));
 export function fallbackFor(field: MeasurementField): number {
   const core = CORE_BY_ID.get(field.id);
   if (core) return core.fallback;
-  return field.kind === "mass" ? 175 : 40;
+  return field.kind === "mass" ? DEFAULT_WEIGHT_LBS : 40;
 }
 
 export function todayKey(): string {

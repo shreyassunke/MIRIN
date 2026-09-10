@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { chipClass, chipTrackClass } from "./chip";
 
 export interface SegmentedTab {
   to: string;
@@ -8,10 +9,7 @@ export interface SegmentedTab {
 }
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
-  [
-    "glass-chip inline-flex h-9 items-center justify-center rounded-pill px-4 text-[13px] font-medium",
-    isActive ? "glass-chip-active text-ink" : "text-muted hover:text-ink",
-  ].join(" ");
+  `${chipClass(isActive)} h-9 px-4 text-[13px]`;
 
 /** Route-backed segmented control: the in-section view switcher. */
 export function SegmentedTabs({
@@ -22,11 +20,7 @@ export function SegmentedTabs({
   ariaLabel: string;
 }) {
   return (
-    <div
-      role="group"
-      aria-label={ariaLabel}
-      className="glass flex w-fit overflow-hidden rounded-pill p-0.5"
-    >
+    <div role="group" aria-label={ariaLabel} className={chipTrackClass}>
       {items.map((item) => (
         <NavLink
           key={item.to}

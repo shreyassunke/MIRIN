@@ -147,6 +147,84 @@ export function deriveMetrics(input: MetricInputs): DerivedMetrics {
   };
 }
 
+/** One dated reading of a single field, in canonical units. */
+export interface DatedReading {
+  dateKey: string;
+  value: number;
+}
+
+export interface DerivedSeriesInput {
+  gender: Gender | null;
+  heightCm: number | null;
+  weightLbs: DatedReading[];
+  waistCm: DatedReading[];
+  neckCm: DatedReading[];
+  hipsCm: DatedReading[];
+}
+
+/** The time-varying subset of `DerivedMetrics`, resolved for one date. */
+export interface DerivedSample {
+  dateKey: string;
+  bmi: number | null;
+  bodyFatPct: number | null;
+  leanLbs: number | null;
+  fatLbs: number | null;
+  ffmi: number | null;
+}
+
+/**
+ * Derived metrics for every date that has any reading behind them.
+ *
+ * A reading stays true until the next one replaces it, so each date carries
+ * forward the most recent value at or before it. Without that, a day holding
+ * only a weight entry would blank every tape-derived metric and punch holes
+ * in the trend.
+ */
+export function deriveSeries(input: DerivedSeriesInput): DerivedSample[] {
+  const tracks = [
+    input.weightLbs,
+    input.waistCm,
+    input.neckCm,
+    input.hipsCm,
+  ].map((track) =>
+    [...track].sort((a, b) => a.dateKey.localeCompare(b.dateKey)),
+  );
+
+  const dateKeys = [
+    ...new Set(tracks.flatMap((track) => track.map((r) => r.dateKey))),
+  ].sort();
+  if (dateKeys.length === 0) return [];
+
+  const cursors = tracks.map(() => 0);
+  const carried: (number | null)[] = tracks.map(() => null);
+
+  return dateKeys.map((dateKey) => {
+    tracks.forEach((track, i) => {
+      while (cursors[i] < track.length && track[cursors[i]].dateKey <= dateKey) {
+        carried[i] = track[cursors[i]].value;
+        cursors[i] += 1;
+      }
+    });
+    const [weightLbs, waistCm, neckCm, hipsCm] = carried;
+    const metrics = deriveMetrics({
+      gender: input.gender,
+      heightCm: input.heightCm,
+      weightLbs,
+      waistCm,
+      neckCm,
+      hipsCm,
+    });
+    return {
+      dateKey,
+      bmi: metrics.bmi,
+      bodyFatPct: metrics.bodyFatPct,
+      leanLbs: metrics.leanLbs,
+      fatLbs: metrics.fatLbs,
+      ffmi: metrics.ffmi,
+    };
+  });
+}
+
 export interface FieldProgress {
   start: number;
   latest: number;
