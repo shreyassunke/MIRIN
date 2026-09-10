@@ -28,8 +28,10 @@ interface CoreFieldSpec {
  * Seeded fields. Neck, waist and hips are not optional decoration — the Navy
  * body-fat estimate is built from them.
  */
+export const BODY_WEIGHT_FIELD_ID = "body-weight";
+
 export const CORE_FIELDS: CoreFieldSpec[] = [
-  { id: "body-weight", label: "Body weight", kind: "mass", fallback: 175 },
+  { id: BODY_WEIGHT_FIELD_ID, label: "Body weight", kind: "mass", fallback: 175 },
   { id: "waist", label: "Waist", kind: "length", fallback: 86.4 },
   { id: "neck", label: "Neck", kind: "length", fallback: 38.1 },
   { id: "hips", label: "Hips", kind: "length", fallback: 96.5 },

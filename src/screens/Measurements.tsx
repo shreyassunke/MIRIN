@@ -7,6 +7,7 @@ import { TrendChart, type TrendPoint } from "../components/TrendChart";
 import { UnitToggle } from "../components/UnitToggle";
 import { db, type MeasurementKind } from "../db/db";
 import {
+  BODY_WEIGHT_FIELD_ID,
   DEFAULT_HEIGHT_CM,
   addCustomField,
   buildSeries,
@@ -36,7 +37,7 @@ import {
   type Unit,
 } from "../lib/units";
 
-const WEIGHT_FIELD_ID = "body-weight";
+const WEIGHT_FIELD_ID = BODY_WEIGHT_FIELD_ID;
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: "male", label: "Male" },

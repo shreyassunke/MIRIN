@@ -84,7 +84,7 @@ On iPhone Safari: `http://<your-computer-ip>:5174/today` (your PC must stay on; 
 - `/today` — auto-detects the next day in the 5-day rotation (Push / Pull / Legs / Arms / Chest & Back), prefills last session's weight×reps, steppers + one-tap logging, auto-starting rest timer.
 - `/exercise/:id` — estimated 1RM trend (Epley) and the last 10 sessions.
 - `/history` — session calendar and PR targets. The **Progress** tab (`/history/progress`) holds overall volume per session plus the weak-point charts (Lateral Raise, Rear Delt Flye, Incline Press).
-- `/macros` — protein and calories per day, prefilled from the last logged day.
+- `/log` — daily body weight and macros (protein + calories), with a two-line trend of weight and calories. Last log is the default. `/macros` and `/nutrition` redirect here.
 - `/split` — reorder exercises within each day; order is enforced on the logging screen.
 - `/profile` — display name, cloud sync status, and sign out. The **Measurements** tab (`/profile/measurements`) holds gender, height, and dated tape readings (waist, neck, hips, chest, arm, wrist, plus your own fields), with BMI, US Navy body fat, lean/fat mass, FFMI, and progress against per-field targets.
 - `/auth` — email or Google sign-in.

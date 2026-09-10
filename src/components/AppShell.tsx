@@ -14,7 +14,7 @@ import { getContactLine, getDisplayName } from "../lib/user";
 const NAV_ITEMS = [
   { to: "/today", label: "Today", Icon: IconToday },
   { to: "/history", label: "History", Icon: IconHistory },
-  { to: "/macros", label: "Macros", Icon: IconMacros },
+  { to: "/log", label: "Log", Icon: IconLog },
   { to: "/split", label: "Split", Icon: IconSplit },
   { to: "/profile", label: "Profile", Icon: IconProfile },
 ] as const;
@@ -86,17 +86,25 @@ function IconHistory(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconMacros({ className }: SVGProps<SVGSVGElement>) {
+function IconLog(props: SVGProps<SVGSVGElement>) {
   return (
-    <img
-      src="/icons/macros-apple.png"
-      alt=""
-      aria-hidden="true"
-      draggable={false}
-      className={["nav-macros-icon object-contain", className]
-        .filter(Boolean)
-        .join(" ")}
-    />
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <rect
+        x="5"
+        y="4"
+        width="14"
+        height="16"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path
+        d="M8.5 9h7M8.5 12.5h7M8.5 16h4.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 

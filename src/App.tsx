@@ -25,8 +25,8 @@ const Profile = lazy(() =>
 const History = lazy(() =>
   import("./screens/History").then((m) => ({ default: m.History })),
 );
-const Macros = lazy(() =>
-  import("./screens/Macros").then((m) => ({ default: m.Macros })),
+const Log = lazy(() =>
+  import("./screens/Log").then((m) => ({ default: m.Log })),
 );
 const Measurements = lazy(() =>
   import("./screens/Measurements").then((m) => ({ default: m.Measurements })),
@@ -66,11 +66,9 @@ export default function App() {
         <Route path="/history" element={<History />} />
         <Route path="/history/progress" element={<Trends />} />
         <Route path="/history/session/:sessionId" element={<SessionDetail />} />
-        <Route
-          path="/nutrition"
-          element={<Navigate to="/macros" replace />}
-        />
-        <Route path="/macros" element={<Macros />} />
+        <Route path="/nutrition" element={<Navigate to="/log" replace />} />
+        <Route path="/macros" element={<Navigate to="/log" replace />} />
+        <Route path="/log" element={<Log />} />
         <Route path="/split" element={<SplitEditor />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/measurements" element={<Measurements />} />
