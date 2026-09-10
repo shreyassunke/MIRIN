@@ -61,28 +61,17 @@ function IconToday(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconHistory(props: SVGProps<SVGSVGElement>) {
+function IconHistory({ className }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <rect
-        x="4"
-        y="5"
-        width="16"
-        height="15"
-        rx="2.5"
-        stroke="currentColor"
-        strokeWidth="1.75"
-      />
-      <path
-        d="M8 3.5v3M16 3.5v3M4 10h16"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-      <circle cx="8.5" cy="14" r="1.1" fill="currentColor" />
-      <circle cx="12" cy="14" r="1.1" fill="currentColor" />
-      <circle cx="15.5" cy="17.5" r="1.1" fill="currentColor" />
-    </svg>
+    <img
+      src="/icons/history-clock.png"
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      className={["nav-raster-icon object-contain", className]
+        .filter(Boolean)
+        .join(" ")}
+    />
   );
 }
 

@@ -236,6 +236,20 @@ a,
     transform var(--motion-fast) var(--ease-out-expo);
 }
 
+/* User-provided glyph: black on transparent → ink/muted on dark nav */
+.nav-raster-icon {
+  filter: brightness(0) invert(1);
+  transition: opacity var(--motion-nav) var(--ease-out-expo);
+}
+
+.text-muted .nav-raster-icon {
+  opacity: 0.55;
+}
+
+.text-ink .nav-raster-icon {
+  opacity: 1;
+}
+
 .nav-pill-item:active .nav-pill-label {
   transform: scale(0.96);
 }
