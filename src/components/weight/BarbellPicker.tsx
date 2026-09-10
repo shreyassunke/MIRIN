@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   BAR_OPTIONS,
   PLATE_SIZES,
@@ -45,6 +45,7 @@ function LoadedBar({
   onRemove: (index: number) => void;
 }) {
   const max = PLATE_SIZES[unit][0];
+  const barMaskId = `bar-mask${useId().replaceAll(":", "")}`;
   // Innermost plate sits against the collar; stacks grow outward.
   let cursor = 0;
   const placed = plates.map((value, index) => {
@@ -65,6 +66,45 @@ function LoadedBar({
           : "Empty bar"
       }
     >
+      <defs>
+        {/* Punch the plate interiors out of the bar so the sleeve never
+            draws through a plate — the outline is the plate, not a tint
+            sitting on top of the shaft. */}
+        <mask
+          id={barMaskId}
+          maskUnits="userSpaceOnUse"
+          x="0"
+          y="0"
+          width={SVG_W}
+          height={SVG_H}
+        >
+          <rect width={SVG_W} height={SVG_H} fill="white" />
+          {placed.map(({ index, h, w, offset }) => {
+            const xLeft = COLLAR_L - 4 - offset - w;
+            const xRight = COLLAR_R + 4 + offset;
+            return (
+              <g key={index}>
+                <rect
+                  x={xLeft}
+                  y={MID - h / 2}
+                  width={w}
+                  height={h}
+                  rx="2"
+                  fill="black"
+                />
+                <rect
+                  x={xRight}
+                  y={MID - h / 2}
+                  width={w}
+                  height={h}
+                  rx="2"
+                  fill="black"
+                />
+              </g>
+            );
+          })}
+        </mask>
+      </defs>
       {/* bar */}
       <line
         x1="6"
@@ -74,6 +114,7 @@ function LoadedBar({
         stroke="#d4d4d4"
         strokeWidth="2"
         strokeLinecap="round"
+        mask={`url(#${barMaskId})`}
       />
       {/* collars */}
       <line
