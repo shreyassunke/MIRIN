@@ -1,15 +1,8 @@
-import {
-  useRef,
-  type CSSProperties,
-  type PointerEvent,
-  type ReactNode,
-} from "react";
+import { type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import type { Exercise, SetLog } from "../db/db";
 import type { ExerciseLibraryEntry } from "../lib/library";
+import type { GroupPos } from "../lib/exerciseMeta";
 import { ExerciseCombobox } from "./ExerciseCombobox";
-
-/** Second tap within this window = rename; first tap toggles immediately. */
-const DOUBLE_TAP_MS = 260;
 
 interface TodayExerciseTileProps {
   exercise: Exercise;
@@ -23,17 +16,27 @@ interface TodayExerciseTileProps {
   reorderIndex: number;
   dragRowClassName: string;
   dragStyle?: CSSProperties;
+  groupPos?: GroupPos;
+  inSuperset?: boolean;
+  overflow?: ReactNode;
+  notes?: ReactNode;
   onDragPointerDown?: (e: PointerEvent) => void;
   onDragPointerMove?: (e: PointerEvent) => void;
   onDragPointerUp?: (e: PointerEvent) => void;
   onDragPointerCancel?: (e: PointerEvent) => void;
   shouldSuppressClick?: () => boolean;
   onToggle: () => void;
-  onStartSwap: () => void;
   onCancelSwap: () => void;
   onSwapPick: (entry: ExerciseLibraryEntry) => void;
   formatLoggedSet: (log: SetLog) => string;
   children?: ReactNode;
+}
+
+function groupRadius(pos: GroupPos): string {
+  if (pos === "first") return "rounded-t-xl rounded-b-none";
+  if (pos === "middle") return "rounded-none";
+  if (pos === "last") return "rounded-b-xl rounded-t-none";
+  return "rounded-xl";
 }
 
 export function TodayExerciseTile({
@@ -47,34 +50,21 @@ export function TodayExerciseTile({
   reorderIndex,
   dragRowClassName,
   dragStyle,
+  groupPos = "solo",
+  inSuperset = false,
+  overflow,
+  notes,
   onDragPointerDown,
   onDragPointerMove,
   onDragPointerUp,
   onDragPointerCancel,
   shouldSuppressClick,
   onToggle,
-  onStartSwap,
   onCancelSwap,
   onSwapPick,
   formatLoggedSet,
   children,
 }: TodayExerciseTileProps) {
-  const lastTapRef = useRef(0);
-
-  function handleHeaderClick() {
-    if (shouldSuppressClick?.()) return;
-
-    const now = performance.now();
-    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
-      lastTapRef.current = 0;
-      onStartSwap();
-      return;
-    }
-
-    lastTapRef.current = now;
-    onToggle();
-  }
-
   return (
     <li
       data-reorder-index={reorderIndex}
@@ -83,15 +73,27 @@ export function TodayExerciseTile({
       onPointerMove={onDragPointerMove}
       onPointerUp={onDragPointerUp}
       onPointerCancel={onDragPointerCancel}
-      className={["overflow-hidden rounded-xl glass select-none", dragRowClassName]
+      className={[
+        "overflow-hidden glass select-none",
+        groupRadius(groupPos),
+        groupPos === "middle" || groupPos === "last"
+          ? "-mt-px"
+          : reorderIndex > 0
+            ? "mt-3"
+            : "",
+        dragRowClassName,
+      ]
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="flex items-stretch gap-2 px-2 py-2">
+      <div className="flex items-stretch gap-1 px-2 py-2">
         <button
           type="button"
           data-drag-surface=""
-          onClick={handleHeaderClick}
+          onClick={() => {
+            if (shouldSuppressClick?.()) return;
+            onToggle();
+          }}
           className={[
             "glass-chip flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-3 py-1.5 text-left select-none",
             isActive ? "glass-chip-active" : "",
@@ -100,16 +102,38 @@ export function TodayExerciseTile({
             .join(" ")}
           aria-expanded={isActive}
           aria-label={
-            isSwapping
-              ? `Replace ${exercise.name}`
-              : isActive
-                ? `Collapse ${exercise.name}`
-                : `Expand ${exercise.name}`
+            isActive
+              ? `Collapse ${exercise.name}`
+              : `Expand ${exercise.name}`
           }
         >
           <span className="min-w-0">
-            <span className="block text-[17px] font-semibold tracking-tight">
-              {exercise.name}
+            <span className="flex min-w-0 items-center gap-1.5">
+              {inSuperset && (
+                <span className="shrink-0 text-muted" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                  >
+                    <path
+                      d="M6.25 5.5a2.25 2.25 0 0 1 0 3.18l-.3.3a2.25 2.25 0 1 1-3.18-3.18l.6-.6"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M9.75 10.5a2.25 2.25 0 0 1 0-3.18l.3-.3a2.25 2.25 0 1 1 3.18 3.18l-.6.6"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+              )}
+              <span className="block truncate text-[17px] font-semibold tracking-tight">
+                {exercise.name}
+              </span>
             </span>
             <span className="tnum mt-0.5 block text-[13px] text-muted">
               {lastSummary}
@@ -117,13 +141,16 @@ export function TodayExerciseTile({
           </span>
           <span className="tnum shrink-0 text-[13px] font-medium text-muted">
             {finished
-              ? `Done · ${logged.length}`
+              ? `Done · ${logged.filter((s) => !s.isWarmup).length}`
               : logged.length === 0
                 ? "No sets"
                 : `${logged.length} ${logged.length === 1 ? "set" : "sets"}`}
           </span>
         </button>
+        {overflow}
       </div>
+
+      {notes ? <div data-no-drag="" className="px-4 pb-2">{notes}</div> : null}
 
       {isSwapping && (
         <div data-no-drag="" className="border-t border-hairline px-4 py-3">

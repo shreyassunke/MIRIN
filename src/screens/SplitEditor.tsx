@@ -12,18 +12,42 @@ import {
   renameDay,
   reorderRotation,
   setRotationToday,
+  toggleDaySuperset,
+  toggleDayWarmup,
   REST_DAY_TEMPLATE,
 } from "../lib/splits";
 import { rotationIndexForDate, weekdayLabels } from "../lib/rotation";
 import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
 import { move } from "../lib/array";
+import {
+  breakGroup,
+  DEFAULT_REST_SECONDS,
+  formatRest,
+  groupPosFor,
+  inSuperset,
+  omitRecordKey,
+  patchExercisePref,
+  remapGroupIds,
+  remapRecordKey,
+} from "../lib/exerciseMeta";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { DragHandle } from "../components/DragHandle";
 import { ToggleSwitch } from "../components/ToggleSwitch";
+import { NoteEditor } from "../components/NoteEditor";
+import {
+  IconRemove,
+  IconRename,
+  IconReplace,
+  IconRest,
+  IconSticky,
+  IconSuperset,
+  IconTodayMark,
+  IconWarmup,
+  ItemOverflow,
+  RestPresetPanel,
+} from "../components/ItemOverflow";
 import { useDragReorder } from "../hooks/useDragReorder";
 
-const iconBtn =
-  "glass-btn h-11 w-11 rounded-pill text-muted hover:text-ink disabled:pointer-events-none disabled:opacity-40";
 const secondaryBtn =
   "glass-btn h-11 rounded-pill px-4 text-sm font-medium text-ink";
 
@@ -91,6 +115,8 @@ interface RotationEditorProps {
 
 function RotationEditor({ split, days, exercises }: RotationEditorProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
 
   useEffect(() => {
     setOpenIndex(null);
@@ -181,27 +207,47 @@ function RotationEditor({ split, days, exercises }: RotationEditorProps) {
                   )}
                   <Chevron open={isOpen} />
                 </button>
-                {split.isActive && !split.isDefault && !isToday && (
-                  <button
-                    type="button"
-                    onClick={() => void setRotationToday(split.id, index)}
-                    className="shrink-0 px-2 text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-                  >
-                    Set as today
-                  </button>
-                )}
-                <button
-                  type="button"
-                  aria-label={`Remove slot ${index + 1}`}
-                  disabled={split.dayTemplateIds.length <= 1}
-                  onClick={() => {
-                    if (openIndex === index) setOpenIndex(null);
-                    void removeDaySlot(split, index);
-                  }}
-                  className={iconBtn}
-                >
-                  ×
-                </button>
+                <ItemOverflow
+                  label={`${dayName} options`}
+                  items={[
+                    ...(day && dayTemplateId !== REST_DAY_TEMPLATE.id
+                      ? [
+                          {
+                            id: "rename",
+                            label: "Rename",
+                            icon: <IconRename />,
+                            onSelect: () => {
+                              setOpenIndex(index);
+                              setRenamingIndex(index);
+                              setNameDraft(dayName);
+                            },
+                          },
+                        ]
+                      : []),
+                    ...(split.isActive && !split.isDefault && !isToday
+                      ? [
+                          {
+                            id: "today",
+                            label: "Set as today",
+                            icon: <IconTodayMark />,
+                            onSelect: () => void setRotationToday(split.id, index),
+                          },
+                        ]
+                      : []),
+                    {
+                      id: "remove",
+                      label: "Remove",
+                      icon: <IconRemove />,
+                      danger: true,
+                      separatorBefore: true,
+                      disabled: split.dayTemplateIds.length <= 1,
+                      onSelect: () => {
+                        if (openIndex === index) setOpenIndex(null);
+                        void removeDaySlot(split, index);
+                      },
+                    },
+                  ]}
+                />
               </div>
               {isOpen && (
                 <div
@@ -209,6 +255,29 @@ function RotationEditor({ split, days, exercises }: RotationEditorProps) {
                   data-no-drag
                   className="panel-in border-t border-hairline bg-bg px-4 py-3"
                 >
+                  {renamingIndex === index && day && (
+                    <input
+                      type="text"
+                      value={nameDraft}
+                      autoFocus
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      onBlur={() => {
+                        if (nameDraft.trim() && nameDraft.trim() !== day.name) {
+                          void renameDay(day, nameDraft);
+                        }
+                        setRenamingIndex(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        if (e.key === "Escape") {
+                          setRenamingIndex(null);
+                          setNameDraft(day.name);
+                        }
+                      }}
+                      aria-label="Day name"
+                      className="mb-3 h-9 w-full max-w-xs rounded-md border border-hairline bg-bg px-2 text-base font-semibold text-ink focus:border-muted"
+                    />
+                  )}
                   {day && !isRest ? (
                     <DayExerciseList day={day} exercises={exercises} />
                   ) : (
@@ -247,15 +316,10 @@ interface DayExerciseListProps {
 
 function DayExerciseList({ day, exercises }: DayExerciseListProps) {
   const [adding, setAdding] = useState(false);
-  const [renaming, setRenaming] = useState(false);
-  const [nameDraft, setNameDraft] = useState(day.name);
-  const [focusedId, setFocusedId] = useState<string | null>(null);
   const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    setNameDraft(day.name);
-    setRenaming(false);
-  }, [day.id, day.name]);
+  const [editingStickyId, setEditingStickyId] = useState<string | null>(null);
+  const prefs = useLiveQuery(() => db.exercisePrefs.toArray(), []) ?? [];
+  const prefById = new Map(prefs.map((p) => [p.exerciseId, p] as const));
 
   const reorder = (from: number, to: number) => {
     if (from === to || to < 0 || to >= day.exerciseIds.length) return;
@@ -273,8 +337,9 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
   const removeExercise = (exerciseId: string) => {
     void db.dayTemplates.update(day.id, {
       exerciseIds: day.exerciseIds.filter((id) => id !== exerciseId),
+      supersets: breakGroup(day.supersets, exerciseId),
+      warmupTargets: omitRecordKey(day.warmupTargets, exerciseId),
     });
-    if (focusedId === exerciseId) setFocusedId(null);
     setSwappingIndex(null);
   };
 
@@ -285,72 +350,50 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
     if (current.exerciseIds.includes(newId) && current.exerciseIds[index] !== newId) {
       return;
     }
+    const outgoingId = current.exerciseIds[index];
     const next = [...current.exerciseIds];
     next[index] = newId;
-    await db.dayTemplates.update(day.id, { exerciseIds: next });
+    await db.dayTemplates.update(day.id, {
+      exerciseIds: next,
+      supersets: remapGroupIds(current.supersets, outgoingId, newId),
+      warmupTargets: remapRecordKey(current.warmupTargets, outgoingId, newId),
+    });
     setSwappingIndex(null);
-    setFocusedId(newId);
-  };
-
-  const commitRename = () => {
-    setRenaming(false);
-    if (nameDraft.trim() && nameDraft.trim() !== day.name) {
-      void renameDay(day, nameDraft);
-    } else {
-      setNameDraft(day.name);
-    }
   };
 
   return (
     <div>
-      <div className="mb-2">
-        {renaming ? (
-          <input
-            type="text"
-            value={nameDraft}
-            autoFocus
-            onChange={(e) => setNameDraft(e.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitRename();
-              if (e.key === "Escape") {
-                setNameDraft(day.name);
-                setRenaming(false);
-              }
-            }}
-            aria-label="Day name"
-            className="h-9 w-full max-w-xs rounded-md border border-hairline bg-bg px-2 text-base font-semibold text-ink focus:border-muted"
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setRenaming(true)}
-            className="rounded-md text-left text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-            aria-label={`Rename ${day.name}`}
-          >
-            Rename
-          </button>
-        )}
-      </div>
-
       {day.exerciseIds.length === 0 ? (
         <p className="text-sm text-muted">
           No exercises yet — add the first one below.
         </p>
       ) : (
-        <ul className="divide-y divide-hairline">
+        <ul>
           {day.exerciseIds.map((exerciseId, index) => {
             const exercise = exercises.get(exerciseId);
             if (!exercise) return null;
             const dragProps = getItemProps(index);
             const handleProps = getHandleProps(index);
-            const isFocused = focusedId === exerciseId;
             const isSwapping = swappingIndex === index;
+            const grouped = inSuperset(day.supersets, exerciseId);
+            const pos = groupPosFor(day.exerciseIds, day.supersets, exerciseId);
+            const pref = prefById.get(exerciseId);
+            const sticky = pref?.stickyNote;
+            const rest = pref?.restSeconds;
+            const warmupOn = (day.warmupTargets?.[exerciseId] ?? 0) > 0;
             return (
               <li
                 key={exerciseId}
                 {...dragProps}
-                className={dragProps.className}
+                className={[
+                  dragProps.className,
+                  index > 0 ? "border-t border-hairline" : "",
+                  pos === "middle" || pos === "last" ? "-mt-px" : "",
+                  grouped && pos === "first" ? "rounded-t-md" : "",
+                  grouped && pos === "last" ? "rounded-b-md" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               >
                 <div className="flex items-stretch gap-1 py-1.5">
                   <div className="flex shrink-0 items-center self-center">
@@ -361,44 +404,106 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
                       onPointerCancel={handleProps.onPointerCancel}
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isSwapping) return;
-                      if (isFocused) {
-                        setSwappingIndex(index);
-                      } else {
-                        setFocusedId(exerciseId);
-                        setSwappingIndex(null);
-                      }
-                    }}
-                    className="flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-1 py-1.5 text-left transition-colors duration-150 hover:bg-surface-raised/30 motion-reduce:transition-none"
-                    aria-expanded={isSwapping}
-                    aria-label={`Replace ${exercise.name}`}
-                  >
+                  <div className="flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-1 py-1.5">
                     <span className="min-w-0">
-                      <span className="block text-[15px] font-semibold tracking-tight">
-                        {exercise.name}
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {grouped && (
+                          <span className="shrink-0 text-muted" aria-hidden="true">
+                            <IconSuperset className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                        <span className="block truncate text-[15px] font-semibold tracking-tight">
+                          {exercise.name}
+                        </span>
                       </span>
                       <span className="mt-0.5 block text-[13px] text-muted">
                         {exercise.muscleGroup}
+                        {warmupOn ? " · Warm-up" : ""}
                       </span>
+                      {sticky && editingStickyId !== exerciseId && (
+                        <span className="mt-0.5 block text-[13px] text-muted">
+                          {sticky}
+                        </span>
+                      )}
                     </span>
                     <span className="tnum shrink-0 text-[13px] text-muted">
                       {index + 1}
                     </span>
-                  </button>
-                  {isFocused && (
-                    <button
-                      type="button"
-                      aria-label={`Remove ${exercise.name} from ${day.name}`}
-                      onClick={() => removeExercise(exerciseId)}
-                      className={`${iconBtn} self-center`}
-                    >
-                      ×
-                    </button>
-                  )}
+                  </div>
+                  <ItemOverflow
+                    label={`${exercise.name} options`}
+                    items={[
+                      {
+                        id: "sticky",
+                        label: sticky ? "Edit sticky note" : "Add sticky note",
+                        icon: <IconSticky />,
+                        onSelect: () => setEditingStickyId(exerciseId),
+                      },
+                      {
+                        id: "warmup",
+                        label: warmupOn
+                          ? "Remove warm-up sets"
+                          : "Add warm-up sets",
+                        icon: <IconWarmup />,
+                        onSelect: () => void toggleDayWarmup(day, exerciseId),
+                      },
+                      {
+                        id: "rest",
+                        label: rest
+                          ? `Rest timer · ${formatRest(rest)}`
+                          : "Rest timer",
+                        icon: <IconRest />,
+                        panel: ({ close }) => (
+                          <RestPresetPanel
+                            value={rest ?? DEFAULT_REST_SECONDS}
+                            onPick={(seconds) =>
+                              void patchExercisePref(exerciseId, {
+                                restSeconds: seconds,
+                              })
+                            }
+                            close={close}
+                          />
+                        ),
+                      },
+                      {
+                        id: "replace",
+                        label: "Replace",
+                        icon: <IconReplace />,
+                        onSelect: () => setSwappingIndex(index),
+                      },
+                      {
+                        id: "superset",
+                        label: grouped ? "Break superset" : "Create superset",
+                        icon: <IconSuperset />,
+                        disabled: day.exerciseIds.length < 2,
+                        onSelect: () => void toggleDaySuperset(day, index),
+                      },
+                      {
+                        id: "remove",
+                        label: "Remove",
+                        icon: <IconRemove />,
+                        danger: true,
+                        separatorBefore: true,
+                        onSelect: () => removeExercise(exerciseId),
+                      },
+                    ]}
+                  />
                 </div>
+
+                {editingStickyId === exerciseId && (
+                  <div className="pb-2 pl-8">
+                    <NoteEditor
+                      initial={sticky ?? ""}
+                      placeholder="Sticky note — stays on this exercise"
+                      label={`Sticky note for ${exercise.name}`}
+                      onCommit={(value) => {
+                        void patchExercisePref(exerciseId, { stickyNote: value });
+                        setEditingStickyId(null);
+                      }}
+                      onCancel={() => setEditingStickyId(null)}
+                    />
+                  </div>
+                )}
 
                 {isSwapping && (
                   <div className="pb-3">
@@ -429,7 +534,6 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
               await db.dayTemplates.update(day.id, {
                 exerciseIds: [...current.exerciseIds, id],
               });
-              setFocusedId(id);
             }}
           />
         ) : (

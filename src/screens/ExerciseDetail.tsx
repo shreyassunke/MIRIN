@@ -29,7 +29,9 @@ function breakdownText(breakdown: LoadBreakdown, unit: Unit): string | null {
 
 /** The heaviest set's breakdown represents the session. */
 function sessionBreakdown(sets: SetLog[], unit: Unit): string | null {
-  const withBreakdown = sets.filter((s) => s.loadBreakdown?.platesPerSide?.length);
+  const withBreakdown = sets.filter(
+    (s) => !s.isWarmup && s.loadBreakdown?.platesPerSide?.length,
+  );
   if (withBreakdown.length === 0) return null;
   const top = withBreakdown.reduce((a, b) => (b.weight > a.weight ? b : a));
   return breakdownText(top.loadBreakdown!, unit);
@@ -75,7 +77,10 @@ export function ExerciseDetail() {
     .map(({ session, sets }) => ({
       date: formatDate(session.date),
       value: toDisplay(
-        Math.max(...sets.map((s) => epley(s.weight, s.reps))),
+        Math.max(
+          ...sets.filter((s) => !s.isWarmup).map((s) => epley(s.weight, s.reps)),
+          0,
+        ),
         unit,
       ),
     }));

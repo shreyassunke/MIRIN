@@ -1,5 +1,13 @@
 import { db, type DayTemplate, type WorkoutSession } from "../db/db";
 import { move } from "./array";
+import {
+  breakGroup,
+  omitRecordKey,
+  pairWithNeighbor,
+  remapGroupIds,
+  remapRecordKey,
+  setRecordValue,
+} from "./exerciseMeta";
 
 /** Resolve today's exercise id list (template + extras, or session override). */
 export function resolveSessionExerciseIds(
@@ -56,9 +64,24 @@ export async function swapSessionExercise(
   delete swapOrigins[outgoingId];
   swapOrigins[newExerciseId] = outgoingId;
 
+  const finished = session.finishedExerciseIds ?? [];
   await db.sessions.update(sessionId, {
     sessionExerciseIds: nextIds,
     exerciseSwapOrigins: swapOrigins,
+    supersets: remapGroupIds(session.supersets, outgoingId, newExerciseId),
+    warmupTargets: remapRecordKey(
+      session.warmupTargets,
+      outgoingId,
+      newExerciseId,
+    ),
+    exerciseNotes: remapRecordKey(
+      session.exerciseNotes,
+      outgoingId,
+      newExerciseId,
+    ),
+    finishedExerciseIds: finished.map((id) =>
+      id === outgoingId ? newExerciseId : id,
+    ),
   });
   return outgoingId;
 }
@@ -120,4 +143,99 @@ export async function appendSessionExercise(
       extraExerciseIds: [...extra, exerciseId],
     });
   }
+}
+
+/** Drop an exercise from today's list. Logged sets stay in history. */
+export async function removeSessionExercise(
+  sessionId: string,
+  exerciseId: string,
+  opts: { deleteLogs?: boolean } = {},
+): Promise<void> {
+  const ids = await ensureSessionExerciseIds(sessionId);
+  const session = await db.sessions.get(sessionId);
+  if (!session) throw new Error("Session not found");
+
+  await db.sessions.update(sessionId, {
+    sessionExerciseIds: ids.filter((id) => id !== exerciseId),
+    extraExerciseIds: (session.extraExerciseIds ?? []).filter(
+      (id) => id !== exerciseId,
+    ),
+    supersets: breakGroup(session.supersets, exerciseId),
+    warmupTargets: omitRecordKey(session.warmupTargets, exerciseId),
+    exerciseNotes: omitRecordKey(session.exerciseNotes, exerciseId),
+    finishedExerciseIds: (session.finishedExerciseIds ?? []).filter(
+      (id) => id !== exerciseId,
+    ),
+  });
+
+  if (opts.deleteLogs) {
+    const logs = await db.setLogs.where("sessionId").equals(sessionId).toArray();
+    const ids = logs
+      .filter((log) => log.exerciseId === exerciseId)
+      .map((log) => log.id);
+    if (ids.length > 0) await db.setLogs.bulkDelete(ids);
+  }
+}
+
+export function resolveSessionSupersets(
+  day: DayTemplate | undefined | null,
+  session: WorkoutSession | undefined | null,
+): string[][] {
+  return session?.supersets ?? day?.supersets ?? [];
+}
+
+export function resolveSessionWarmupTargets(
+  day: DayTemplate | undefined | null,
+  session: WorkoutSession | undefined | null,
+): Record<string, number> {
+  return session?.warmupTargets ?? day?.warmupTargets ?? {};
+}
+
+export async function setSessionNote(
+  sessionId: string,
+  exerciseId: string,
+  note: string,
+): Promise<void> {
+  const session = await db.sessions.get(sessionId);
+  if (!session) throw new Error("Session not found");
+  await db.sessions.update(sessionId, {
+    exerciseNotes: setRecordValue(session.exerciseNotes, exerciseId, note.trim()),
+  });
+}
+
+export async function toggleSessionSuperset(
+  sessionId: string,
+  index: number,
+): Promise<void> {
+  const ids = await ensureSessionExerciseIds(sessionId);
+  const session = await db.sessions.get(sessionId);
+  if (!session) throw new Error("Session not found");
+  const day = await db.dayTemplates.get(session.dayTemplateId);
+  const current = resolveSessionSupersets(day, session);
+  const exerciseId = ids[index];
+  if (!exerciseId) return;
+  const grouped = current.some((g) => g.includes(exerciseId) && g.length >= 2);
+  await db.sessions.update(sessionId, {
+    supersets: grouped
+      ? breakGroup(current, exerciseId)
+      : pairWithNeighbor(ids, current, index),
+  });
+}
+
+export async function setSessionWarmupTarget(
+  sessionId: string,
+  exerciseId: string,
+  count: number,
+): Promise<void> {
+  const session = await db.sessions.get(sessionId);
+  if (!session) throw new Error("Session not found");
+  const day = await db.dayTemplates.get(session.dayTemplateId);
+  const current = resolveSessionWarmupTargets(day, session);
+  await db.sessions.update(sessionId, {
+    warmupTargets: setRecordValue(
+      current,
+      exerciseId,
+      count > 0 ? count : undefined,
+    ),
+  });
 }

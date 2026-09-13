@@ -2,6 +2,14 @@ import { db, type DayTemplate, type Split } from "../db/db";
 import { REST_DAY_TEMPLATE } from "../db/seed";
 import { toLocalISODate } from "./rotation";
 import { newId } from "./workout";
+import {
+  breakGroup,
+  DEFAULT_WARMUP_COUNT,
+  pairWithNeighbor,
+  remapGroupIds,
+  remapRecordKey,
+  setRecordValue,
+} from "./exerciseMeta";
 
 export { REST_DAY_TEMPLATE };
 
@@ -177,4 +185,43 @@ export async function reorderRotation(split: Split, from: number, to: number) {
 
 export async function renameDay(day: DayTemplate, name: string) {
   await db.dayTemplates.update(day.id, { name: name.trim() || day.name });
+}
+
+export async function toggleDaySuperset(
+  day: DayTemplate,
+  index: number,
+): Promise<void> {
+  const exerciseId = day.exerciseIds[index];
+  if (!exerciseId) return;
+  const grouped = (day.supersets ?? []).some(
+    (g) => g.includes(exerciseId) && g.length >= 2,
+  );
+  await db.dayTemplates.update(day.id, {
+    supersets: grouped
+      ? breakGroup(day.supersets, exerciseId)
+      : pairWithNeighbor(day.exerciseIds, day.supersets, index),
+  });
+}
+
+export async function toggleDayWarmup(day: DayTemplate, exerciseId: string) {
+  const current = day.warmupTargets?.[exerciseId] ?? 0;
+  await db.dayTemplates.update(day.id, {
+    warmupTargets: setRecordValue(
+      day.warmupTargets,
+      exerciseId,
+      current > 0 ? undefined : DEFAULT_WARMUP_COUNT,
+    ),
+  });
+}
+
+export async function remapDayExercise(
+  day: DayTemplate,
+  from: string,
+  to: string,
+) {
+  if (from === to) return;
+  await db.dayTemplates.update(day.id, {
+    supersets: remapGroupIds(day.supersets, from, to),
+    warmupTargets: remapRecordKey(day.warmupTargets, from, to),
+  });
 }

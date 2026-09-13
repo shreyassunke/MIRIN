@@ -35,13 +35,42 @@ import {
 } from "../lib/library";
 import {
   appendSessionExercise,
+  removeSessionExercise,
   reorderSessionExercises,
   resolveSessionExerciseIds,
+  resolveSessionSupersets,
+  resolveSessionWarmupTargets,
   setExerciseFinished,
+  setSessionNote,
+  setSessionWarmupTarget,
   swapSessionExercise,
+  toggleSessionSuperset,
 } from "../lib/session";
+import {
+  DEFAULT_WARMUP_COUNT,
+  formatRest,
+  groupPosFor,
+  inSuperset,
+  orderedGroup,
+  patchExercisePref,
+  warmupDisplayWeight,
+  workingSets,
+} from "../lib/exerciseMeta";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { TodayExerciseTile } from "../components/TodayExerciseTile";
+import { NoteEditor } from "../components/NoteEditor";
+import {
+  IconDone,
+  IconNote,
+  IconRemove,
+  IconReplace,
+  IconRest,
+  IconSticky,
+  IconSuperset,
+  IconWarmup,
+  ItemOverflow,
+  RestPresetPanel,
+} from "../components/ItemOverflow";
 import { useDragReorder } from "../hooks/useDragReorder";
 import {
   DEFAULT_BAR,
@@ -70,6 +99,11 @@ interface TodayData {
   logs: SetLog[];
   prefills: Record<string, SetLog[]>;
   modePrefs: Record<string, InputMethod>;
+  stickyNotes: Record<string, string>;
+  restSeconds: Record<string, number>;
+  exerciseNotes: Record<string, string>;
+  supersets: string[][];
+  warmupTargets: Record<string, number>;
   /** Exercises the user called done; sets per exercise are otherwise unfixed. */
   finishedExerciseIds: string[];
   isRestDay: boolean;
@@ -137,11 +171,19 @@ function useTodayData(): TodayData | undefined {
         : [];
       const prefills: Record<string, SetLog[]> = {};
       for (const exercise of exercises) {
-        prefills[exercise.id] = await lastSets(exercise.id, open?.id);
+        prefills[exercise.id] = (await lastSets(exercise.id, open?.id)).filter(
+          (s) => !s.isWarmup,
+        );
       }
       const modePrefs: Record<string, InputMethod> = {};
+      const stickyNotes: Record<string, string> = {};
+      const restSeconds: Record<string, number> = {};
       for (const pref of await db.exercisePrefs.toArray()) {
-        modePrefs[pref.exerciseId] = pref.preferredInputMethod;
+        if (pref.preferredInputMethod) {
+          modePrefs[pref.exerciseId] = pref.preferredInputMethod;
+        }
+        if (pref.stickyNote) stickyNotes[pref.exerciseId] = pref.stickyNote;
+        if (pref.restSeconds) restSeconds[pref.exerciseId] = pref.restSeconds;
       }
       return {
         dayTemplateId: null,
@@ -152,6 +194,11 @@ function useTodayData(): TodayData | undefined {
         logs,
         prefills,
         modePrefs,
+        stickyNotes,
+        restSeconds,
+        exerciseNotes: open?.exerciseNotes ?? {},
+        supersets: resolveSessionSupersets(undefined, open),
+        warmupTargets: resolveSessionWarmupTargets(undefined, open),
         finishedExerciseIds: open?.finishedExerciseIds ?? [],
         isRestDay: !open && exerciseIds.length === 0,
         nextUp: upcoming
@@ -175,12 +222,20 @@ function useTodayData(): TodayData | undefined {
 
     const prefills: Record<string, SetLog[]> = {};
     for (const exercise of exercises) {
-      prefills[exercise.id] = await lastSets(exercise.id, open?.id);
+      prefills[exercise.id] = (await lastSets(exercise.id, open?.id)).filter(
+        (s) => !s.isWarmup,
+      );
     }
 
     const modePrefs: Record<string, InputMethod> = {};
+    const stickyNotes: Record<string, string> = {};
+    const restSeconds: Record<string, number> = {};
     for (const pref of await db.exercisePrefs.toArray()) {
-      modePrefs[pref.exerciseId] = pref.preferredInputMethod;
+      if (pref.preferredInputMethod) {
+        modePrefs[pref.exerciseId] = pref.preferredInputMethod;
+      }
+      if (pref.stickyNote) stickyNotes[pref.exerciseId] = pref.stickyNote;
+      if (pref.restSeconds) restSeconds[pref.exerciseId] = pref.restSeconds;
     }
 
     return {
@@ -192,6 +247,11 @@ function useTodayData(): TodayData | undefined {
       logs,
       prefills,
       modePrefs,
+      stickyNotes,
+      restSeconds,
+      exerciseNotes: open?.exerciseNotes ?? {},
+      supersets: resolveSessionSupersets(day, open),
+      warmupTargets: resolveSessionWarmupTargets(day, open),
       finishedExerciseIds: open?.finishedExerciseIds ?? [],
       isRestDay: false,
       nextUp: null,
@@ -210,6 +270,11 @@ export function Today() {
   const [timerVisible, setTimerVisible] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
+  const [timerExerciseId, setTimerExerciseId] = useState<string | null>(null);
+  const [editingNote, setEditingNote] = useState<{
+    id: string;
+    kind: "session" | "sticky";
+  } | null>(null);
   /** Completing fills sets from last session, so it takes a second tap. */
   const [finishArmed, setFinishArmed] = useState(false);
 
@@ -238,6 +303,10 @@ export function Today() {
   const ensureSession = useCallback(async (): Promise<string> => {
     if (data?.sessionId) return data.sessionId;
     const dayTemplateId = data?.dayTemplateId ?? REST_DAY_TEMPLATE.id;
+    const day =
+      data?.dayTemplateId != null
+        ? await db.dayTemplates.get(data.dayTemplateId)
+        : undefined;
     const id = newId();
     await db.sessions.add({
       id,
@@ -245,6 +314,8 @@ export function Today() {
       dayTemplateId,
       completed: false,
       extraExerciseIds: [],
+      supersets: day?.supersets,
+      warmupTargets: day?.warmupTargets,
     });
     return id;
   }, [data?.dayTemplateId, data?.sessionId]);
@@ -289,25 +360,29 @@ export function Today() {
   const activeId = followDerived
     ? (selectedId ?? derivedActiveId)
     : selectedId;
-  const activeSetNumber = activeId
-    ? (logsByExercise.get(activeId)?.length ?? 0) + 1
-    : 1;
+  const activeLogs = activeId ? (logsByExercise.get(activeId) ?? []) : [];
+  const activeWorkingCount = workingSets(activeLogs).length;
+  const activeWarmupCount = activeLogs.filter((s) => s.isWarmup).length;
+  const activeWarmupTarget = activeId
+    ? (data?.warmupTargets[activeId] ?? 0)
+    : 0;
+  const loggingWarmup =
+    Boolean(activeId) && activeWarmupCount < activeWarmupTarget;
 
   /**
-   * Set that seeds the prefill: last session's matching set number,
-   * else last session's final set, else the set just logged today
-   * (covers first-ever sessions past set 1).
+   * Set that seeds the prefill: last session's matching working set,
+   * else last session's final working set, else the set just logged today.
    */
   const sourceSet: SetLog | undefined = useMemo(() => {
     if (!data || !activeId) return undefined;
     const prior = data.prefills[activeId] ?? [];
-    const today = logsByExercise.get(activeId) ?? [];
+    const todayWorking = workingSets(logsByExercise.get(activeId) ?? []);
     return (
-      prior[activeSetNumber - 1] ??
+      prior[activeWorkingCount] ??
       prior[prior.length - 1] ??
-      today[today.length - 1]
+      todayWorking[todayWorking.length - 1]
     );
-  }, [data, activeId, activeSetNumber, logsByExercise]);
+  }, [data, activeId, activeWorkingCount, logsByExercise]);
 
   // Choose the input mode when the active exercise changes:
   // saved preference > last logged method > seeded/library default,
@@ -334,21 +409,27 @@ export function Today() {
   }, [activeId, data === undefined]);
 
   // Prefill input values whenever exercise, set number, unit, or mode change.
-  const prefillKey = `${data?.dayTemplateId}:${activeId}:${activeSetNumber}`;
+  const prefillKey = `${data?.dayTemplateId}:${activeId}:${activeWorkingCount}:${activeWarmupCount}:${loggingWarmup}`;
   useEffect(() => {
     if (!data || !activeId || !data.dayTemplateId) return;
     const exercise = data.exercises.find((e) => e.id === activeId);
     const equipment = exercise ? equipmentForExercise(exercise) : "other";
-    const startLb =
+    const workingLb =
       sourceSet?.weight ??
       (attachmentForEquipment(equipment) === "bodyweight"
         ? 0
         : startWeightFor(activeId));
-    const w = toDisplay(startLb, unit);
-    setReps(sourceSet?.reps ?? defaultRepsFor(data.dayTemplateId));
+    const w = loggingWarmup
+      ? warmupDisplayWeight(workingLb, activeWarmupCount, unit)
+      : toDisplay(workingLb, unit);
+    setReps(
+      loggingWarmup
+        ? Math.max(5, (sourceSet?.reps ?? defaultRepsFor(data.dayTemplateId)) - activeWarmupCount)
+        : (sourceSet?.reps ?? defaultRepsFor(data.dayTemplateId)),
+    );
 
     if (mode === "barbell") {
-      const breakdown = sourceSet?.loadBreakdown;
+      const breakdown = !loggingWarmup ? sourceSet?.loadBreakdown : undefined;
       if (sourceSet?.inputMethod === "barbell" && breakdown?.platesPerSide) {
         // Reconstruct the exact stack that was loaded last time.
         const bar = breakdown.barWeight ?? toCanonical(DEFAULT_BAR[unit], unit);
@@ -448,10 +529,7 @@ export function Today() {
 
   function setMode(next: InputMethod, exerciseId: string) {
     setModeState(next);
-    void db.exercisePrefs.put({
-      exerciseId,
-      preferredInputMethod: next,
-    });
+    void patchExercisePref(exerciseId, { preferredInputMethod: next });
   }
 
   async function logSet(
@@ -463,7 +541,10 @@ export function Today() {
   ) {
     const sessionId = await ensureSession();
     const session = await db.sessions.get(sessionId);
-    const setNumber = (logsByExercise.get(exerciseId)?.length ?? 0) + 1;
+    const existing = logsByExercise.get(exerciseId) ?? [];
+    const setNumber = existing.length + 1;
+    const warmupDone = existing.filter((s) => s.isWarmup).length;
+    const isWarmup = warmupDone < (data?.warmupTargets[exerciseId] ?? 0);
     await db.setLogs.add({
       id: newId(),
       sessionId,
@@ -473,16 +554,46 @@ export function Today() {
       reps: repsToLog,
       inputMethod,
       loadBreakdown,
+      isWarmup: isWarmup || undefined,
       swappedFromExerciseId: session?.exerciseSwapOrigins?.[exerciseId],
     });
     // A logged set reopens an exercise that was called done.
     if (finishedIds.has(exerciseId)) {
       await setExerciseFinished(sessionId, exerciseId, false);
     }
-    // Set counts are unfixed, so nothing advances on its own: stay here
-    // until the user says this exercise is done.
     setFollowDerived(true);
     setSelectedId(exerciseId);
+
+    if (isWarmup) {
+      setTimerVisible(false);
+      return;
+    }
+
+    const group = (data?.supersets ?? []).find(
+      (g) => g.includes(exerciseId) && g.length >= 2,
+    );
+    if (group && data) {
+      const ordered = orderedGroup(data.exerciseIds, group);
+      const nextWorking =
+        workingSets(existing).length + 1;
+      const partnerBehind = ordered.some(
+        (id) =>
+          id !== exerciseId &&
+          workingSets(logsByExercise.get(id) ?? []).length < nextWorking,
+      );
+      if (partnerBehind) {
+        const at = ordered.indexOf(exerciseId);
+        const nextId = ordered[(at + 1) % ordered.length];
+        setSelectedId(nextId);
+        setTimerVisible(false);
+        return;
+      }
+    }
+
+    const rest =
+      data?.restSeconds[exerciseId] ?? DEFAULT_REST_SECONDS;
+    setRestDuration(rest);
+    setTimerExerciseId(exerciseId);
     setTimerRun((n) => n + 1);
     setTimerVisible(true);
   }
@@ -511,6 +622,9 @@ export function Today() {
     });
     setFollowDerived(true);
     setSelectedId(exerciseId);
+    const rest = data?.restSeconds[exerciseId] ?? DEFAULT_REST_SECONDS;
+    setRestDuration(rest);
+    setTimerExerciseId(exerciseId);
     setTimerRun((n) => n + 1);
     setTimerVisible(true);
   }
@@ -616,6 +730,35 @@ export function Today() {
     }
   }
 
+  async function handleRemoveExercise(exerciseId: string) {
+    const sessionId = await ensureSession();
+    await removeSessionExercise(sessionId, exerciseId);
+    if (selectedId === exerciseId) setSelectedId(null);
+    setSwappingIndex(null);
+    setEditingNote(null);
+  }
+
+  async function handleToggleSuperset(index: number) {
+    const sessionId = await ensureSession();
+    await toggleSessionSuperset(sessionId, index);
+  }
+
+  async function handleToggleWarmup(exerciseId: string) {
+    const sessionId = await ensureSession();
+    const current = data!.warmupTargets[exerciseId] ?? 0;
+    await setSessionWarmupTarget(
+      sessionId,
+      exerciseId,
+      current > 0 ? 0 : DEFAULT_WARMUP_COUNT,
+    );
+  }
+
+  async function handleSessionNote(exerciseId: string, note: string) {
+    const sessionId = await ensureSession();
+    await setSessionNote(sessionId, exerciseId, note);
+    setEditingNote(null);
+  }
+
   return (
     <div>
       <header className="mb-6 flex items-start justify-between gap-3">
@@ -636,7 +779,7 @@ export function Today() {
         <UnitToggle />
       </header>
 
-      <ul className="space-y-3">
+      <ul>
         {data.exercises.map((exercise, index) => {
           const logged = logsByExercise.get(exercise.id) ?? [];
           const isActive = exercise.id === activeId;
@@ -653,6 +796,13 @@ export function Today() {
           const activeMode = modes.some((m) => m.id === mode)
             ? mode
             : modes[0]?.id ?? "manual";
+          const grouped = inSuperset(data.supersets, exercise.id);
+          const sessionNote = data.exerciseNotes[exercise.id];
+          const stickyNote = data.stickyNotes[exercise.id];
+          const warmupOn = (data.warmupTargets[exercise.id] ?? 0) > 0;
+          const rest = data.restSeconds[exercise.id];
+          const editing =
+            editingNote?.id === exercise.id ? editingNote.kind : null;
 
           return (
             <TodayExerciseTile
@@ -667,6 +817,128 @@ export function Today() {
               reorderIndex={index}
               dragRowClassName={dragProps.className}
               dragStyle={dragProps.style}
+              groupPos={groupPosFor(data.exerciseIds, data.supersets, exercise.id)}
+              inSuperset={grouped}
+              overflow={
+                <ItemOverflow
+                  label={`${exercise.name} options`}
+                  items={[
+                    {
+                      id: "note",
+                      label: sessionNote ? "Edit note" : "Add note",
+                      icon: <IconNote />,
+                      onSelect: () =>
+                        setEditingNote({ id: exercise.id, kind: "session" }),
+                    },
+                    {
+                      id: "sticky",
+                      label: stickyNote ? "Edit sticky note" : "Add sticky note",
+                      icon: <IconSticky />,
+                      onSelect: () =>
+                        setEditingNote({ id: exercise.id, kind: "sticky" }),
+                    },
+                    {
+                      id: "warmup",
+                      label: warmupOn
+                        ? "Remove warm-up sets"
+                        : "Add warm-up sets",
+                      icon: <IconWarmup />,
+                      onSelect: () => void handleToggleWarmup(exercise.id),
+                    },
+                    {
+                      id: "rest",
+                      label: rest
+                        ? `Rest timer · ${formatRest(rest)}`
+                        : "Rest timer",
+                      icon: <IconRest />,
+                      panel: ({ close }) => (
+                        <RestPresetPanel
+                          value={rest ?? DEFAULT_REST_SECONDS}
+                          onPick={(seconds) =>
+                            void patchExercisePref(exercise.id, {
+                              restSeconds: seconds,
+                            })
+                          }
+                          close={close}
+                        />
+                      ),
+                    },
+                    {
+                      id: "replace",
+                      label: "Replace",
+                      icon: <IconReplace />,
+                      onSelect: () => {
+                        setFollowDerived(true);
+                        setSelectedId(exercise.id);
+                        setSwappingIndex(index);
+                      },
+                    },
+                    {
+                      id: "superset",
+                      label: grouped ? "Break superset" : "Create superset",
+                      icon: <IconSuperset />,
+                      disabled: data.exercises.length < 2,
+                      onSelect: () => void handleToggleSuperset(index),
+                    },
+                    {
+                      id: "done",
+                      label: finished ? "Reopen" : "Mark done",
+                      icon: <IconDone />,
+                      onSelect: () =>
+                        void toggleExerciseFinished(exercise.id, !finished),
+                    },
+                    {
+                      id: "remove",
+                      label: "Remove",
+                      icon: <IconRemove />,
+                      danger: true,
+                      separatorBefore: true,
+                      onSelect: () => void handleRemoveExercise(exercise.id),
+                    },
+                  ]}
+                />
+              }
+              notes={
+                stickyNote || sessionNote || editing ? (
+                  <>
+                    {stickyNote && editing !== "sticky" && (
+                      <p className="text-[13px] leading-relaxed text-muted">
+                        {stickyNote}
+                      </p>
+                    )}
+                    {sessionNote && editing !== "session" && (
+                      <p className="text-[13px] leading-relaxed text-ink">
+                        {sessionNote}
+                      </p>
+                    )}
+                    {editing === "session" && (
+                      <NoteEditor
+                        initial={sessionNote ?? ""}
+                        placeholder="Note for this session"
+                        label={`Note for ${exercise.name}`}
+                        onCommit={(value) =>
+                          void handleSessionNote(exercise.id, value)
+                        }
+                        onCancel={() => setEditingNote(null)}
+                      />
+                    )}
+                    {editing === "sticky" && (
+                      <NoteEditor
+                        initial={stickyNote ?? ""}
+                        placeholder="Sticky note — stays on this exercise"
+                        label={`Sticky note for ${exercise.name}`}
+                        onCommit={(value) => {
+                          void patchExercisePref(exercise.id, {
+                            stickyNote: value,
+                          });
+                          setEditingNote(null);
+                        }}
+                        onCancel={() => setEditingNote(null)}
+                      />
+                    )}
+                  </>
+                ) : null
+              }
               onDragPointerDown={dragProps.onPointerDown}
               onDragPointerMove={dragProps.onPointerMove}
               onDragPointerUp={dragProps.onPointerUp}
@@ -687,12 +959,6 @@ export function Today() {
                 setFollowDerived(true);
                 setSelectedId(exercise.id);
                 setSwappingIndex(null);
-              }}
-              onStartSwap={() => {
-                if (shouldSuppressClick()) return;
-                setFollowDerived(true);
-                setSelectedId(exercise.id);
-                setSwappingIndex(index);
               }}
               onCancelSwap={() => setSwappingIndex(null)}
               onSwapPick={(entry) => void handleSwapExercise(index, entry)}
@@ -794,9 +1060,12 @@ export function Today() {
                       onClick={() => logCurrent(exercise.id)}
                       className="btn-primary h-12 flex-1 rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
                     >
-                      Log set {logged.length + 1}
+                      Log {loggingWarmup ? "warm-up" : "set"}{" "}
+                      {loggingWarmup
+                        ? activeWarmupCount + 1
+                        : activeWorkingCount + 1}
                     </button>
-                    {prior.length > 0 && (
+                    {prior.length > 0 && !loggingWarmup && (
                       <button
                         type="button"
                         onClick={() => logSameAsLastTime(exercise.id)}
@@ -906,7 +1175,12 @@ export function Today() {
         <RestTimer
           runId={timerRun}
           duration={restDuration}
-          onAdjustDuration={setRestDuration}
+          onAdjustDuration={(seconds) => {
+            setRestDuration(seconds);
+            if (timerExerciseId) {
+              void patchExercisePref(timerExerciseId, { restSeconds: seconds });
+            }
+          }}
           onDismiss={() => setTimerVisible(false)}
         />
       )}

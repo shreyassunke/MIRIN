@@ -21,6 +21,10 @@ export interface DayTemplate {
   name: string;
   exerciseIds: string[];
   isRestDay?: boolean;
+  /** Groups of exercise ids that should be performed as supersets. */
+  supersets?: string[][];
+  /** Planned warm-up set counts keyed by exercise id. */
+  warmupTargets?: Record<string, number>;
 }
 
 export interface Split {
@@ -53,6 +57,12 @@ export interface WorkoutSession {
    * only signal that an exercise is finished; it drives the auto-advance order.
    */
   finishedExerciseIds?: string[];
+  /** Session-only notes keyed by exercise id. */
+  exerciseNotes?: Record<string, string>;
+  /** Session supersets; copied from the day template, then editable. */
+  supersets?: string[][];
+  /** Warm-up set counts for this session, keyed by exercise id. */
+  warmupTargets?: Record<string, number>;
 }
 
 export interface LoadBreakdown {
@@ -84,11 +94,17 @@ export interface SetLog {
   swappedFromExerciseId?: string;
   /** Drops taken off this set, in the order performed. */
   drops?: SetDrop[];
+  /** True when this log is a warm-up, not a working set. */
+  isWarmup?: boolean;
 }
 
 export interface ExercisePreference {
   exerciseId: string;
-  preferredInputMethod: InputMethod;
+  preferredInputMethod?: InputMethod;
+  /** Persists across sessions; shown on the exercise wherever it appears. */
+  stickyNote?: string;
+  /** Rest duration after a working set of this exercise, in seconds. */
+  restSeconds?: number;
 }
 
 export interface Setting {
@@ -259,5 +275,9 @@ db.version(9).stores({
   measurementFields: "id, order",
   measurementEntries: "id, fieldId, dateKey, [fieldId+dateKey]",
 });
+
+// v10: per-exercise notes, supersets, warm-ups, and rest live on existing
+// rows (sessions, day templates, prefs, set logs). No new stores.
+db.version(10).stores({});
 
 db.on("populate", seed);

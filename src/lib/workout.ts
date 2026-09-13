@@ -83,10 +83,12 @@ export const setVolume = (log: SetLog) =>
  * A set as one ledger entry: "135×8" plain, "135×8 → 105×6" once dropped.
  * `display` converts canonical lbs to the reader's unit.
  */
-export const formatSet = (log: SetLog, display: (lb: number) => number) =>
-  [log, ...(log.drops ?? [])]
+export const formatSet = (log: SetLog, display: (lb: number) => number) => {
+  const body = [log, ...(log.drops ?? [])]
     .map((s) => `${formatWeight(display(s.weight))}×${s.reps}`)
     .join(" → ");
+  return log.isWarmup ? `W ${body}` : body;
+};
 
 /** One set copied forward from a previous session, ready to insert. */
 export interface PlannedSet {
@@ -115,7 +117,9 @@ export function planFillFromLastTime(
   for (const exercise of exercises) {
     if (finishedExerciseIds.has(exercise.id)) continue;
     const prior = prefills[exercise.id] ?? [];
-    const alreadyLogged = loggedByExercise.get(exercise.id)?.length ?? 0;
+    const alreadyLogged = (loggedByExercise.get(exercise.id) ?? []).filter(
+      (s) => !s.isWarmup,
+    ).length;
     for (let i = alreadyLogged; i < prior.length; i++) {
       const source = prior[i];
       planned.push({

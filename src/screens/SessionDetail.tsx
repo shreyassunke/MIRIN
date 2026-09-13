@@ -13,13 +13,22 @@ import {
 } from "../lib/history";
 import {
   appendSessionExercise,
+  removeSessionExercise,
   resolveSessionExerciseIds,
+  setSessionNote,
 } from "../lib/session";
 import { MANUAL_STEP, toCanonical, toDisplay } from "../lib/units";
 import { useUnit } from "../lib/settings";
 import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { Stepper } from "../components/Stepper";
+import { NoteEditor } from "../components/NoteEditor";
+import {
+  IconAddSet,
+  IconNote,
+  IconRemove,
+  ItemOverflow,
+} from "../components/ItemOverflow";
 
 const secondaryBtn =
   "glass-btn h-11 rounded-pill px-4 text-sm font-medium text-ink";
@@ -56,6 +65,7 @@ export function SessionDetail() {
   const [unit] = useUnit();
   const [addingExercise, setAddingExercise] = useState(false);
   const [addingSetFor, setAddingSetFor] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [newWeight, setNewWeight] = useState(45);
   const [newReps, setNewReps] = useState(8);
 
@@ -93,6 +103,7 @@ export function SessionDetail() {
         .filter((e): e is NonNullable<typeof e> => e !== undefined),
       logsByExercise,
       excludeIds: orderedIds,
+      exerciseNotes: session.exerciseNotes ?? {},
     };
   }, [sessionId]);
 
@@ -184,36 +195,91 @@ export function SessionDetail() {
         <div className="space-y-6">
           {data.exercises.map((exercise) => {
             const sets = data.logsByExercise.get(exercise.id) ?? [];
+            const note = data.exerciseNotes[exercise.id];
             return (
               <section
                 key={exercise.id}
                 className="rounded-xl glass p-4 shadow-glass"
               >
-                <div className="mb-3 flex items-baseline justify-between gap-3">
-                  <h2 className="text-[15px] font-semibold tracking-tight">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h2 className="min-w-0 text-[15px] font-semibold tracking-tight">
                     {exercise.name}
                   </h2>
-                  <button
-                    type="button"
-                    className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-                    onClick={() => startAddSet(exercise.id)}
-                  >
-                    Add set
-                  </button>
+                  <ItemOverflow
+                    label={`${exercise.name} options`}
+                    items={[
+                      {
+                        id: "add",
+                        label: "Add set",
+                        icon: <IconAddSet />,
+                        onSelect: () => startAddSet(exercise.id),
+                      },
+                      {
+                        id: "note",
+                        label: note ? "Edit note" : "Add note",
+                        icon: <IconNote />,
+                        onSelect: () => setEditingNoteId(exercise.id),
+                      },
+                      {
+                        id: "remove",
+                        label: "Remove",
+                        icon: <IconRemove />,
+                        danger: true,
+                        separatorBefore: true,
+                        onSelect: () =>
+                          void removeSessionExercise(sessionId, exercise.id, {
+                            deleteLogs: true,
+                          }),
+                      },
+                    ]}
+                  />
                 </div>
+
+                {note && editingNoteId !== exercise.id && (
+                  <p className="mb-3 text-[13px] leading-relaxed text-muted">
+                    {note}
+                  </p>
+                )}
+                {editingNoteId === exercise.id && (
+                  <div className="mb-3">
+                    <NoteEditor
+                      initial={note ?? ""}
+                      placeholder="Note for this session"
+                      label={`Note for ${exercise.name}`}
+                      onCommit={(value) => {
+                        void setSessionNote(sessionId, exercise.id, value);
+                        setEditingNoteId(null);
+                      }}
+                      onCancel={() => setEditingNoteId(null)}
+                    />
+                  </div>
+                )}
 
                 {sets.length === 0 ? (
                   <p className="text-[13px] text-muted">No sets logged.</p>
                 ) : (
                   <ul className="space-y-4">
-                    {sets.map((set) => (
-                      <SetEditor
-                        key={set.id}
-                        set={set}
-                        unit={unit}
-                        onDelete={() => void deleteSetLog(set.id)}
-                      />
-                    ))}
+                    {sets.map((set) => {
+                      const warmupOrd = sets
+                        .filter((s) => s.isWarmup)
+                        .findIndex((s) => s.id === set.id);
+                      const workingOrd = sets
+                        .filter((s) => !s.isWarmup)
+                        .findIndex((s) => s.id === set.id);
+                      return (
+                        <SetEditor
+                          key={set.id}
+                          set={set}
+                          unit={unit}
+                          label={
+                            set.isWarmup
+                              ? `Warm-up ${warmupOrd + 1}`
+                              : `Set ${workingOrd + 1}`
+                          }
+                          onDelete={() => void deleteSetLog(set.id)}
+                        />
+                      );
+                    })}
                   </ul>
                 )}
 
@@ -294,10 +360,12 @@ export function SessionDetail() {
 function SetEditor({
   set,
   unit,
+  label,
   onDelete,
 }: {
   set: SetLog;
   unit: "lb" | "kg";
+  label: string;
   onDelete: () => void;
 }) {
   const weightDisplay = toDisplay(set.weight, unit);
@@ -307,7 +375,7 @@ function SetEditor({
     <li className="flex flex-col gap-2">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <span className="tnum shrink-0 text-[13px] font-medium text-muted">
-          Set {set.setNumber}
+          {label}
         </span>
         <div className="flex flex-wrap items-center gap-4">
           <Stepper
