@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { lazy, Suspense, useId, useState } from "react";
 import {
   BAR_OPTIONS,
   PLATE_SIZES,
@@ -8,6 +8,11 @@ import {
 } from "../../lib/units";
 import { formatWeight } from "../../lib/workout";
 import { Stepper } from "../Stepper";
+import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
+
+const LoadedBar3D = lazy(() =>
+  import("./three/LoadedBar3D").then((m) => ({ default: m.LoadedBar3D })),
+);
 
 interface BarbellPickerProps {
   unit: Unit;
@@ -35,7 +40,7 @@ const MID = SVG_H / 2;
 const COLLAR_L = 96;
 const COLLAR_R = SVG_W - COLLAR_L;
 
-function LoadedBar({
+function LoadedBarSvg({
   unit,
   plates,
   onRemove,
@@ -175,6 +180,22 @@ function LoadedBar({
         );
       })}
     </svg>
+  );
+}
+
+function LoadedBar(props: {
+  unit: Unit;
+  plates: number[];
+  onRemove: (index: number) => void;
+}) {
+  const fallback = <LoadedBarSvg {...props} />;
+  if (!hasWebGL()) return fallback;
+  return (
+    <ChunkErrorBoundary fallback={fallback}>
+      <Suspense fallback={fallback}>
+        <LoadedBar3D {...props} />
+      </Suspense>
+    </ChunkErrorBoundary>
   );
 }
 

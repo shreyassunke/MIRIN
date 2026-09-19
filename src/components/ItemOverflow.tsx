@@ -354,6 +354,15 @@ export function IconAddSet(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconVideo(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
+      <circle cx="12" cy="12" r="7.25" {...stroke} />
+      <path d="M10.25 9.4v5.2L15.1 12 10.25 9.4Z" {...stroke} />
+    </svg>
+  );
+}
+
 export function RestPresetPanel({
   value,
   onPick,

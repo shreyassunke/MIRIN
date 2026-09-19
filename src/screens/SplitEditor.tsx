@@ -34,6 +34,8 @@ import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { DragHandle } from "../components/DragHandle";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { NoteEditor } from "../components/NoteEditor";
+import { FormVideoPanel } from "../components/FormVideo";
+import { formClipsFor } from "../lib/formVideos";
 import {
   IconRemove,
   IconRename,
@@ -42,6 +44,7 @@ import {
   IconSticky,
   IconSuperset,
   IconTodayMark,
+  IconVideo,
   IconWarmup,
   ItemOverflow,
   RestPresetPanel,
@@ -318,6 +321,7 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
   const [adding, setAdding] = useState(false);
   const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
   const [editingStickyId, setEditingStickyId] = useState<string | null>(null);
+  const [formVideoId, setFormVideoId] = useState<string | null>(null);
   const prefs = useLiveQuery(() => db.exercisePrefs.toArray(), []) ?? [];
   const prefById = new Map(prefs.map((p) => [p.exerciseId, p] as const));
 
@@ -381,6 +385,8 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
             const sticky = pref?.stickyNote;
             const rest = pref?.restSeconds;
             const warmupOn = (day.warmupTargets?.[exerciseId] ?? 0) > 0;
+            const hasFormVideo = formClipsFor(exerciseId).length > 0;
+            const showingVideo = formVideoId === exerciseId;
             return (
               <li
                 key={exerciseId}
@@ -471,6 +477,21 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
                         icon: <IconReplace />,
                         onSelect: () => setSwappingIndex(index),
                       },
+                      ...(hasFormVideo
+                        ? [
+                            {
+                              id: "video",
+                              label: showingVideo
+                                ? "Hide form video"
+                                : "Form video",
+                              icon: <IconVideo />,
+                              onSelect: () =>
+                                setFormVideoId((current) =>
+                                  current === exerciseId ? null : exerciseId,
+                                ),
+                            },
+                          ]
+                        : []),
                       {
                         id: "superset",
                         label: grouped ? "Break superset" : "Create superset",
@@ -501,6 +522,16 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
                         setEditingStickyId(null);
                       }}
                       onCancel={() => setEditingStickyId(null)}
+                    />
+                  </div>
+                )}
+
+                {showingVideo && (
+                  <div className="pb-3">
+                    <FormVideoPanel
+                      exerciseId={exerciseId}
+                      open
+                      className=""
                     />
                   </div>
                 )}

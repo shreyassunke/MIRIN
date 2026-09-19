@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import { seed, REST_DAY_TEMPLATE, DEFAULT_SPLIT_ID } from "./seed";
 import { DEFAULT_ANCHOR_DATE } from "../lib/rotation";
+import type { Laterality } from "../lib/laterality";
 import type { InputMethod } from "../lib/units";
 
 export interface Exercise {
@@ -39,6 +40,12 @@ export interface Split {
   /** Local date (YYYY-MM-DD) pinned to `anchorIndex` in the rotation. */
   anchorDate?: string;
   anchorIndex?: number;
+  /**
+   * One-day stand-in for the rotation. Honored only when
+   * `todayOverrideDate` matches the local calendar date.
+   */
+  todayOverrideDate?: string;
+  todayOverrideDayTemplateId?: string;
 }
 
 export interface WorkoutSession {
@@ -90,6 +97,8 @@ export interface SetLog {
   rpe?: number;
   inputMethod?: InputMethod;
   loadBreakdown?: LoadBreakdown;
+  /** Pair vs single-arm. Absent on logs from before laterality existed. */
+  laterality?: Laterality;
   /** Set only when logged via a mid-workout exercise swap. */
   swappedFromExerciseId?: string;
   /** Drops taken off this set, in the order performed. */
@@ -105,6 +114,8 @@ export interface ExercisePreference {
   stickyNote?: string;
   /** Rest duration after a working set of this exercise, in seconds. */
   restSeconds?: number;
+  /** Pair vs single-arm; remembered like the weight input method. */
+  preferredLaterality?: Laterality;
 }
 
 export interface Setting {
@@ -279,5 +290,8 @@ db.version(9).stores({
 // v10: per-exercise notes, supersets, warm-ups, and rest live on existing
 // rows (sessions, day templates, prefs, set logs). No new stores.
 db.version(10).stores({});
+
+// v11: laterality (pair vs single-arm) lives on set logs and prefs.
+db.version(11).stores({});
 
 db.on("populate", seed);

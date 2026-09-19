@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -19,12 +19,15 @@ import {
   planFillFromLastTime,
   startWeightFor,
 } from "../lib/workout";
-import {
-  dayTemplateIdForDate,
-  nextWorkout,
-  toLocalISODate,
-} from "../lib/rotation";
+import { dayTemplateIdForDate, nextWorkout, toLocalISODate } from "../lib/rotation";
 import { REST_DAY_TEMPLATE } from "../db/seed";
+import {
+  applyTodaySwitch,
+  resolvedTodayTemplateId,
+  uniqueDayOptions,
+  type DaySwitchOption,
+  type TodaySwitchMode,
+} from "../lib/splits";
 import {
   attachmentForEquipment,
   ensureExerciseRow,
@@ -33,6 +36,14 @@ import {
   resolveInputMethod,
   type ExerciseLibraryEntry,
 } from "../lib/library";
+import {
+  convertLoadForLaterality,
+  defaultLaterality,
+  lateralityCaption,
+  loadSharing,
+  supportsLaterality,
+  type Laterality,
+} from "../lib/laterality";
 import {
   appendSessionExercise,
   removeSessionExercise,
@@ -59,6 +70,8 @@ import {
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { TodayExerciseTile } from "../components/TodayExerciseTile";
 import { NoteEditor } from "../components/NoteEditor";
+import { FormVideoPanel } from "../components/FormVideo";
+import { formClipsFor } from "../lib/formVideos";
 import {
   IconDone,
   IconNote,
@@ -67,6 +80,7 @@ import {
   IconRest,
   IconSticky,
   IconSuperset,
+  IconVideo,
   IconWarmup,
   ItemOverflow,
   RestPresetPanel,
@@ -86,11 +100,17 @@ import { useUnit } from "../lib/settings";
 import { Stepper } from "../components/Stepper";
 import { RestTimer } from "../components/RestTimer";
 import { UnitToggle } from "../components/UnitToggle";
+import { DaySwitcher } from "../components/DaySwitcher";
+import { LateralityToggle } from "../components/LateralityToggle";
 import { BarbellPicker } from "../components/weight/BarbellPicker";
 import { DumbbellPicker } from "../components/weight/DumbbellPicker";
 
 interface TodayData {
+  splitId: string;
   dayTemplateId: string | null;
+  currentTemplateId: string | null;
+  scheduledTemplateId: string | null;
+  switchOptions: DaySwitchOption[];
   dayName: string;
   exercises: Exercise[];
   sessionId: string | null;
@@ -99,6 +119,7 @@ interface TodayData {
   logs: SetLog[];
   prefills: Record<string, SetLog[]>;
   modePrefs: Record<string, InputMethod>;
+  lateralityPrefs: Record<string, Laterality>;
   stickyNotes: Record<string, string>;
   restSeconds: Record<string, number>;
   exerciseNotes: Record<string, string>;
@@ -141,13 +162,16 @@ function useTodayData(): TodayData | undefined {
       (allDays.get(id)?.isRestDay ?? false) ||
       (allDays.get(id)?.exerciseIds.length ?? 0) === 0;
 
-    // Active split schedule always owns what Today shows.
+    // Active split schedule owns the default; a same-day override can
+    // stand in when the user switched sessions for today.
     const scheduledId = dayTemplateIdForDate(split, today);
+    const resolvedId = resolvedTodayTemplateId(split, allDays, today);
     const dayTemplateId =
-      scheduledId && allDays.get(scheduledId) ? scheduledId : null;
+      resolvedId && allDays.get(resolvedId) ? resolvedId : null;
     const day = dayTemplateId ? allDays.get(dayTemplateId) : undefined;
+    const switchOptions = uniqueDayOptions(split, allDays);
 
-    // Resume only today's open session for the scheduled day — never a
+    // Resume only today's open session for the resolved day — never a
     // leftover incomplete session from another calendar day or template.
     const sessions = await db.sessions.toArray();
     const open = sessions
@@ -176,17 +200,25 @@ function useTodayData(): TodayData | undefined {
         );
       }
       const modePrefs: Record<string, InputMethod> = {};
+      const lateralityPrefs: Record<string, Laterality> = {};
       const stickyNotes: Record<string, string> = {};
       const restSeconds: Record<string, number> = {};
       for (const pref of await db.exercisePrefs.toArray()) {
         if (pref.preferredInputMethod) {
           modePrefs[pref.exerciseId] = pref.preferredInputMethod;
         }
+        if (pref.preferredLaterality) {
+          lateralityPrefs[pref.exerciseId] = pref.preferredLaterality;
+        }
         if (pref.stickyNote) stickyNotes[pref.exerciseId] = pref.stickyNote;
         if (pref.restSeconds) restSeconds[pref.exerciseId] = pref.restSeconds;
       }
       return {
+        splitId: split.id,
         dayTemplateId: null,
+        currentTemplateId: day?.id ?? REST_DAY_TEMPLATE.id,
+        scheduledTemplateId: scheduledId,
+        switchOptions,
         dayName: exerciseIds.length > 0 ? "Extra work" : "Rest day",
         exercises,
         sessionId: open?.id ?? null,
@@ -194,6 +226,7 @@ function useTodayData(): TodayData | undefined {
         logs,
         prefills,
         modePrefs,
+        lateralityPrefs,
         stickyNotes,
         restSeconds,
         exerciseNotes: open?.exerciseNotes ?? {},
@@ -228,18 +261,26 @@ function useTodayData(): TodayData | undefined {
     }
 
     const modePrefs: Record<string, InputMethod> = {};
+    const lateralityPrefs: Record<string, Laterality> = {};
     const stickyNotes: Record<string, string> = {};
     const restSeconds: Record<string, number> = {};
     for (const pref of await db.exercisePrefs.toArray()) {
       if (pref.preferredInputMethod) {
         modePrefs[pref.exerciseId] = pref.preferredInputMethod;
       }
+      if (pref.preferredLaterality) {
+        lateralityPrefs[pref.exerciseId] = pref.preferredLaterality;
+      }
       if (pref.stickyNote) stickyNotes[pref.exerciseId] = pref.stickyNote;
       if (pref.restSeconds) restSeconds[pref.exerciseId] = pref.restSeconds;
     }
 
     return {
+      splitId: split.id,
       dayTemplateId,
+      currentTemplateId: dayTemplateId,
+      scheduledTemplateId: scheduledId,
+      switchOptions,
       dayName: day.name,
       exercises,
       sessionId: open?.id ?? null,
@@ -247,6 +288,7 @@ function useTodayData(): TodayData | undefined {
       logs,
       prefills,
       modePrefs,
+      lateralityPrefs,
       stickyNotes,
       restSeconds,
       exerciseNotes: open?.exerciseNotes ?? {},
@@ -275,6 +317,7 @@ export function Today() {
     id: string;
     kind: "session" | "sticky";
   } | null>(null);
+  const [formVideoId, setFormVideoId] = useState<string | null>(null);
   /** Completing fills sets from last session, so it takes a second tap. */
   const [finishArmed, setFinishArmed] = useState(false);
 
@@ -283,7 +326,8 @@ export function Today() {
   const [barWeight, setBarWeight] = useState(DEFAULT_BAR.lb);
   const [plates, setPlates] = useState<number[]>([]);
   const [dumbbell, setDumbbell] = useState(25);
-  const [pair, setPair] = useState(true);
+  const [laterality, setLaterality] = useState<Laterality>("bilateral");
+  const lateralityRef = useRef<Laterality>("bilateral");
   const [manualWeight, setManualWeight] = useState(45);
   const [reps, setReps] = useState(8);
 
@@ -404,7 +448,12 @@ export function Today() {
           defaultInputMethodFor(activeId, hint),
       ),
     );
-    setPair(true);
+    const nextLaterality =
+      prior[prior.length - 1]?.laterality ??
+      data.lateralityPrefs[activeId] ??
+      defaultLaterality(exercise?.name ?? "");
+    lateralityRef.current = nextLaterality;
+    setLaterality(nextLaterality);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, data === undefined]);
 
@@ -419,9 +468,18 @@ export function Today() {
       (attachmentForEquipment(equipment) === "bodyweight"
         ? 0
         : startWeightFor(activeId));
-    const w = loggingWarmup
+    const rawDisplay = loggingWarmup
       ? warmupDisplayWeight(workingLb, activeWarmupCount, unit)
       : toDisplay(workingLb, unit);
+    const w = sourceSet
+      ? convertLoadForLaterality(
+          rawDisplay,
+          sourceSet.laterality ?? "bilateral",
+          lateralityRef.current,
+          loadSharing(mode, equipment),
+          unit,
+        )
+      : rawDisplay;
     setReps(
       loggingWarmup
         ? Math.max(5, (sourceSet?.reps ?? defaultRepsFor(data.dayTemplateId)) - activeWarmupCount)
@@ -458,6 +516,22 @@ export function Today() {
     return () => clearTimeout(timeout);
   }, [finishArmed]);
 
+  const handleDaySwitch = useCallback(
+    (id: string, mode: TodaySwitchMode) => {
+      if (!data) return;
+      void applyTodaySwitch(data.splitId, id, mode);
+      setFollowDerived(true);
+      setSelectedId(null);
+      setFinishArmed(false);
+      setTimerVisible(false);
+      setAddingExercise(false);
+      setSwappingIndex(null);
+      setEditingNote(null);
+      setFormVideoId(null);
+    },
+    [data],
+  );
+
   if (!data) {
     return <p className="text-sm text-muted">Loading…</p>;
   }
@@ -465,11 +539,15 @@ export function Today() {
   if (data.isRestDay) {
     return (
       <div>
-        <header className="mb-6 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Rest day
-            </h1>
+        <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div className="shrink-0 pr-2">
+            <DaySwitcher
+              dayName={data.dayName}
+              currentId={data.currentTemplateId}
+              scheduledId={data.scheduledTemplateId}
+              options={data.switchOptions}
+              onSwitch={handleDaySwitch}
+            />
             <p className="mt-1 text-sm text-muted">
               {new Date().toLocaleDateString(undefined, {
                 weekday: "long",
@@ -532,12 +610,31 @@ export function Today() {
     void patchExercisePref(exerciseId, { preferredInputMethod: next });
   }
 
+  function setLateralityFor(next: Laterality, exerciseId: string) {
+    if (next === laterality) return;
+    const exercise = data?.exercises.find((e) => e.id === exerciseId);
+    const equipment = exercise ? equipmentForExercise(exercise) : "other";
+    const converted = convertLoadForLaterality(
+      totalDisplay,
+      laterality,
+      next,
+      loadSharing(inputMode, equipment),
+      unit,
+    );
+    lateralityRef.current = next;
+    setLaterality(next);
+    if (inputMode === "dumbbell") setDumbbell(nearestDumbbell(converted, unit));
+    else if (inputMode === "manual") setManualWeight(converted);
+    void patchExercisePref(exerciseId, { preferredLaterality: next });
+  }
+
   async function logSet(
     exerciseId: string,
     weightLb: number,
     repsToLog: number,
     inputMethod: InputMethod,
     loadBreakdown?: LoadBreakdown,
+    setLateralityValue?: Laterality,
   ) {
     const sessionId = await ensureSession();
     const session = await db.sessions.get(sessionId);
@@ -554,6 +651,7 @@ export function Today() {
       reps: repsToLog,
       inputMethod,
       loadBreakdown,
+      laterality: setLateralityValue,
       isWarmup: isWarmup || undefined,
       swappedFromExerciseId: session?.exerciseSwapOrigins?.[exerciseId],
     });
@@ -645,12 +743,15 @@ export function Today() {
             platesPerSide: plates.map((p) => toCanonical(p, unit)),
           }
         : undefined;
+    const exercise = data?.exercises.find((e) => e.id === exerciseId);
+    const equipment = exercise ? equipmentForExercise(exercise) : "other";
     await logSet(
       exerciseId,
       toCanonical(totalDisplay, unit),
       reps,
       inputMode,
       breakdown,
+      supportsLaterality(inputMode, equipment) ? laterality : undefined,
     );
   }
 
@@ -663,6 +764,7 @@ export function Today() {
       sourceSet.reps,
       sourceSet.inputMethod ?? inputMode,
       sourceSet.loadBreakdown,
+      sourceSet.laterality,
     );
   }
 
@@ -684,6 +786,7 @@ export function Today() {
           reps: planned.reps,
           inputMethod: planned.inputMethod,
           loadBreakdown: planned.loadBreakdown,
+          laterality: planned.laterality,
           drops: planned.drops,
           swappedFromExerciseId:
             session?.exerciseSwapOrigins?.[planned.exerciseId],
@@ -761,11 +864,15 @@ export function Today() {
 
   return (
     <div>
-      <header className="mb-6 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {data.dayName}
-          </h1>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div className="shrink-0 pr-2">
+          <DaySwitcher
+            dayName={data.dayName}
+            currentId={data.currentTemplateId}
+            scheduledId={data.scheduledTemplateId}
+            options={data.switchOptions}
+            onSwitch={handleDaySwitch}
+          />
           <p className="mt-1 text-sm text-muted">
             {new Date().toLocaleDateString(undefined, {
               weekday: "long",
@@ -792,10 +899,13 @@ export function Today() {
                 .join(" · ")}`
             : "First time — starting defaults ready";
           const dragProps = getItemProps(index);
-          const modes = inputModesForEquipment(equipmentForExercise(exercise));
+          const equipment = equipmentForExercise(exercise);
+          const modes = inputModesForEquipment(equipment);
           const activeMode = modes.some((m) => m.id === mode)
             ? mode
             : modes[0]?.id ?? "manual";
+          const showLaterality = supportsLaterality(activeMode, equipment);
+          const sharing = loadSharing(activeMode, equipment);
           const grouped = inSuperset(data.supersets, exercise.id);
           const sessionNote = data.exerciseNotes[exercise.id];
           const stickyNote = data.stickyNotes[exercise.id];
@@ -803,6 +913,8 @@ export function Today() {
           const rest = data.restSeconds[exercise.id];
           const editing =
             editingNote?.id === exercise.id ? editingNote.kind : null;
+          const hasFormVideo = formClipsFor(exercise.id).length > 0;
+          const showingVideo = formVideoId === exercise.id;
 
           return (
             <TodayExerciseTile
@@ -873,6 +985,21 @@ export function Today() {
                         setSwappingIndex(index);
                       },
                     },
+                    ...(hasFormVideo
+                      ? [
+                          {
+                            id: "video",
+                            label: showingVideo
+                              ? "Hide form video"
+                              : "Form video",
+                            icon: <IconVideo />,
+                            onSelect: () =>
+                              setFormVideoId((current) =>
+                                current === exercise.id ? null : exercise.id,
+                              ),
+                          },
+                        ]
+                      : []),
                     {
                       id: "superset",
                       label: grouped ? "Break superset" : "Create superset",
@@ -964,6 +1091,13 @@ export function Today() {
               onSwapPick={(entry) => void handleSwapExercise(index, entry)}
               formatLoggedSet={(s) => formatSet(s, (lb) => toDisplay(lb, unit))}
             >
+              {showingVideo && (
+                <FormVideoPanel
+                  exerciseId={exercise.id}
+                  open
+                  className="border-t border-hairline px-4 pt-3 pb-1"
+                />
+              )}
               {isActive && (
                 <div className="border-t border-hairline px-4 py-4">
                   {/* Input mode: remembered per exercise */}
@@ -1005,9 +1139,9 @@ export function Today() {
                           ` + 2 × ${formatWeight(round2(plates.reduce((a, b) => a + b, 0)))}`}
                       </p>
                     )}
-                    {activeMode === "dumbbell" && (
+                    {showLaterality && (
                       <p className="mt-0.5 text-[13px] text-muted">
-                        {pair ? "per hand, pair" : "single arm"}
+                        {lateralityCaption(laterality, sharing)}
                       </p>
                     )}
                   </div>
@@ -1028,19 +1162,31 @@ export function Today() {
                     <DumbbellPicker
                       unit={unit}
                       value={dumbbell}
-                      pair={pair}
+                      laterality={laterality}
                       onChange={setDumbbell}
-                      onPairChange={setPair}
+                      onLateralityChange={(next) =>
+                        setLateralityFor(next, exercise.id)
+                      }
                     />
                   )}
                   {activeMode === "manual" && (
-                    <div className="flex justify-center">
+                    <div className="flex flex-col items-center">
                       <Stepper
                         label={`Weight (${unit})`}
                         value={manualWeight}
                         step={MANUAL_STEP[unit]}
                         onChange={setManualWeight}
                       />
+                      {showLaterality && (
+                        <div className="mt-3">
+                          <LateralityToggle
+                            value={laterality}
+                            onChange={(next) =>
+                              setLateralityFor(next, exercise.id)
+                            }
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 

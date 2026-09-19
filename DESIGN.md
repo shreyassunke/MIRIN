@@ -119,7 +119,7 @@ A locked grayscale palette; hierarchy is carried entirely by lightness, never by
 
 **The Locked Palette Rule.** These six values are the entire palette. No new grays, no tints, no hue anywhere. State changes (hover, press, disabled) move within this ramp — they never introduce color.
 
-**The Plate Exception Rule.** The single sanctioned use of hue: plate chips and the loaded-bar illustration in the weight picker carry muted versions of real gym plate color conventions (blue #5b7d9e, yellow #a08f56, green #5f8a6e, red #9e6060, white #c2c2c2, black #6e6e6e, silver #98989f). These are recognition aids that mirror physical reality, never decoration, and they appear nowhere else in the interface.
+**The Plate Exception Rule.** The single sanctioned use of hue: plate chips and the loaded-bar instrument in the weight picker — 2D chips and the 3D plate bodies alike — carry muted versions of real gym plate color conventions (blue #5b7d9e, yellow #a08f56, green #5f8a6e, red #9e6060, white #c2c2c2, black #6e6e6e, silver #98989f). These are recognition aids that mirror physical reality, never decoration, and they appear nowhere else in the interface.
 
 ## 3. Typography
 
@@ -180,6 +180,16 @@ Floating glass chip above the mobile nav. Subtle progress ring, 1.5px stroke in 
 
 ### Charts
 Thin 1.5px lines in #d4d4d4, no gridlines, no area fills, no dots except the latest point, minimal muted-ink axis labels. A chart is an instrument for reading a trend, not a decoration.
+
+### 3D weight instrument
+The barbell and dumbbell in the weight picker are procedural Three.js models, not mesh files. They sit in the same slot the line-art occupied: a short, wide frame above the plate chips or the drum.
+
+- **Camera:** low-FOV (~28°) dead-on, bar axis horizontal. No free orbit. Drag (not hover) adds at most ±8° yaw and ±5° pitch, then springs back to straight.
+- **Lighting:** grayscale key / fill / rim plus a generated environment gradient. No HDRI, no hue in the lights.
+- **Materials:** satin steel shaft and collars; plate bodies pull hue only from the Plate Exception swatches; hubs are near-black rubber. Code-only — no `.glb`, no texture files.
+- **Motion:** plates settle onto the sleeve in 160ms ease-out-expo. Under `prefers-reduced-motion`, they appear in place and tilt is off.
+- **Fallback:** the original SVG line-art renders when WebGL is missing or the 3D chunk fails to load. Layout does not shift.
+- **Role:** a mid-workout control. Tap a plate to remove it. Scroll still owns the page.
 
 ## 6. Do's and Don'ts
 

@@ -1,6 +1,10 @@
 import { db, type DayTemplate, type Split } from "../db/db";
 import { REST_DAY_TEMPLATE } from "../db/seed";
-import { toLocalISODate } from "./rotation";
+import {
+  dayTemplateIdForDate,
+  rotationIndexForDate,
+  toLocalISODate,
+} from "./rotation";
 import { newId } from "./workout";
 import {
   breakGroup,
@@ -49,6 +53,99 @@ export async function setRotationToday(splitId: string, index: number) {
   await db.splits.update(splitId, {
     anchorDate: toLocalISODate(new Date()),
     anchorIndex: index,
+  });
+}
+
+export interface DaySwitchOption {
+  id: string;
+  name: string;
+}
+
+/** Unique day templates in rotation order — the Today switcher list. */
+export function uniqueDayOptions(
+  split: Split,
+  days: Map<string, DayTemplate>,
+): DaySwitchOption[] {
+  const seen = new Set<string>();
+  const options: DaySwitchOption[] = [];
+  for (const id of split.dayTemplateIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const day = days.get(id);
+    options.push({ id, name: day?.name ?? id });
+  }
+  return options;
+}
+
+/**
+ * Template Today should show: a same-calendar-day override, else the
+ * rotation. The override is ignored if its template no longer exists.
+ */
+export function resolvedTodayTemplateId(
+  split: Split,
+  days: Map<string, DayTemplate>,
+  date: Date = new Date(),
+): string | null {
+  const iso = toLocalISODate(date);
+  const overrideId = split.todayOverrideDayTemplateId;
+  if (
+    split.todayOverrideDate === iso &&
+    overrideId &&
+    days.has(overrideId)
+  ) {
+    return overrideId;
+  }
+  return dayTemplateIdForDate(split, date);
+}
+
+export type TodaySwitchMode = "today-only" | "update-split";
+
+/**
+ * Switch Today's session. `today-only` stores a date-scoped override;
+ * `update-split` replaces today's rotation slot and clears any override.
+ * Choosing the already-scheduled template in today-only mode just clears
+ * a previous override.
+ */
+export async function applyTodaySwitch(
+  splitId: string,
+  dayTemplateId: string,
+  mode: TodaySwitchMode,
+) {
+  const split = await db.splits.get(splitId);
+  if (!split) return;
+  const today = new Date();
+  const todayIso = toLocalISODate(today);
+  const scheduledId = dayTemplateIdForDate(split, today);
+
+  if (mode === "today-only") {
+    if (dayTemplateId === scheduledId) {
+      await db.transaction("rw", db.splits, async () => {
+        const row = await db.splits.get(splitId);
+        if (!row) return;
+        delete row.todayOverrideDate;
+        delete row.todayOverrideDayTemplateId;
+        await db.splits.put(row);
+      });
+      return;
+    }
+    await db.splits.update(splitId, {
+      todayOverrideDate: todayIso,
+      todayOverrideDayTemplateId: dayTemplateId,
+    });
+    return;
+  }
+
+  const index = rotationIndexForDate(split, today);
+  if (index === null) return;
+  const next = [...split.dayTemplateIds];
+  next[index] = dayTemplateId;
+  await db.transaction("rw", db.splits, async () => {
+    const row = await db.splits.get(splitId);
+    if (!row) return;
+    row.dayTemplateIds = next;
+    delete row.todayOverrideDate;
+    delete row.todayOverrideDayTemplateId;
+    await db.splits.put(row);
   });
 }
 

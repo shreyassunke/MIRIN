@@ -1,13 +1,21 @@
+import { lazy, Suspense } from "react";
 import { DUMBBELL_SIZES, type Unit } from "../../lib/units";
+import type { Laterality } from "../../lib/laterality";
 import { formatWeight } from "../../lib/workout";
+import { LateralityToggle } from "../LateralityToggle";
 import { WheelPicker } from "./WheelPicker";
+import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
+
+const Dumbbell3D = lazy(() =>
+  import("./three/Dumbbell3D").then((m) => ({ default: m.Dumbbell3D })),
+);
 
 interface DumbbellPickerProps {
   unit: Unit;
   value: number; // display unit, per dumbbell
-  pair: boolean;
+  laterality: Laterality;
   onChange: (value: number) => void;
-  onPairChange: (pair: boolean) => void;
+  onLateralityChange: (value: Laterality) => void;
 }
 
 const SVG_W = 200;
@@ -15,7 +23,7 @@ const SVG_H = 76;
 const MID = SVG_H / 2;
 
 /** Line-art dumbbell whose heads grow with the selected weight. */
-function DumbbellIcon({ unit, value }: { unit: Unit; value: number }) {
+function DumbbellIconSvg({ unit, value }: { unit: Unit; value: number }) {
   const sizes = DUMBBELL_SIZES[unit];
   const fraction = value / sizes[sizes.length - 1];
   const headH = Math.round(22 + 40 * Math.pow(fraction, 0.8));
@@ -90,12 +98,24 @@ function DumbbellIcon({ unit, value }: { unit: Unit; value: number }) {
   );
 }
 
+function DumbbellIcon(props: { unit: Unit; value: number }) {
+  const fallback = <DumbbellIconSvg {...props} />;
+  if (!hasWebGL()) return fallback;
+  return (
+    <ChunkErrorBoundary fallback={fallback}>
+      <Suspense fallback={fallback}>
+        <Dumbbell3D {...props} />
+      </Suspense>
+    </ChunkErrorBoundary>
+  );
+}
+
 export function DumbbellPicker({
   unit,
   value,
-  pair,
+  laterality,
   onChange,
-  onPairChange,
+  onLateralityChange,
 }: DumbbellPickerProps) {
   return (
     <div>
@@ -112,38 +132,11 @@ export function DumbbellPicker({
       />
 
       <div className="mt-3 flex justify-center">
-        <div
-          role="group"
-          aria-label="Dumbbell count"
-          className="glass flex overflow-hidden rounded-pill p-0.5"
-        >
-          <button
-            type="button"
-            aria-pressed={pair}
-            onClick={() => onPairChange(true)}
-            className={[
-              "glass-chip h-9 rounded-pill px-3 text-[13px] font-medium",
-              pair
-                ? "glass-chip-active text-ink"
-                : "text-muted hover:text-ink",
-            ].join(" ")}
-          >
-            Pair
-          </button>
-          <button
-            type="button"
-            aria-pressed={!pair}
-            onClick={() => onPairChange(false)}
-            className={[
-              "glass-chip h-9 rounded-pill px-3 text-[13px] font-medium",
-              !pair
-                ? "glass-chip-active text-ink"
-                : "text-muted hover:text-ink",
-            ].join(" ")}
-          >
-            Single arm
-          </button>
-        </div>
+        <LateralityToggle
+          value={laterality}
+          onChange={onLateralityChange}
+          variant="pair"
+        />
       </div>
     </div>
   );

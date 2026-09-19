@@ -66,9 +66,11 @@ export function FormVideoButton({
 export function FormVideoPanel({
   exerciseId,
   open,
+  className,
 }: {
   exerciseId: string;
   open: boolean;
+  className?: string;
 }) {
   const clips = formClipsFor(exerciseId);
   const [active, setActive] = useState(0);
@@ -80,7 +82,10 @@ export function FormVideoPanel({
   const others = clips.filter((c) => c !== clip);
 
   return (
-    <section id={panelId(exerciseId)} className="panel-in mb-8">
+    <section
+      id={panelId(exerciseId)}
+      className={["panel-in", className ?? "mb-8"].filter(Boolean).join(" ")}
+    >
       {online ? (
         <>
           <div className="overflow-hidden rounded-md border border-hairline bg-surface">

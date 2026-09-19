@@ -63,6 +63,20 @@ body::-webkit-scrollbar {
   font-variant-numeric: tabular-nums;
 }
 
+/* Visually hidden, still in the a11y tree — plate remove controls. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Snappier taps on mobile: no double-tap-zoom delay on controls. */
 button,
 a,
@@ -365,6 +379,29 @@ textarea {
 }
 
 .overflow-menu {
+  animation: mirin-menu-in var(--motion-snap) var(--ease-out-quint) both;
+}
+
+/* Native confirm dialog — glass overlay, dim scrim, centered */
+.glass-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: calc(100vw - 2rem);
+  max-width: 22rem;
+  height: fit-content;
+  max-height: calc(100dvh - 2rem);
+  padding: 1.5rem;
+  color: var(--color-ink);
+  border-radius: var(--radius-xl);
+  overflow: auto;
+}
+
+.glass-dialog::backdrop {
+  background: rgb(10 10 10 / 0.72);
+}
+
+.dialog-in {
   animation: mirin-menu-in var(--motion-snap) var(--ease-out-quint) both;
 }
 

@@ -13,17 +13,98 @@ const context = await browser.newContext({
 const page = await context.newPage();
 const errors = [];
 const failures = [];
-page.on("pageerror", (err) => errors.push(err.message));
+const isAuthNoise = (text) =>
+  /supabase|Failed to fetch|net::ERR|ERR_NAME_NOT_RESOLVED|Invalid Refresh Token|AuthApiError|status of 401/i.test(
+    text,
+  );
+page.on("pageerror", (err) => {
+  if (!isAuthNoise(err.message)) errors.push(err.message);
+});
 page.on("console", (msg) => {
-  if (msg.type() === "error") errors.push(msg.text());
+  if (msg.type() === "error" && !isAuthNoise(msg.text())) errors.push(msg.text());
 });
 
 const expect = async (name, cond) => {
   if (!(await cond())) failures.push(name);
 };
 
-await page.goto(`${BASE}/today`, { waitUntil: "networkidle" });
-await page.waitForTimeout(700);
+const stubUser = {
+  id: "00000000-0000-4000-8000-000000000000",
+  aud: "authenticated",
+  role: "authenticated",
+  email: "lifter@example.com",
+  user_metadata: { full_name: "Verification Run" },
+  app_metadata: {},
+  created_at: new Date().toISOString(),
+};
+
+await page.route("**/auth/v1/**", async (route) => {
+  const url = route.request().url();
+  if (url.includes("/user")) {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(stubUser),
+    });
+    return;
+  }
+  if (url.includes("/token")) {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access_token: "local-verification-token",
+        token_type: "bearer",
+        expires_in: 31536000,
+        expires_at: Math.floor(Date.now() / 1000) + 31536000,
+        refresh_token: "local-verification-refresh",
+        user: stubUser,
+      }),
+    });
+    return;
+  }
+  await route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: "{}",
+  });
+});
+
+await page.goto(`${BASE}/auth`, { waitUntil: "domcontentloaded" });
+await page.evaluate(async (user) => {
+  const mod = await import("/src/lib/supabase.ts");
+  const client = mod.getSupabase();
+  const key = client?.auth?.storageKey;
+  if (!key) return;
+  localStorage.setItem(
+    key,
+    JSON.stringify({
+      access_token: "local-verification-token",
+      token_type: "bearer",
+      expires_in: 31536000,
+      expires_at: Math.floor(Date.now() / 1000) + 31536000,
+      refresh_token: "local-verification-refresh",
+      user,
+    }),
+  );
+}, stubUser);
+
+await page.goto(`${BASE}/today`, { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(900);
+
+const barbellChip = page.getByRole("button", { name: "Barbell", exact: true });
+if (!(await barbellChip.count())) {
+  await page.getByRole("button", { name: /Chest|Push|Pull|Leg|Back/ }).first().click();
+  const push = page.getByRole("option", { name: /^Push/ });
+  if (await push.count()) {
+    await push.click();
+    const todayOnly = page.getByRole("button", { name: "Today only" });
+    if (await todayOnly.count()) await todayOnly.click();
+    await page.waitForTimeout(500);
+  }
+}
+if (await barbellChip.count()) await barbellChip.first().click();
+await page.waitForTimeout(400);
 
 // 1. Incline Barbell Press defaults to barbell mode, prefilled 95 lb
 //    (45 bar + 25/side from greedy decompose of the starting default).
@@ -55,7 +136,9 @@ await expect("bar svg loaded", () =>
 await page.screenshot({ path: `${OUT}/picker-barbell-stack.png`, fullPage: true });
 
 // 3. Remove the 10 plate by tapping it on the bar.
-await page.getByRole("button", { name: "Remove 10 lb plate" }).click();
+await page
+  .getByRole("button", { name: "Remove 10 lb plate" })
+  .evaluate((el) => el.click());
 await page.waitForTimeout(300);
 await expect("total back to 95", () =>
   page.locator("text=95").first().isVisible(),
@@ -84,7 +167,7 @@ await page
 await page.waitForTimeout(400);
 
 // 6. Lateral Raise opens in dumbbell mode with nearest dumbbell (15 lb).
-await page.getByRole("button", { name: /Lateral Raise/ }).click();
+await page.getByRole("button", { name: "Expand Lateral Raise" }).click();
 await page.waitForTimeout(400);
 await expect("dumbbell mode default", () =>
   page
@@ -106,7 +189,7 @@ await page.getByRole("button", { name: "Manual", exact: true }).click();
 await page.waitForTimeout(400);
 await page.reload({ waitUntil: "networkidle" });
 await page.waitForTimeout(700);
-await page.getByRole("button", { name: /Lateral Raise/ }).click();
+await page.getByRole("button", { name: "Expand Lateral Raise" }).click();
 await page.waitForTimeout(400);
 await expect("mode remembered after reload", () =>
   page

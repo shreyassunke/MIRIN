@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type LoadBreakdown, type SetLog } from "../db/db";
 import {
@@ -39,9 +39,12 @@ function sessionBreakdown(sets: SetLog[], unit: Unit): string | null {
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
+  const [params] = useSearchParams();
   const [unit] = useUnit();
   // Keyed by exercise so the panel closes when routing to a different lift.
-  const [formOpenFor, setFormOpenFor] = useState<string | null>(null);
+  const [formOpenFor, setFormOpenFor] = useState<string | null>(() =>
+    params.get("form") === "1" ? (id ?? null) : null,
+  );
   const formOpen = formOpenFor === id;
 
   const data = useLiveQuery(async () => {

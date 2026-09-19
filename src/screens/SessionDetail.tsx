@@ -23,10 +23,13 @@ import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { Stepper } from "../components/Stepper";
 import { NoteEditor } from "../components/NoteEditor";
+import { FormVideoPanel } from "../components/FormVideo";
+import { formClipsFor } from "../lib/formVideos";
 import {
   IconAddSet,
   IconNote,
   IconRemove,
+  IconVideo,
   ItemOverflow,
 } from "../components/ItemOverflow";
 
@@ -66,6 +69,7 @@ export function SessionDetail() {
   const [addingExercise, setAddingExercise] = useState(false);
   const [addingSetFor, setAddingSetFor] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [formVideoId, setFormVideoId] = useState<string | null>(null);
   const [newWeight, setNewWeight] = useState(45);
   const [newReps, setNewReps] = useState(8);
 
@@ -196,6 +200,8 @@ export function SessionDetail() {
           {data.exercises.map((exercise) => {
             const sets = data.logsByExercise.get(exercise.id) ?? [];
             const note = data.exerciseNotes[exercise.id];
+            const hasFormVideo = formClipsFor(exercise.id).length > 0;
+            const showingVideo = formVideoId === exercise.id;
             return (
               <section
                 key={exercise.id}
@@ -220,6 +226,21 @@ export function SessionDetail() {
                         icon: <IconNote />,
                         onSelect: () => setEditingNoteId(exercise.id),
                       },
+                      ...(hasFormVideo
+                        ? [
+                            {
+                              id: "video",
+                              label: showingVideo
+                                ? "Hide form video"
+                                : "Form video",
+                              icon: <IconVideo />,
+                              onSelect: () =>
+                                setFormVideoId((current) =>
+                                  current === exercise.id ? null : exercise.id,
+                                ),
+                            },
+                          ]
+                        : []),
                       {
                         id: "remove",
                         label: "Remove",
@@ -251,6 +272,16 @@ export function SessionDetail() {
                         setEditingNoteId(null);
                       }}
                       onCancel={() => setEditingNoteId(null)}
+                    />
+                  </div>
+                )}
+
+                {showingVideo && (
+                  <div className="mb-3">
+                    <FormVideoPanel
+                      exerciseId={exercise.id}
+                      open
+                      className=""
                     />
                   </div>
                 )}

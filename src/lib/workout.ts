@@ -5,6 +5,7 @@ import {
   type SetLog,
   type WorkoutSession,
 } from "../db/db";
+import { volumeLimbs, type Laterality } from "./laterality";
 import type { InputMethod } from "./units";
 
 /** Estimated 1RM, Epley formula. */
@@ -75,9 +76,11 @@ export const defaultRepsFor = (dayTemplateId: string) =>
   dayTemplateId === "chest-back" ? 12 : 8;
 
 /** Total weight×reps for a set, drops included. */
-export const setVolume = (log: SetLog) =>
-  log.weight * log.reps +
-  (log.drops ?? []).reduce((sum, d) => sum + d.weight * d.reps, 0);
+export const setVolume = (log: SetLog) => {
+  const limbs = volumeLimbs(log.laterality, log.inputMethod);
+  const parts = [log, ...(log.drops ?? [])];
+  return parts.reduce((sum, part) => sum + part.weight * part.reps * limbs, 0);
+};
 
 /**
  * A set as one ledger entry: "135×8" plain, "135×8 → 105×6" once dropped.
@@ -87,7 +90,8 @@ export const formatSet = (log: SetLog, display: (lb: number) => number) => {
   const body = [log, ...(log.drops ?? [])]
     .map((s) => `${formatWeight(display(s.weight))}×${s.reps}`)
     .join(" → ");
-  return log.isWarmup ? `W ${body}` : body;
+  const labeled = log.isWarmup ? `W ${body}` : body;
+  return log.laterality === "unilateral" ? `${labeled} per side` : labeled;
 };
 
 /** One set copied forward from a previous session, ready to insert. */
@@ -98,6 +102,7 @@ export interface PlannedSet {
   reps: number;
   inputMethod?: InputMethod;
   loadBreakdown?: LoadBreakdown;
+  laterality?: Laterality;
   drops?: SetDrop[];
 }
 
@@ -129,6 +134,7 @@ export function planFillFromLastTime(
         reps: source.reps,
         inputMethod: source.inputMethod,
         loadBreakdown: source.loadBreakdown,
+        laterality: source.laterality,
         drops: source.drops,
       });
     }
