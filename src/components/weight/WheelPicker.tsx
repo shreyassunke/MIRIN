@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, type KeyboardEvent } from "react";
 
-const ITEM_H = 36;
-const VISIBLE = 5;
+const ITEM_H = 44;
+const VISIBLE = 3;
 const WHEEL_H = ITEM_H * VISIBLE;
-const MAX_TILT_ITEMS = 3;
+const MAX_TILT_ITEMS = 2;
 
 interface WheelPickerProps {
   values: number[];
@@ -92,23 +92,44 @@ export function WheelPicker({
     });
   };
 
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const index = Math.max(0, values.indexOf(value));
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+      if (index >= values.length - 1) return;
+      e.preventDefault();
+      selectIndex(index + 1);
+    } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+      if (index <= 0) return;
+      e.preventDefault();
+      selectIndex(index - 1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      selectIndex(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      selectIndex(values.length - 1);
+    }
+  };
+
   return (
     <div className="relative mx-auto w-36" style={{ perspective: "640px" }}>
       {/* center row indicator */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-1/2 z-10 h-9 -translate-y-1/2 rounded-md border border-hairline bg-surface-raised/40"
+        className="pointer-events-none absolute inset-x-0 top-1/2 z-10 h-11 -translate-y-1/2 rounded-md glass"
       />
       <div
         ref={wheelRef}
         role="listbox"
         aria-label={ariaLabel}
+        tabIndex={0}
         onScroll={handleScroll}
+        onKeyDown={onKeyDown}
         className="no-scrollbar relative snap-y snap-mandatory overflow-y-auto overscroll-contain"
         style={{
           height: WHEEL_H,
-          paddingTop: ITEM_H * 2,
-          paddingBottom: ITEM_H * 2,
+          paddingTop: ITEM_H * Math.floor(VISIBLE / 2),
+          paddingBottom: ITEM_H * Math.floor(VISIBLE / 2),
           transformStyle: "preserve-3d",
         }}
       >
@@ -120,6 +141,7 @@ export function WheelPicker({
             }}
             type="button"
             role="option"
+            tabIndex={-1}
             aria-selected={v === value}
             onClick={() => selectIndex(i)}
             className={[

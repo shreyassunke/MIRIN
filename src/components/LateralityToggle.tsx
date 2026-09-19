@@ -20,7 +20,7 @@ export function LateralityToggle({
         type="button"
         aria-pressed={value === "bilateral"}
         onClick={() => onChange("bilateral")}
-        className={`${chipClass(value === "bilateral")} h-9 px-3 text-[13px]`}
+        className={`${chipClass(value === "bilateral")} h-11 px-3 text-[13px]`}
       >
         {bilateralLabel}
       </button>
@@ -28,7 +28,7 @@ export function LateralityToggle({
         type="button"
         aria-pressed={value === "unilateral"}
         onClick={() => onChange("unilateral")}
-        className={`${chipClass(value === "unilateral")} h-9 px-3 text-[13px]`}
+        className={`${chipClass(value === "unilateral")} h-11 px-3 text-[13px]`}
       >
         Single arm
       </button>

@@ -1,0 +1,123 @@
+{
+  "targetName": "MIRIN Dumbbell",
+  "targetId": "mirin-dumbbell",
+  "schemaVersion": "2.1",
+  "sourceImage": "docs/reference/dumbbell-icon.png",
+  "suitability": "conditional",
+  "scores": {
+    "object_isolation": 3,
+    "silhouette_readability": 3,
+    "depth_inference": 1,
+    "primitive_decomposition": 3,
+    "material_procedurality": 2,
+    "occlusion_risk": 2,
+    "interaction_fit": 2
+  },
+  "referenceCamera": {
+    "solved": false,
+    "fovDegrees": 28,
+    "aspect": 2.63,
+    "orientation": { "yaw": 12, "pitch": 8, "roll": 0 },
+    "positionHint": [0.12, 0.12, 1.35],
+    "note": "Line-art front elevation. Review camera is a low-FOV three-quarter. Heads are solids of revolution inferred from rounded rectangles."
+  },
+  "preSpecAssessment": {
+    "objectClass": {
+      "primaryType": "fixed-weight dumbbell",
+      "primaryDomain": "object",
+      "formLanguage": ["revolved", "hard-surface", "axial"],
+      "structureKind": ["handle", "dual-heads", "inner-collars"],
+      "motionPotential": ["head-scale-with-weight", "parallax-tilt"],
+      "materialFamilies": ["satin-steel", "matte-head"],
+      "notes": "Reference is MIRIN's own 2D line-art: thin handle, two filled outer heads, two outlined inner collars. Head size is parametric with the selected weight."
+    },
+    "complexity": {
+      "tier": "simple",
+      "reasoning": [
+        "Macro: handle + two heads.",
+        "Meso: two inner collars.",
+        "Head radius and thickness follow the SVG growth curve."
+      ],
+      "estimatedCounts": {
+        "macroComponents": 3,
+        "mesoComponents": 2,
+        "microFeatureGroups": 1,
+        "materialLayers": 2,
+        "repetitionSystems": 0
+      }
+    },
+    "specDepthDecision": {
+      "requiredDepth": "simple",
+      "minimumComponentLevels": ["macro"],
+      "needsRepetitionSystems": false,
+      "needsActionReadyHierarchy": true,
+      "rationale": "Simple object, but heads must scale with picker value."
+    },
+    "unknownsToResolveBeforeImplementation": [],
+    "detailInventory": {
+      "scanMethod": "grid-3x3",
+      "targetMinDetails": 3,
+      "details": [
+        {
+          "id": "handle",
+          "kind": "contour",
+          "description": "Thin silver handle between the heads, stroke #d4d4d4.",
+          "priority": "critical",
+          "componentRef": "handle",
+          "materialRef": "satinSteel",
+          "confidence": 0.95
+        },
+        {
+          "id": "outer-heads",
+          "kind": "volume",
+          "description": "Filled rounded rectangles, opacity and size grow with weight.",
+          "priority": "critical",
+          "componentRef": "headLeft",
+          "materialRef": "headMetal",
+          "confidence": 0.9
+        },
+        {
+          "id": "inner-collars",
+          "kind": "fastener",
+          "description": "Outlined thinner rectangles inside each head.",
+          "priority": "important",
+          "componentRef": "collarLeft",
+          "materialRef": "satinSteel",
+          "confidence": 0.85
+        },
+        {
+          "id": "head-rounding",
+          "kind": "bevel",
+          "description": "rx=3 on the 2D rects; inferred as a chamfered cylinder.",
+          "priority": "important",
+          "componentRef": "headLeft",
+          "materialRef": "headMetal",
+          "confidence": 0.5
+        }
+      ]
+    }
+  },
+  "componentTree": [
+    { "id": "handle", "level": "macro", "primitive": "cylinder" },
+    { "id": "headLeft", "level": "macro", "primitive": "lathe", "parametric": true },
+    { "id": "headRight", "level": "macro", "primitive": "lathe", "parametric": true },
+    { "id": "collarLeft", "level": "meso", "primitive": "cylinder" },
+    { "id": "collarRight", "level": "meso", "primitive": "cylinder" }
+  ],
+  "materials": [
+    { "id": "satinSteel", "baseColor": "#c8c8c8", "metalness": 0.82, "roughness": 0.38 },
+    { "id": "headMetal", "baseColor": "#9a9a9a", "metalness": 0.35, "roughness": 0.5 }
+  ],
+  "approximationNotes": [
+    "Heads are solids of revolution inferred from rounded rectangles.",
+    "Factory is hand-authored so head scale stays live with the wheel picker."
+  ],
+  "reviewHistory": [
+    {
+      "passId": "author",
+      "decision": "hand-author",
+      "reason": "Weight-driven head geometry cannot be a static generated Group.",
+      "aiVisionScore": null
+    }
+  ]
+}

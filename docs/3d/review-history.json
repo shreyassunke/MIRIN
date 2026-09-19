@@ -1,0 +1,26 @@
+{
+  "target": "MIRIN weight instruments",
+  "reviewedAt": "2026-09-19",
+  "passes": [
+    {
+      "id": "blockout-form-material",
+      "decision": "continue",
+      "notes": "Hand-authored parametric factories. First capture pass: shaft read as a hairline at 92px; camera was too side-on. Thickened shaft/plates, three-quarter rest pose, stronger key/rim.",
+      "captures": [
+        ".screenshots/weight-3d-barbell-empty-mobile.png",
+        ".screenshots/weight-3d-barbell-mid-mobile.png",
+        ".screenshots/weight-3d-barbell-max-desktop.png",
+        ".screenshots/weight-3d-dumbbell-light-mobile.png",
+        ".screenshots/weight-3d-dumbbell-heavy-desktop.png",
+        ".screenshots/weight-3d-no-webgl-mobile.png",
+        ".screenshots/weight-3d-reduced-motion-mobile.png"
+      ]
+    },
+    {
+      "id": "confirming",
+      "decision": "accept",
+      "notes": "Empty bar reads as a cylinder with collars. Mid and max stacks show denomination-sized plates in Plate Exception hues. Heavy dumbbell reads as revolved heads. No-WebGL path shows the original SVG. verify-pickers.mjs contract passed.",
+      "aiVisionScore": null
+    }
+  ]
+}

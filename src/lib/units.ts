@@ -36,6 +36,11 @@ export const PLATE_SIZES: Record<Unit, number[]> = {
   kg: [25, 20, 15, 10, 5, 2.5, 1.25],
 };
 
+/** 10+ is a work plate; 5 and under is change. */
+export function isChangePlate(value: number) {
+  return value < 10;
+}
+
 /**
  * Muted takes on real plate color conventions. Subtle by design: these
  * appear only on plate chips and the loaded-bar illustration.

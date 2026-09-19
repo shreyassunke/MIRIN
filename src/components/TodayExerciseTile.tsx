@@ -74,7 +74,7 @@ export function TodayExerciseTile({
       onPointerUp={onDragPointerUp}
       onPointerCancel={onDragPointerCancel}
       className={[
-        "overflow-hidden glass select-none",
+        isActive ? "overflow-visible glass select-none" : "overflow-hidden glass select-none",
         groupRadius(groupPos),
         groupPos === "middle" || groupPos === "last"
           ? "-mt-px"

@@ -4,7 +4,8 @@ import { addInstrumentLights, createEnvironment } from "./materials";
 export type FrameFn = (now: number) => boolean;
 
 let renderer: THREE.WebGLRenderer | null = null;
-let env: THREE.DataTexture | null = null;
+let env: THREE.Texture | null = null;
+let envRT: THREE.WebGLRenderTarget | null = null;
 let refs = 0;
 let disposeTimer = 0;
 let raf = 0;
@@ -18,14 +19,14 @@ function ensureRenderer(): THREE.WebGLRenderer {
   renderer = new THREE.WebGLRenderer({
     antialias: true,
     alpha: true,
-    powerPreference: "low-power",
+    powerPreference: "high-performance",
     stencil: false,
     depth: true,
   });
   renderer.setClearColor(0x0a0a0a, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.0;
   const el = renderer.domElement;
   el.style.display = "block";
   el.style.width = "100%";
@@ -33,7 +34,12 @@ function ensureRenderer(): THREE.WebGLRenderer {
   el.style.touchAction = "pan-y";
   el.tabIndex = -1;
   el.setAttribute("aria-hidden", "true");
-  env = createEnvironment();
+  const equirect = createEnvironment();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  envRT = pmrem.fromEquirectangular(equirect);
+  env = envRT.texture;
+  equirect.dispose();
+  pmrem.dispose();
   return renderer;
 }
 
@@ -73,7 +79,8 @@ function disposeRenderer() {
   renderer?.dispose();
   renderer?.domElement.remove();
   renderer = null;
-  env?.dispose();
+  envRT?.dispose();
+  envRT = null;
   env = null;
 }
 
@@ -125,5 +132,6 @@ export function createInstrumentScene(): THREE.Scene {
   scene.background = null;
   addInstrumentLights(scene);
   scene.environment = getEnvironment();
+  scene.environmentIntensity = 1.12;
   return scene;
 }

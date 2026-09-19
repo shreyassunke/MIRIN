@@ -2,102 +2,91 @@ import * as THREE from "three";
 import { formatWeight } from "../../../lib/workout";
 
 const texCache = new Map<string, THREE.CanvasTexture>();
-const matCache = new Map<string, THREE.SpriteMaterial>();
 
 function fontsReady() {
   return typeof document !== "undefined" && document.fonts?.status === "loaded";
 }
 
-/** Raised Inter numeral with a dark iron bite — readable at instrument scale. */
-function canvasTexture(label: string): THREE.CanvasTexture {
-  const cacheable = fontsReady();
-  const key = cacheable ? label : `${label}:pending`;
+function paintWeight(
+  ctx: CanvasRenderingContext2D,
+  label: string,
+  cx: number,
+  cy: number,
+  size: number,
+  fill: string,
+) {
+  ctx.font = `700 ${size}px "Inter Variable", Inter, system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = fill;
+  ctx.fillText(label, cx, cy);
+}
+
+/**
+ * Disc in XY (canvas up = +Y). Rotate onto ±X with no roll so numerals
+ * stay world-up when the bar is viewed from a small yaw.
+ */
+function orientAxialDisc(mesh: THREE.Mesh, side: 1 | -1) {
+  mesh.rotation.order = "YXZ";
+  mesh.rotation.set(0, side === 1 ? -Math.PI / 2 : Math.PI / 2, 0);
+}
+
+export function plateFaceTexture(value: number, hex: string): THREE.CanvasTexture {
+  const label = formatWeight(value);
+  const ready = fontsReady();
+  const key = `pl:${label}:${hex}:${ready ? "f" : "p"}`;
   const hit = texCache.get(key);
   if (hit) return hit;
 
-  const w = 512;
-  const h = 280;
+  const s = 1024;
   const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = s;
+  canvas.height = s;
   const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    const empty = new THREE.CanvasTexture(canvas);
-    texCache.set(key, empty);
-    return empty;
+  if (ctx) {
+    ctx.clearRect(0, 0, s, s);
+    const size = label.length >= 4 ? s * 0.15 : s * 0.2;
+    paintWeight(ctx, label, s / 2, s * 0.22, size, "#fafafa");
+    paintWeight(ctx, label, s / 2, s * 0.78, size, "#fafafa");
   }
-
-  ctx.clearRect(0, 0, w, h);
-
-  const size = label.length >= 4 ? 148 : label.length === 3 ? 176 : 208;
-  ctx.font = `600 ${size}px "Inter Variable", Inter, system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineJoin = "round";
-  ctx.miterLimit = 2;
-  ctx.lineWidth = 26;
-  ctx.strokeStyle = "rgba(10, 10, 10, 0.9)";
-  ctx.strokeText(label, w / 2, h / 2 + 2);
-  ctx.fillStyle = "#fafafa";
-  ctx.fillText(label, w / 2, h / 2);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.center.set(0.5, 0.5);
   tex.anisotropy = 8;
-  tex.generateMipmaps = true;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.magFilter = THREE.LinearFilter;
   tex.needsUpdate = true;
   texCache.set(key, tex);
   return tex;
 }
 
-function stampMaterial(label: string): THREE.SpriteMaterial {
-  const cacheable = fontsReady();
-  const key = cacheable ? label : `${label}:pending`;
-  const hit = matCache.get(key);
-  if (hit) return hit;
-  const mat = new THREE.SpriteMaterial({
-    map: canvasTexture(label),
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    sizeAttenuation: true,
-  });
-  matCache.set(key, mat);
-  return mat;
-}
-
-/**
- * Denomination on the camera-facing rim at 12 and 6 o'clock.
- * Sprites stay screen-upright so the ledger figures read like stamped iron.
- */
-export function addRimStamps(
+export function addPlateFaces(
   parent: THREE.Object3D,
   value: number,
+  hex: string,
   radius: number,
-  _thickness: number,
+  faceX: number,
 ) {
-  const label = formatWeight(value);
-  const mat = stampMaterial(label);
-  const width = radius * (label.length >= 4 ? 1.08 : label.length === 3 ? 0.96 : 0.9);
-  const height = width * 0.46;
-  const y = radius * 0.5;
-  const z = radius * 0.08;
-
-  const top = new THREE.Sprite(mat);
-  top.scale.set(width, height, 1);
-  top.position.set(0, y, z);
-  top.name = "stampTop";
-  top.renderOrder = 2;
-  top.raycast = () => {};
-
-  const bottom = new THREE.Sprite(mat);
-  bottom.scale.set(width, height, 1);
-  bottom.position.set(0, -y, z);
-  bottom.name = "stampBottom";
-  bottom.renderOrder = 2;
-  bottom.raycast = () => {};
-
-  parent.add(top, bottom);
+  const map = plateFaceTexture(value, hex);
+  const geo = new THREE.RingGeometry(radius * 0.28, radius * 0.74, 64);
+  geo.userData.shared = false;
+  for (const side of [1, -1] as const) {
+    const mat = new THREE.MeshStandardMaterial({
+      map,
+      color: 0xffffff,
+      metalness: 0.1,
+      roughness: 0.7,
+      transparent: true,
+      alphaTest: 0.12,
+      depthWrite: true,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      envMapIntensity: 0.2,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    orientAxialDisc(mesh, side);
+    mesh.position.x = side * faceX;
+    mesh.name = side === 1 ? "plateFaceOut" : "plateFaceIn";
+    mesh.raycast = () => {};
+    parent.add(mesh);
+  }
 }

@@ -3,7 +3,6 @@ import {
   BAR_OPTIONS,
   PLATE_SIZES,
   plateColor,
-  round2,
   type Unit,
 } from "../../lib/units";
 import { formatWeight } from "../../lib/workout";
@@ -37,6 +36,8 @@ function plateDims(value: number, max: number) {
 const SVG_W = 320;
 const SVG_H = 92;
 const MID = SVG_H / 2;
+const BAR_STAGE_H = 104;
+const PLATE_HIT = 44;
 const COLLAR_L = 96;
 const COLLAR_R = SVG_W - COLLAR_L;
 
@@ -63,7 +64,8 @@ function LoadedBarSvg({
   return (
     <svg
       viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-      className="w-full max-w-80"
+      className="w-full"
+      style={{ height: BAR_STAGE_H }}
       role="img"
       aria-label={
         plates.length
@@ -144,38 +146,44 @@ function LoadedBarSvg({
         const color = plateColor(unit, value);
         const xLeft = COLLAR_L - 4 - offset - w;
         const xRight = COLLAR_R + 4 + offset;
+        const hitW = Math.max(w, PLATE_HIT);
+        const hitH = Math.max(h, PLATE_HIT);
+        const hit = (x: number, labelled: boolean) => (
+          <>
+            <rect
+              x={x + w / 2 - hitW / 2}
+              y={MID - hitH / 2}
+              width={hitW}
+              height={hitH}
+              fill="transparent"
+              className="cursor-pointer"
+              role={labelled ? "button" : undefined}
+              aria-label={
+                labelled
+                  ? `Remove ${formatWeight(value)} ${unit} plate`
+                  : undefined
+              }
+              aria-hidden={labelled ? undefined : true}
+              onClick={() => onRemove(index)}
+            />
+            <rect
+              x={x}
+              y={MID - h / 2}
+              width={w}
+              height={h}
+              rx="2"
+              fill={color}
+              fillOpacity="0.2"
+              stroke={color}
+              strokeWidth="1.5"
+              pointerEvents="none"
+            />
+          </>
+        );
         return (
           <g key={index}>
-            {/* left side: tappable to remove; right side mirrors it */}
-            <rect
-              x={xLeft}
-              y={MID - h / 2}
-              width={w}
-              height={h}
-              rx="2"
-              fill={color}
-              fillOpacity="0.2"
-              stroke={color}
-              strokeWidth="1.5"
-              className="cursor-pointer"
-              role="button"
-              aria-label={`Remove ${formatWeight(value)} ${unit} plate`}
-              onClick={() => onRemove(index)}
-            />
-            <rect
-              x={xRight}
-              y={MID - h / 2}
-              width={w}
-              height={h}
-              rx="2"
-              fill={color}
-              fillOpacity="0.2"
-              stroke={color}
-              strokeWidth="1.5"
-              className="cursor-pointer"
-              aria-hidden="true"
-              onClick={() => onRemove(index)}
-            />
+            {hit(xLeft, true)}
+            {hit(xRight, false)}
           </g>
         );
       })}
@@ -239,7 +247,7 @@ export function BarbellPicker({
                 onChange(bar, plates);
               }}
               className={[
-                "glass-chip tnum h-9 rounded-pill px-3 text-[13px] font-medium",
+                "glass-chip tnum h-11 rounded-pill px-3 text-[13px] font-medium",
                 !customBar && barWeight === bar
                   ? "glass-chip-active text-ink"
                   : "text-muted hover:text-ink",
@@ -253,7 +261,7 @@ export function BarbellPicker({
             aria-pressed={customBar}
             onClick={() => setCustomChosen(true)}
             className={[
-              "glass-chip h-9 rounded-pill px-3 text-[13px] font-medium",
+              "glass-chip h-11 rounded-pill px-3 text-[13px] font-medium",
               customBar
                 ? "glass-chip-active text-ink"
                 : "text-muted hover:text-ink",
@@ -280,14 +288,14 @@ export function BarbellPicker({
       <div className="mb-1 flex justify-center">
         <LoadedBar unit={unit} plates={plates} onRemove={removePlate} />
       </div>
-      <p className="mb-3 text-center text-[12px] text-muted">
+      <p className="mb-3 text-center text-[13px] text-muted">
         {plates.length
-          ? "Tap a plate on the bar to remove it"
+          ? "Tap a plate to remove it"
           : "Empty bar — add plates below"}
       </p>
 
       {/* Plate chips */}
-      <div className="mb-1 flex items-baseline justify-between">
+      <div className="mb-1 flex items-center justify-between gap-2">
         <span className="text-[13px] font-medium text-muted">
           Plates per side
         </span>
@@ -295,13 +303,13 @@ export function BarbellPicker({
           <button
             type="button"
             onClick={() => onChange(barWeight, [])}
-            className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+            className="glass-btn h-11 rounded-pill px-3 text-[13px] font-medium text-muted hover:text-ink"
           >
             Clear
           </button>
         )}
       </div>
-      <div className="-mx-1 flex items-end gap-1 overflow-x-auto px-1 pb-1">
+      <div className="flex flex-wrap items-end justify-center gap-1">
         {PLATE_SIZES[unit].map((value) => {
           const d = chipDiameter(value, max);
           const color = plateColor(unit, value);
@@ -312,10 +320,10 @@ export function BarbellPicker({
               type="button"
               onClick={() => addPlate(value)}
               aria-label={`Add ${formatWeight(value)} ${unit} plate to each side`}
-              className="flex min-w-14 shrink-0 flex-col items-center gap-1 rounded-md py-1.5 transition-colors duration-150 hover:bg-surface-raised"
+              className="flex min-h-11 min-w-11 flex-col items-center justify-end gap-0.5 rounded-md py-1 transition-colors duration-150 hover:bg-surface-raised"
             >
               <span
-                className="tnum flex items-center justify-center rounded-full border text-[12px] font-semibold text-ink"
+                className="tnum flex items-center justify-center rounded-full border text-[13px] font-semibold text-ink"
                 style={{
                   width: d,
                   height: d,
@@ -325,19 +333,13 @@ export function BarbellPicker({
               >
                 {formatWeight(value)}
               </span>
-              <span className="tnum h-4 text-[11px] text-muted">
+              <span className="tnum h-5 text-[13px] text-muted">
                 {count > 0 ? `×${count}` : ""}
               </span>
             </button>
           );
         })}
       </div>
-      {plates.length > 0 && (
-        <p className="tnum mt-1 text-center text-[12px] text-muted">
-          {formatWeight(round2(plates.reduce((a, b) => a + b, 0)))} {unit} per
-          side
-        </p>
-      )}
     </div>
   );
 }

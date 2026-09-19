@@ -1,41 +1,52 @@
 import * as THREE from "three";
-import { DUMBBELL_SIZES, type Unit } from "../../../lib/units";
-import { collarMaterial, headMaterial, steelMaterial } from "./materials";
+import type { Unit } from "../../../lib/units";
+import {
+  addContactShadow,
+  collarMaterial,
+  headMaterial,
+  knurlMaterial,
+  steelMaterial,
+} from "./materials";
+import {
+  alongX,
+  DB_COLLAR_R,
+  DB_COLLAR_T,
+  DB_HANDLE_LEN,
+  DB_HANDLE_R,
+  dumbbellHeadDims,
+} from "./scale";
 
-export const HANDLE_RADIUS = 0.018;
-export const HANDLE_HALF = 0.2;
-export const COLLAR_GAP = 0.012;
-
+const SEG = 96;
 const headGeoCache = new Map<string, THREE.BufferGeometry>();
 
-/** Same growth curve as the SVG `DumbbellIcon`. */
-export function headWorldDims(value: number, unit: Unit) {
-  const sizes = DUMBBELL_SIZES[unit];
-  const fraction = value / sizes[sizes.length - 1];
-  const t = Math.max(0, Math.min(1, fraction));
-  return {
-    radius: 0.078 + 0.125 * Math.pow(t, 0.8),
-    thickness: 0.036 + 0.052 * t,
-    collarRadius: 0.052 + 0.085 * Math.pow(t, 0.8),
-    collarThick: 0.01,
-  };
-}
-
-function headGeometry(radius: number, thickness: number): THREE.BufferGeometry {
-  const key = `${radius.toFixed(4)}:${thickness.toFixed(4)}`;
+/**
+ * Thick urethane puck: flat faces, cylindrical sidewall, 4–5 mm chamfer.
+ * Profile taken from the side-on gym reference (rounded-rect silhouette).
+ */
+function headGeometry(radius: number, thickness: number, chamfer: number) {
+  const key = `${radius.toFixed(3)}:${thickness.toFixed(3)}:${chamfer.toFixed(3)}`;
   const hit = headGeoCache.get(key);
   if (hit) return hit;
   const half = thickness / 2;
-  const points = [
-    new THREE.Vector2(0.004, -half),
-    new THREE.Vector2(radius * 0.92, -half),
-    new THREE.Vector2(radius, -half * 0.45),
-    new THREE.Vector2(radius, half * 0.45),
-    new THREE.Vector2(radius * 0.92, half),
-    new THREE.Vector2(0.004, half),
-  ];
-  const geo = new THREE.LatheGeometry(points, 28);
-  geo.rotateZ(Math.PI / 2);
+  const ch = Math.min(chamfer * 1.15, half * 0.42, radius * 0.14);
+  const points: THREE.Vector2[] = [];
+  const push = (x: number, y: number) => points.push(new THREE.Vector2(x, y));
+
+  push(DB_HANDLE_R * 1.02, -half);
+  push(radius - ch, -half);
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * (Math.PI / 2);
+    push(radius - ch + Math.sin(a) * ch, -half + ch - Math.cos(a) * ch);
+  }
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * (Math.PI / 2);
+    push(radius - (1 - Math.cos(a)) * ch, half - ch + Math.sin(a) * ch);
+  }
+  push(radius - ch, half);
+  push(DB_HANDLE_R * 1.02, half);
+
+  const geo = alongX(new THREE.LatheGeometry(points, SEG));
+  geo.userData.shared = true;
   headGeoCache.set(key, geo);
   return geo;
 }
@@ -50,95 +61,90 @@ export function createDumbbellModel(): THREE.Group {
   const root = new THREE.Group();
   root.name = "MIRIN Dumbbell";
 
-  const steel = steelMaterial("db-steel");
+  const chrome = steelMaterial("db-steel");
+  const knurl = knurlMaterial();
+  const rubber = headMaterial();
+  const collarMat = collarMaterial();
   const owned: THREE.BufferGeometry[] = [];
 
-  const handleLen = HANDLE_HALF * 2;
-  const handleGeo = new THREE.CylinderGeometry(
-    HANDLE_RADIUS,
-    HANDLE_RADIUS,
-    handleLen,
-    20,
+  const knurlLen = DB_HANDLE_LEN - 0.4;
+  const knurlGeo = alongX(
+    new THREE.CylinderGeometry(DB_HANDLE_R, DB_HANDLE_R, knurlLen, SEG),
   );
-  handleGeo.rotateZ(Math.PI / 2);
-  owned.push(handleGeo);
-  const handle = new THREE.Mesh(handleGeo, steel);
+  owned.push(knurlGeo);
+  const handle = new THREE.Mesh(knurlGeo, knurl);
   handle.name = "handle";
   root.add(handle);
 
-  const headL = new THREE.Group();
+  const polishLen = (DB_HANDLE_LEN - knurlLen) / 2 + 0.15;
+  const polishGeo = alongX(
+    new THREE.CylinderGeometry(
+      DB_HANDLE_R * 0.98,
+      DB_HANDLE_R * 0.98,
+      polishLen,
+      48,
+    ),
+  );
+  owned.push(polishGeo);
+  const polishL = new THREE.Mesh(polishGeo, chrome);
+  polishL.position.x = -(knurlLen / 2 + polishLen / 2 - 0.08);
+  polishL.name = "polishLeft";
+  root.add(polishL);
+  const polishR = polishL.clone();
+  polishR.position.x = knurlLen / 2 + polishLen / 2 - 0.08;
+  polishR.name = "polishRight";
+  root.add(polishR);
+
+  const collarGeo = alongX(
+    new THREE.CylinderGeometry(DB_COLLAR_R, DB_COLLAR_R * 1.04, DB_COLLAR_T, 48),
+  );
+  owned.push(collarGeo);
+  const collarL = new THREE.Mesh(collarGeo, collarMat);
+  collarL.position.x = -(DB_HANDLE_LEN / 2 + DB_COLLAR_T / 2);
+  collarL.name = "collarLeft";
+  root.add(collarL);
+  const collarR = collarL.clone();
+  collarR.position.x = DB_HANDLE_LEN / 2 + DB_COLLAR_T / 2;
+  collarR.name = "collarRight";
+  root.add(collarR);
+
+  const headL = new THREE.Mesh();
+  headL.material = rubber;
   headL.name = "headLeft";
   root.add(headL);
-  const headR = new THREE.Group();
+  const headR = new THREE.Mesh();
+  headR.material = rubber;
   headR.name = "headRight";
   root.add(headR);
 
-  const collarL = new THREE.Mesh();
-  collarL.name = "collarLeft";
-  const collarR = new THREE.Mesh();
-  collarR.name = "collarRight";
-  const collarMat = collarMaterial();
-  collarL.material = collarMat;
-  collarR.material = collarMat;
-  root.add(collarL, collarR);
-
-  const headMat = headMaterial();
-  const collarGeos: THREE.BufferGeometry[] = [];
+  const shadow = addContactShadow(root, 1, 1, -8);
 
   const setWeight = (value: number, unit: Unit) => {
-    const { radius, thickness, collarRadius, collarThick } = headWorldDims(
-      value,
-      unit,
-    );
-    const geo = headGeometry(radius, thickness);
-
-    while (headL.children.length) headL.remove(headL.children[0]);
-    while (headR.children.length) headR.remove(headR.children[0]);
-
-    const meshL = new THREE.Mesh(geo, headMat);
-    const meshR = new THREE.Mesh(geo, headMat);
-    headL.add(meshL);
-    headR.add(meshR);
-
-    const headX = HANDLE_HALF + COLLAR_GAP + collarThick + thickness / 2;
+    const { radius, thickness, chamfer } = dumbbellHeadDims(value, unit);
+    const geo = headGeometry(radius, thickness, chamfer);
+    headL.geometry = geo;
+    headR.geometry = geo;
+    const headX = DB_HANDLE_LEN / 2 + DB_COLLAR_T + thickness / 2;
     headL.position.x = -headX;
     headR.position.x = headX;
-
-    for (const g of collarGeos) g.dispose();
-    collarGeos.length = 0;
-    const cGeo = new THREE.CylinderGeometry(
-      collarRadius,
-      collarRadius,
-      collarThick,
-      20,
-    );
-    cGeo.rotateZ(Math.PI / 2);
-    collarGeos.push(cGeo);
-    collarL.geometry = cGeo;
-    collarR.geometry = cGeo;
-    const collarX = HANDLE_HALF + COLLAR_GAP + collarThick / 2;
-    collarL.position.x = -collarX;
-    collarR.position.x = collarX;
-  };
-
-  const nodes: Record<string, THREE.Object3D> = {
-    root,
-    handle,
-    headLeft: headL,
-    headRight: headR,
-    collarLeft: collarL,
-    collarRight: collarR,
+    shadow.scale.set(headX + thickness / 2, 1, radius);
+    shadow.position.y = -radius * 0.96;
   };
 
   const runtime: DumbbellRuntime = {
-    nodes,
+    nodes: {
+      root,
+      handle,
+      headLeft: headL,
+      headRight: headR,
+      collarLeft: collarL,
+      collarRight: collarR,
+    },
     setWeight,
     dispose: () => {
       for (const geo of owned) geo.dispose();
-      for (const geo of collarGeos) geo.dispose();
     },
   };
-
   root.userData.sculptRuntime = runtime;
   return root;
 }

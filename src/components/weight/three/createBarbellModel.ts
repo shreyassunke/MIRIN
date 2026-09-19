@@ -1,79 +1,52 @@
 import * as THREE from "three";
-import { PLATE_SIZES, plateColor, type Unit } from "../../../lib/units";
+import { plateColor, type Unit } from "../../../lib/units";
 import {
-  collarMaterial,
-  hubMaterial,
+  addContactShadow,
   knurlMaterial,
   plateMaterial,
   steelMaterial,
 } from "./materials";
+import {
+  alongX,
+  BAR_LEN,
+  COLLAR_X,
+  PLATE_GAP,
+  plateWorldDims,
+  SHAFT_R,
+  SLEEVE_LEN,
+  SLEEVE_R,
+} from "./scale";
+import { addPlateFaces } from "./stamp";
 
-export const SHAFT_RADIUS = 0.022;
-export const SLEEVE_RADIUS = 0.034;
-export const COLLAR_X = 0.43;
-export const COLLAR_RADIUS = 0.048;
-export const COLLAR_THICK = 0.018;
-export const SLEEVE_END = 1.08;
-export const SLEEVE_INSET = 0.01;
-export const PLATE_GAP = 0.008;
 export const SETTLE_MS = 160;
-
+const SEG = 64;
 const plateGeoCache = new Map<string, THREE.BufferGeometry>();
-const hubGeoCache = new Map<string, THREE.BufferGeometry>();
 
-/** Same growth curve as the SVG `plateDims`, mapped into world units. */
-export function plateWorldDims(value: number, unit: Unit) {
-  const max = PLATE_SIZES[unit][0];
-  const t = Math.max(0, Math.min(1, value / max));
-  return {
-    radius: 0.13 + 0.2 * Math.pow(t, 0.75),
-    thickness: 0.02 + 0.034 * t,
-  };
-}
-
-function plateGeometry(radius: number, thickness: number): THREE.BufferGeometry {
-  const key = `${radius.toFixed(4)}:${thickness.toFixed(4)}`;
+function bumperGeometry(radius: number, thickness: number, hole: number) {
+  const key = `${radius.toFixed(3)}:${thickness.toFixed(3)}:${hole.toFixed(3)}`;
   const hit = plateGeoCache.get(key);
   if (hit) return hit;
   const half = thickness / 2;
-  const inner = radius * 0.18;
-  const points = [
-    new THREE.Vector2(inner, -half),
-    new THREE.Vector2(radius * 0.94, -half),
-    new THREE.Vector2(radius, -half * 0.42),
-    new THREE.Vector2(radius, half * 0.42),
-    new THREE.Vector2(radius * 0.94, half),
-    new THREE.Vector2(inner, half),
-  ];
-  const geo = new THREE.LatheGeometry(points, 28);
-  geo.rotateZ(Math.PI / 2);
-  plateGeoCache.set(key, geo);
-  return geo;
-}
+  const bevel = Math.min(0.18, half * 0.18, radius * 0.02);
+  const points: THREE.Vector2[] = [];
+  const push = (x: number, y: number) => points.push(new THREE.Vector2(x, y));
 
-function hubGeometry(radius: number, thickness: number): THREE.BufferGeometry {
-  const key = `${radius.toFixed(4)}:${thickness.toFixed(4)}`;
-  const hit = hubGeoCache.get(key);
-  if (hit) return hit;
-  const geo = new THREE.CylinderGeometry(
-    radius * 0.22,
-    radius * 0.22,
-    thickness * 1.04,
-    16,
-  );
-  geo.rotateZ(Math.PI / 2);
-  hubGeoCache.set(key, geo);
+  push(hole, -half);
+  push(hole, half);
+  push(radius - bevel, half);
+  push(radius, half - bevel);
+  push(radius, -half + bevel);
+  push(radius - bevel, -half);
+
+  const geo = alongX(new THREE.LatheGeometry(points, SEG));
+  geo.userData.shared = true;
+  plateGeoCache.set(key, geo);
   return geo;
 }
 
 function easeOutExpo(t: number) {
   return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
 }
-
-export type PlateHit = {
-  index: number;
-  mesh: THREE.Object3D;
-};
 
 export type BarbellRuntime = {
   nodes: Record<string, THREE.Object3D>;
@@ -89,82 +62,71 @@ type Slot = {
   restX: number;
   startX: number;
   born: number;
-  index: number;
 };
+
+function disposePlate(group: THREE.Object3D) {
+  group.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    if (!child.geometry.userData.shared) child.geometry.dispose();
+    const mat = child.material;
+    if (mat && !Array.isArray(mat) && mat.transparent && !mat.name) mat.dispose();
+  });
+}
 
 export function createBarbellModel(): THREE.Group {
   const root = new THREE.Group();
   root.name = "MIRIN Loaded Barbell";
 
-  const steel = steelMaterial();
+  const chrome = steelMaterial();
+  const knurlMat = knurlMaterial();
   const owned: THREE.BufferGeometry[] = [];
 
-  const shaftLen = COLLAR_X * 2 + 0.02;
-  const shaftGeo = new THREE.CylinderGeometry(
-    SHAFT_RADIUS,
-    SHAFT_RADIUS,
-    shaftLen,
-    20,
+  const shaftLen = COLLAR_X * 2;
+  const shaftGeo = alongX(
+    new THREE.CylinderGeometry(SHAFT_R, SHAFT_R, shaftLen, 48),
   );
-  shaftGeo.rotateZ(Math.PI / 2);
   owned.push(shaftGeo);
-  const shaft = new THREE.Mesh(shaftGeo, steel);
+  const shaft = new THREE.Mesh(shaftGeo, chrome);
   shaft.name = "shaft";
   root.add(shaft);
 
-  const knurlGeo = new THREE.CylinderGeometry(
-    SHAFT_RADIUS * 1.08,
-    SHAFT_RADIUS * 1.08,
-    0.16,
-    16,
-  );
-  knurlGeo.rotateZ(Math.PI / 2);
-  owned.push(knurlGeo);
-  const knurlMat = knurlMaterial();
-  const knurlL = new THREE.Mesh(knurlGeo, knurlMat);
-  knurlL.position.x = -0.18;
-  knurlL.name = "knurlLeft";
-  root.add(knurlL);
-  const knurlR = knurlL.clone();
-  knurlR.position.x = 0.18;
-  knurlR.name = "knurlRight";
-  root.add(knurlR);
+  const knurlLen = 22;
+  for (const x of [-28, 0, 28]) {
+    const geo = alongX(
+      new THREE.CylinderGeometry(SHAFT_R * 1.04, SHAFT_R * 1.04, knurlLen, 48),
+    );
+    owned.push(geo);
+    const band = new THREE.Mesh(geo, knurlMat);
+    band.position.x = x;
+    band.name = `knurl-${x}`;
+    root.add(band);
+  }
 
-  const sleeveLen = SLEEVE_END - COLLAR_X;
-  const sleeveGeo = new THREE.CylinderGeometry(
-    SLEEVE_RADIUS,
-    SLEEVE_RADIUS,
-    sleeveLen,
-    20,
+  const sleeveGeo = alongX(
+    new THREE.CylinderGeometry(SLEEVE_R, SLEEVE_R, SLEEVE_LEN, 48),
   );
-  sleeveGeo.rotateZ(Math.PI / 2);
   owned.push(sleeveGeo);
-  const sleeveL = new THREE.Mesh(sleeveGeo, steel);
-  sleeveL.position.x = -(COLLAR_X + sleeveLen / 2);
+  const sleeveL = new THREE.Mesh(sleeveGeo, chrome);
+  sleeveL.position.x = -(COLLAR_X + SLEEVE_LEN / 2);
   sleeveL.name = "sleeveLeft";
   root.add(sleeveL);
   const sleeveR = sleeveL.clone();
-  sleeveR.position.x = COLLAR_X + sleeveLen / 2;
+  sleeveR.position.x = COLLAR_X + SLEEVE_LEN / 2;
   sleeveR.name = "sleeveRight";
   root.add(sleeveR);
 
-  const collarGeo = new THREE.CylinderGeometry(
-    COLLAR_RADIUS,
-    COLLAR_RADIUS,
-    COLLAR_THICK,
-    24,
+  const capGeo = alongX(
+    new THREE.CylinderGeometry(SLEEVE_R * 1.05, SLEEVE_R * 0.92, 1.2, 32),
   );
-  collarGeo.rotateZ(Math.PI / 2);
-  owned.push(collarGeo);
-  const collarMat = collarMaterial();
-  const collarL = new THREE.Mesh(collarGeo, collarMat);
-  collarL.position.x = -COLLAR_X;
-  collarL.name = "collarLeft";
-  root.add(collarL);
-  const collarR = collarL.clone();
-  collarR.position.x = COLLAR_X;
-  collarR.name = "collarRight";
-  root.add(collarR);
+  owned.push(capGeo);
+  const capL = new THREE.Mesh(capGeo, chrome);
+  capL.position.x = -BAR_LEN / 2;
+  capL.name = "sleeveCapLeft";
+  root.add(capL);
+  const capR = capL.clone();
+  capR.position.x = BAR_LEN / 2;
+  capR.name = "sleeveCapRight";
+  root.add(capR);
 
   const socketL = new THREE.Group();
   socketL.name = "socketPlateLeft";
@@ -173,41 +135,50 @@ export function createBarbellModel(): THREE.Group {
   socketR.name = "socketPlateRight";
   root.add(socketR);
 
+  const shadow = addContactShadow(root, 1, 1, -24);
+
   const plateMeshes: THREE.Object3D[] = [];
   const slots: Slot[] = [];
-  const hubMat = hubMaterial();
 
   const setPlates = (plates: number[], unit: Unit, animate: boolean) => {
-    while (socketL.children.length) socketL.remove(socketL.children[0]);
-    while (socketR.children.length) socketR.remove(socketR.children[0]);
+    while (socketL.children.length) {
+      const child = socketL.children[0];
+      socketL.remove(child);
+      disposePlate(child);
+    }
+    while (socketR.children.length) {
+      const child = socketR.children[0];
+      socketR.remove(child);
+      disposePlate(child);
+    }
     plateMeshes.length = 0;
     slots.length = 0;
 
-    let cursor = SLEEVE_INSET;
+    const shoulder = COLLAR_X;
+    let cursor = PLATE_GAP;
     const now = performance.now();
+    let maxR = 8;
     plates.forEach((value, index) => {
-      const { radius, thickness } = plateWorldDims(value, unit);
+      const { radius, thickness, hole } = plateWorldDims(value, unit);
+      maxR = Math.max(maxR, radius);
       const rest = cursor + thickness / 2;
-      const start = animate ? rest + 0.08 + index * 0.012 : rest;
-      const color = plateColor(unit, value);
-      const geo = plateGeometry(radius, thickness);
-      const mat = plateMaterial(color);
-      const hubGeo = hubGeometry(radius, thickness);
+      const start = animate ? rest + 8 + index * 1.2 : rest;
+      const hex = plateColor(unit, value);
+      const geo = bumperGeometry(radius, thickness, hole);
+      const mat = plateMaterial(hex);
 
       const left = new THREE.Group();
-      const leftPlate = new THREE.Mesh(geo, mat);
-      const leftHub = new THREE.Mesh(hubGeo, hubMat);
-      left.add(leftPlate, leftHub);
-      left.position.x = -COLLAR_X - start;
+      left.add(new THREE.Mesh(geo, mat));
+      addPlateFaces(left, value, hex, radius, thickness / 2 - 0.04);
+      left.position.x = -(shoulder + start);
       left.userData.plateIndex = index;
       left.name = `plateL-${index}`;
       socketL.add(left);
 
       const right = new THREE.Group();
-      const rightPlate = new THREE.Mesh(geo, mat);
-      const rightHub = new THREE.Mesh(hubGeo, hubMat);
-      right.add(rightPlate, rightHub);
-      right.position.x = COLLAR_X + start;
+      right.add(new THREE.Mesh(geo, mat));
+      addPlateFaces(right, value, hex, radius, thickness / 2 - 0.04);
+      right.position.x = shoulder + start;
       right.userData.plateIndex = index;
       right.name = `plateR-${index}`;
       socketR.add(right);
@@ -216,21 +187,22 @@ export function createBarbellModel(): THREE.Group {
       slots.push(
         {
           mesh: left,
-          restX: -COLLAR_X - rest,
-          startX: -COLLAR_X - start,
+          restX: -(shoulder + rest),
+          startX: -(shoulder + start),
           born: now,
-          index,
         },
         {
           mesh: right,
-          restX: COLLAR_X + rest,
-          startX: COLLAR_X + start,
+          restX: shoulder + rest,
+          startX: shoulder + start,
           born: now,
-          index,
         },
       );
       cursor += thickness + PLATE_GAP;
     });
+
+    shadow.scale.set(BAR_LEN * 0.55, 1, maxR * 1.1);
+    shadow.position.y = -maxR * 0.98;
   };
 
   const tick = (now: number) => {
@@ -238,7 +210,7 @@ export function createBarbellModel(): THREE.Group {
     for (const slot of slots) {
       const t = easeOutExpo(Math.min(1, (now - slot.born) / SETTLE_MS));
       const x = slot.startX + (slot.restX - slot.startX) * t;
-      if (Math.abs(slot.mesh.position.x - x) > 1e-5) {
+      if (Math.abs(slot.mesh.position.x - x) > 1e-4) {
         slot.mesh.position.x = x;
         dirty = true;
       }
@@ -246,21 +218,15 @@ export function createBarbellModel(): THREE.Group {
     return dirty;
   };
 
-  const nodes: Record<string, THREE.Object3D> = {
-    root,
-    shaft,
-    sleeveLeft: sleeveL,
-    sleeveRight: sleeveR,
-    collarLeft: collarL,
-    collarRight: collarR,
-    knurlLeft: knurlL,
-    knurlRight: knurlR,
-    socketPlateLeft: socketL,
-    socketPlateRight: socketR,
-  };
-
   const runtime: BarbellRuntime = {
-    nodes,
+    nodes: {
+      root,
+      shaft,
+      sleeveLeft: sleeveL,
+      sleeveRight: sleeveR,
+      socketPlateLeft: socketL,
+      socketPlateRight: socketR,
+    },
     sockets: { plateLeft: socketL, plateRight: socketR },
     plateMeshes,
     setPlates,
@@ -269,7 +235,6 @@ export function createBarbellModel(): THREE.Group {
       for (const geo of owned) geo.dispose();
     },
   };
-
   root.userData.sculptRuntime = runtime;
   return root;
 }

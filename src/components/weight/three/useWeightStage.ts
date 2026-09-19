@@ -10,10 +10,11 @@ import {
   requestFrames,
   type FrameFn,
 } from "./stage";
+import { fitOrthoCamera } from "./scale";
 
-const YAW_MAX = THREE.MathUtils.degToRad(8);
-const PITCH_MAX = THREE.MathUtils.degToRad(5);
-export const TAP_PX = 6;
+const PITCH_MAX = THREE.MathUtils.degToRad(80);
+/** Movement below this is a tap. Past it, vertical intent scrolls the page; horizontal intent orbits. */
+export const TAP_PX = 12;
 
 export function prefersReducedMotion() {
   return (
@@ -24,31 +25,36 @@ export function prefersReducedMotion() {
 
 type AttachFn = (pivot: THREE.Group) => () => void;
 
+type DragStart = {
+  x: number;
+  y: number;
+  yaw: number;
+  pitch: number;
+  pointerId: number;
+  captured: boolean;
+  discarded: boolean;
+};
+
 export function useWeightStage(opts: {
-  cameraZ: number;
-  cameraX?: number;
-  cameraY?: number;
-  restYaw?: number;
-  restPitch?: number;
   attach: AttachFn;
   extraFrame?: FrameFn;
   onTap?: (ndc: THREE.Vector2, camera: THREE.Camera) => void;
+  padding?: number;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const pivotRef = useRef<THREE.Group | null>(null);
-  const restYaw = opts.restYaw ?? 0;
-  const restPitch = opts.restPitch ?? 0;
-  const yaw = useRef(restYaw);
-  const pitch = useRef(restPitch);
-  const targetYaw = useRef(restYaw);
-  const targetPitch = useRef(restPitch);
-  const pointerDown = useRef<{ x: number; y: number } | null>(null);
+  const yaw = useRef(0);
+  const pitch = useRef(0);
+  const targetYaw = useRef(0);
+  const targetPitch = useRef(0);
+  const drag = useRef<DragStart | null>(null);
   const attachRef = useRef(opts.attach);
   const extraRef = useRef(opts.extraFrame);
   const tapRef = useRef(opts.onTap);
+  const padding = opts.padding ?? 1.15;
   attachRef.current = opts.attach;
   extraRef.current = opts.extraFrame;
   tapRef.current = opts.onTap;
@@ -60,29 +66,45 @@ export function useWeightStage(opts: {
     renderNow(scene, camera);
   }, []);
 
+  const fit = useCallback(() => {
+    const camera = cameraRef.current;
+    const pivot = pivotRef.current;
+    const host = hostRef.current;
+    if (!camera || !pivot || !host) return;
+    const w = host.clientWidth;
+    const h = host.clientHeight;
+    if (w < 2 || h < 2) return;
+    configureSize(w, h);
+    const rot = pivot.rotation.clone();
+    pivot.rotation.set(0, 0, 0);
+    pivot.updateWorldMatrix(true, true);
+    fitOrthoCamera(camera, pivot, w, h, padding);
+    pivot.rotation.copy(rot);
+    requestRender();
+  }, [padding, requestRender]);
+
   const spring: FrameFn = useCallback(
     (now) => {
       const extra = extraRef.current?.(now) ?? false;
-      const reduced = prefersReducedMotion();
-      if (reduced) {
-        yaw.current = restYaw;
-        pitch.current = restPitch;
-        targetYaw.current = restYaw;
-        targetPitch.current = restPitch;
+      if (prefersReducedMotion()) {
+        yaw.current = 0;
+        pitch.current = 0;
+        targetYaw.current = 0;
+        targetPitch.current = 0;
       } else {
-        yaw.current += (targetYaw.current - yaw.current) * 0.16;
-        pitch.current += (targetPitch.current - pitch.current) * 0.16;
+        yaw.current += (targetYaw.current - yaw.current) * 0.28;
+        pitch.current += (targetPitch.current - pitch.current) * 0.28;
       }
       const pivot = pivotRef.current;
       if (pivot) pivot.rotation.set(pitch.current, yaw.current, 0);
       requestRender();
       const settling =
-        !reduced &&
+        !prefersReducedMotion() &&
         (Math.abs(targetYaw.current - yaw.current) > 0.0004 ||
           Math.abs(targetPitch.current - pitch.current) > 0.0004);
-      return extra || settling;
+      return extra || settling || !!drag.current;
     },
-    [requestRender, restPitch, restYaw],
+    [requestRender],
   );
 
   const kick = useCallback(() => {
@@ -96,9 +118,7 @@ export function useWeightStage(opts: {
     canvasRef.current = canvas;
 
     const scene = createInstrumentScene();
-    const camera = new THREE.PerspectiveCamera(28, 3.4, 0.08, 20);
-    camera.position.set(opts.cameraX ?? 0, opts.cameraY ?? 0, opts.cameraZ);
-    camera.lookAt(0, 0, 0);
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 400);
     const pivot = new THREE.Group();
     scene.add(pivot);
 
@@ -107,19 +127,10 @@ export function useWeightStage(opts: {
     pivotRef.current = pivot;
 
     const detach = attachRef.current(pivot);
+    fit();
 
-    const size = () => {
-      const w = host.clientWidth;
-      const h = host.clientHeight;
-      if (w < 2 || h < 2) return;
-      configureSize(w, h);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      requestRender();
-    };
-    const ro = new ResizeObserver(size);
+    const ro = new ResizeObserver(fit);
     ro.observe(host);
-    size();
     kick();
 
     return () => {
@@ -133,39 +144,64 @@ export function useWeightStage(opts: {
       pivotRef.current = null;
       canvasRef.current = null;
     };
-  }, [kick, opts.cameraX, opts.cameraY, opts.cameraZ, requestRender, spring]);
+  }, [fit, kick, spring]);
 
-  const aimFromEvent = (e: PointerEvent) => {
-    if (prefersReducedMotion()) return;
-    const host = hostRef.current;
-    if (!host) return;
-    const rect = host.getBoundingClientRect();
-    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1;
-    targetYaw.current = restYaw + nx * YAW_MAX;
-    targetPitch.current = restPitch - ny * PITCH_MAX;
-    kick();
+  const onPointerDown = (e: PointerEvent) => {
+    drag.current = {
+      x: e.clientX,
+      y: e.clientY,
+      yaw: targetYaw.current,
+      pitch: targetPitch.current,
+      pointerId: e.pointerId,
+      captured: false,
+      discarded: false,
+    };
   };
 
   const onPointerMove = (e: PointerEvent) => {
-    if (pointerDown.current) aimFromEvent(e);
-  };
+    const start = drag.current;
+    if (!start || start.discarded) return;
+    const host = hostRef.current;
+    if (!host) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
 
-  const onPointerDown = (e: PointerEvent) => {
-    pointerDown.current = { x: e.clientX, y: e.clientY };
+    if (!start.captured) {
+      if (Math.hypot(dx, dy) <= TAP_PX) return;
+      // Vertical intent belongs to the page. Do not capture.
+      if (Math.abs(dy) >= Math.abs(dx) || prefersReducedMotion()) {
+        start.discarded = true;
+        return;
+      }
+      start.captured = true;
+      host.setPointerCapture(e.pointerId);
+      kick();
+    }
+
+    e.preventDefault();
+    const rect = host.getBoundingClientRect();
+    targetYaw.current = start.yaw + (dx / Math.max(rect.width, 1)) * Math.PI * 2;
+    targetPitch.current = THREE.MathUtils.clamp(
+      start.pitch + (dy / Math.max(rect.height, 1)) * Math.PI,
+      -PITCH_MAX,
+      PITCH_MAX,
+    );
+    kick();
   };
 
   const onPointerUp = (e: PointerEvent) => {
-    const start = pointerDown.current;
-    pointerDown.current = null;
-    targetYaw.current = restYaw;
-    targetPitch.current = restPitch;
+    const start = drag.current;
+    drag.current = null;
     kick();
     if (!start) return;
+    const host = hostRef.current as HTMLElement | null;
+    if (host?.hasPointerCapture(e.pointerId)) {
+      host.releasePointerCapture(e.pointerId);
+    }
+    if (start.captured || start.discarded) return;
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
     if (Math.hypot(dx, dy) > TAP_PX) return;
-    const host = hostRef.current;
     const camera = cameraRef.current;
     if (!host || !camera || !tapRef.current) return;
     const rect = host.getBoundingClientRect();
@@ -176,23 +212,17 @@ export function useWeightStage(opts: {
     tapRef.current(ndc, camera);
   };
 
-  const onPointerLeave = () => {
-    pointerDown.current = null;
-    targetYaw.current = restYaw;
-    targetPitch.current = restPitch;
-    kick();
-  };
-
   return {
     hostRef,
     canvasRef,
     cameraRef,
     requestRender: kick,
+    fit,
     pointer: {
       onPointerMove,
       onPointerDown,
       onPointerUp,
-      onPointerLeave,
+      onPointerCancel: onPointerUp,
     },
   };
 }

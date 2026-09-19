@@ -55,28 +55,29 @@ export function LoadedBar3D({ unit, plates, onRemove }: LoadedBar3DProps) {
     };
   }, []);
 
-  const { hostRef, requestRender, pointer } = useWeightStage({
-    cameraZ: 2.05,
+  const { hostRef, requestRender, fit, pointer } = useWeightStage({
     attach,
     extraFrame,
     onTap,
+    padding: 1.15,
   });
 
   useEffect(() => {
     runtimeRef.current?.setPlates(plates, unit, !prefersReducedMotion());
+    fit();
     requestRender();
-  }, [plates, unit, requestRender]);
+  }, [plates, unit, fit, requestRender]);
 
   const label = plates.length
     ? `Bar loaded with ${plates.map((p) => formatWeight(p)).join(", ")} per side`
     : "Empty bar";
 
   return (
-    <div className="relative w-full max-w-80">
+    <div className="relative w-full">
       <div
         ref={hostRef}
-        className="w-full"
-        style={{ height: 92, touchAction: "pan-y" }}
+        className="w-full cursor-grab active:cursor-grabbing"
+        style={{ height: 104, touchAction: "pan-y" }}
         role="img"
         aria-label={label}
         {...pointer}

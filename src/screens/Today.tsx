@@ -1114,7 +1114,7 @@ export function Today() {
                           aria-pressed={activeMode === m.id}
                           onClick={() => setMode(m.id, exercise.id)}
                           className={[
-                            "glass-chip h-10 rounded-pill px-4 text-[13px] font-medium",
+                            "glass-chip h-11 rounded-pill px-4 text-[13px] font-medium",
                             activeMode === m.id
                               ? "glass-chip-active text-ink"
                               : "text-muted hover:text-ink",
@@ -1127,7 +1127,7 @@ export function Today() {
                   </div>
 
                   {/* The number that gets logged, always visible and large */}
-                  <div className="mb-4 text-center">
+                  <div className="mb-4 text-center" aria-live="polite">
                     <span className="tnum text-3xl font-semibold tracking-tight">
                       {formatWeight(totalDisplay)}
                     </span>

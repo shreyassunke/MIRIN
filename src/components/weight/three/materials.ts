@@ -1,111 +1,268 @@
 import * as THREE from "three";
 
-const cache = new Map<string, THREE.MeshStandardMaterial>();
+const matCache = new Map<string, THREE.MeshStandardMaterial>();
+const texCache = new Map<string, THREE.CanvasTexture>();
 
 function remember(id: string, create: () => THREE.MeshStandardMaterial) {
-  const hit = cache.get(id);
+  const hit = matCache.get(id);
   if (hit) return hit;
   const mat = create();
   mat.name = id;
-  cache.set(id, mat);
+  matCache.set(id, mat);
   return mat;
 }
 
-/** Satin shaft / sleeve — DESIGN.md accent, as metal, not a paint fill. */
-export function steelMaterial(id = "steel") {
-  return remember(id, () =>
-    new THREE.MeshStandardMaterial({
-      color: new THREE.Color("#c8c8c8"),
-      metalness: 0.82,
-      roughness: 0.38,
-      envMapIntensity: 0.72,
-    }),
+function canvasTex(
+  id: string,
+  w: number,
+  h: number,
+  draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
+  colorSpace: THREE.ColorSpace = THREE.NoColorSpace,
+): THREE.CanvasTexture {
+  const hit = texCache.get(id);
+  if (hit) return hit;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (ctx) draw(ctx, w, h);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = colorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  texCache.set(id, tex);
+  return tex;
+}
+
+export function knurlBumpMap(): THREE.CanvasTexture {
+  return canvasTex("knurl-bump", 256, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#6a6a6a";
+    ctx.fillRect(0, 0, w, h);
+    const step = 14;
+    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = "#d4d4d4";
+    for (let y = -h; y < h * 2; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y + w);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y - w);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "#3a3a3a";
+    ctx.lineWidth = 1.4;
+    for (let y = -h + 7; y < h * 2; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y + w);
+      ctx.stroke();
+    }
+  });
+}
+
+export function knurlAlbedoMap(): THREE.CanvasTexture {
+  return canvasTex(
+    "knurl-albedo",
+    256,
+    256,
+    (ctx, w, h) => {
+      ctx.fillStyle = "#9a9aa0";
+      ctx.fillRect(0, 0, w, h);
+      const step = 12;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#e8e8ec";
+      for (let y = -h; y < h * 2; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y + w);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y - w);
+        ctx.stroke();
+      }
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = "#5c5c62";
+      for (let y = -h + 6; y < h * 2; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y + w);
+        ctx.stroke();
+      }
+    },
+    THREE.SRGBColorSpace,
   );
 }
 
-export function collarMaterial() {
-  return remember(
-    "collar",
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#b0b0b0"),
-        metalness: 0.78,
-        roughness: 0.44,
-        envMapIntensity: 0.6,
-      }),
-  );
+export function rubberBumpMap(): THREE.CanvasTexture {
+  return canvasTex("rubber-bump", 128, 128, (ctx, w, h) => {
+    const img = ctx.createImageData(w, h);
+    for (let i = 0; i < w * h; i++) {
+      const n = 118 + ((i * 17 + (i % 13) * 31) % 37);
+      img.data[i * 4] = n;
+      img.data[i * 4 + 1] = n;
+      img.data[i * 4 + 2] = n;
+      img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  });
+}
+
+function contactShadowMap(): THREE.CanvasTexture {
+  return canvasTex("contact-shadow", 256, 256, (ctx, w, h) => {
+    const g = ctx.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, w * 0.48);
+    g.addColorStop(0, "rgba(0,0,0,0.5)");
+    g.addColorStop(0.5, "rgba(0,0,0,0.14)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  });
+}
+
+function assignBump(
+  mat: THREE.MeshStandardMaterial,
+  map: THREE.CanvasTexture,
+  sx: number,
+  sy: number,
+  scale: number,
+) {
+  const unique = map.clone();
+  unique.repeat.set(sx, sy);
+  unique.needsUpdate = true;
+  mat.bumpMap = unique;
+  mat.bumpScale = scale;
+}
+
+export function steelMaterial(id = "steel") {
+  return remember(id, () => {
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#d8d8dc"),
+      metalness: 0.9,
+      roughness: 0.3,
+      envMapIntensity: 1.1,
+    });
+  });
 }
 
 export function knurlMaterial() {
-  return remember(
-    "knurl",
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#9c9c9c"),
-        metalness: 0.7,
-        roughness: 0.55,
-        envMapIntensity: 0.45,
-      }),
-  );
+  return remember("knurl", () => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#c4c4c8"),
+      metalness: 0.82,
+      roughness: 0.42,
+      envMapIntensity: 0.85,
+    });
+    const albedo = knurlAlbedoMap().clone();
+    albedo.repeat.set(7, 14);
+    albedo.needsUpdate = true;
+    mat.map = albedo;
+    assignBump(mat, knurlBumpMap(), 7, 14, 0.1);
+    return mat;
+  });
 }
 
-/** Muted plate-convention hue from `PLATE_COLORS`. */
-export function plateMaterial(hex: string) {
-  return remember(
-    `plate:${hex}`,
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color(hex),
-        metalness: 0.16,
-        roughness: 0.58,
-        envMapIntensity: 0.32,
-      }),
-  );
-}
-
-export function hubMaterial() {
-  return remember(
-    "hub",
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#141414"),
-        metalness: 0.04,
-        roughness: 0.84,
-        envMapIntensity: 0.12,
-      }),
-  );
+export function collarMaterial() {
+  return remember("collar", () => {
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#d0d0d4"),
+      metalness: 0.9,
+      roughness: 0.28,
+      envMapIntensity: 1.05,
+    });
+  });
 }
 
 export function headMaterial() {
-  return remember(
-    "head",
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#9a9a9a"),
-        metalness: 0.36,
-        roughness: 0.5,
-        envMapIntensity: 0.4,
-      }),
-  );
+  return remember("head", () => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#1a1a1a"),
+      metalness: 0.1,
+      roughness: 0.72,
+      envMapIntensity: 0.28,
+    });
+    assignBump(mat, rubberBumpMap(), 3.5, 3.5, 0.014);
+    return mat;
+  });
 }
 
-/** Grayscale studio gradient — no HDRI file, no hue. */
+export function plateMaterial(hex: string) {
+  return remember(`plate:${hex}`, () => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(hex),
+      metalness: 0.1,
+      roughness: 0.7,
+      envMapIntensity: 0.32,
+      transparent: false,
+      opacity: 1,
+    });
+    assignBump(mat, rubberBumpMap(), 2.4, 2.4, 0.016);
+    return mat;
+  });
+}
+
+export function hubMaterial() {
+  return remember("hub", () => {
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#b8b8bc"),
+      metalness: 0.9,
+      roughness: 0.35,
+      envMapIntensity: 1,
+    });
+  });
+}
+
+export function addContactShadow(
+  parent: THREE.Object3D,
+  width: number,
+  depth: number,
+  y: number,
+) {
+  const mat = new THREE.MeshBasicMaterial({
+    map: contactShadowMap(),
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.7,
+    toneMapped: false,
+  });
+  const geo = new THREE.PlaneGeometry(width, depth);
+  geo.rotateX(-Math.PI / 2);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = y;
+  mesh.name = "contactShadow";
+  mesh.renderOrder = 0;
+  mesh.raycast = () => {};
+  parent.add(mesh);
+  return mesh;
+}
+
 export function createEnvironment(): THREE.DataTexture {
-  const w = 64;
-  const h = 32;
+  const w = 256;
+  const h = 128;
   const data = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) {
     const v = y / (h - 1);
-    const lift = (1 - v) * 30;
-    const r = 16 + lift;
-    const g = 16 + lift;
-    const b = 18 + lift * 1.05;
     for (let x = 0; x < w; x++) {
-      const n = Math.sin(x * 0.38) * 5;
+      const u = x / (w - 1);
       const i = (y * w + x) * 4;
-      data[i] = Math.max(0, Math.min(255, r + n));
-      data[i + 1] = Math.max(0, Math.min(255, g + n));
-      data[i + 2] = Math.max(0, Math.min(255, b + n * 1.15));
+      const floor = 12 + (1 - v) * 8;
+      const sky = 24 + v * 32;
+      let lum = v < 0.42 ? floor : sky;
+      const box =
+        Math.exp(-Math.pow((u - 0.5) * 2.4, 2) * 2) *
+        Math.exp(-Math.pow((v - 0.78) * 4.2, 2));
+      lum += box * 180;
+      const fill =
+        Math.exp(-Math.pow((u - 0.12) * 4.5, 2)) *
+        Math.exp(-Math.pow((v - 0.55) * 2.8, 2));
+      lum += fill * 70;
+      const k = Math.max(10, Math.min(255, lum));
+      data[i] = k;
+      data[i + 1] = k;
+      data[i + 2] = Math.min(255, k + 2);
       data[i + 3] = 255;
     }
   }
@@ -116,19 +273,18 @@ export function createEnvironment(): THREE.DataTexture {
   return tex;
 }
 
-/** Key / fill / rim — grayscale only, instrument lighting on near-black. */
 export function addInstrumentLights(scene: THREE.Scene) {
-  const key = new THREE.DirectionalLight(0xfafafa, 1.55);
-  key.position.set(-0.85, 1.15, 1.45);
+  const key = new THREE.DirectionalLight(0xf2f2f2, 1.35);
+  key.position.set(-0.6, 1.8, 2.2);
   scene.add(key);
 
-  const fill = new THREE.DirectionalLight(0xc4c4c4, 0.4);
-  fill.position.set(0.7, -0.45, 0.85);
+  const fill = new THREE.DirectionalLight(0xc8c8c8, 0.45);
+  fill.position.set(1.4, 0.4, 0.8);
   scene.add(fill);
 
-  const rim = new THREE.DirectionalLight(0xffffff, 0.62);
-  rim.position.set(0.35, 0.28, -1.25);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.55);
+  rim.position.set(0.1, 0.6, -1.8);
   scene.add(rim);
 
-  scene.add(new THREE.AmbientLight(0x8a8a8a, 0.2));
+  scene.add(new THREE.AmbientLight(0x7a7a7a, 0.28));
 }

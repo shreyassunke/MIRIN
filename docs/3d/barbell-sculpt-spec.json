@@ -1,0 +1,186 @@
+{
+  "targetName": "MIRIN Loaded Barbell",
+  "targetId": "mirin-loaded-barbell",
+  "schemaVersion": "2.1",
+  "sourceImage": "docs/reference/barbell-loaded-bar.png",
+  "suitability": "conditional",
+  "scores": {
+    "object_isolation": 3,
+    "silhouette_readability": 3,
+    "depth_inference": 1,
+    "primitive_decomposition": 3,
+    "material_procedurality": 2,
+    "occlusion_risk": 2,
+    "interaction_fit": 3
+  },
+  "referenceCamera": {
+    "solved": false,
+    "fovDegrees": 28,
+    "aspect": 3.48,
+    "orientation": { "yaw": 12, "pitch": 8, "roll": 0 },
+    "positionHint": [0.2, 0.18, 2.35],
+    "note": "Orthographic line-art side view. Review camera is a low-FOV three-quarter so the instrument reads as dimensional on #0a0a0a. Hidden faces (top, bottom, back of plates) are inferred by revolution, not invented detail."
+  },
+  "preSpecAssessment": {
+    "objectClass": {
+      "primaryType": "olympic barbell with loadable plates",
+      "primaryDomain": "object",
+      "formLanguage": ["revolved", "hard-surface", "axial"],
+      "structureKind": ["rigid-bar", "sleeved-ends", "collared", "stacked-discs"],
+      "motionPotential": ["plate-add-remove", "parallax-tilt"],
+      "materialFamilies": ["satin-steel", "matte-cast-plate", "near-black-hub"],
+      "notes": "Reference is MIRIN's own 2D line-art: thin silver shaft, two dark filled plates, two inner collar ticks, black field. Real barbell structure (knurl bands, sleeve, plate bevel, hub bore) is dimensional inference at low confidence."
+    },
+    "complexity": {
+      "tier": "moderate",
+      "reasoning": [
+        "Macro: shaft, two sleeves, two collars, parametric plate stacks.",
+        "Meso: knurl bands, plate bevel/rim, hub bore.",
+        "Plates are a repetition system driven by live picker state, not a fixed stack."
+      ],
+      "estimatedCounts": {
+        "macroComponents": 5,
+        "mesoComponents": 4,
+        "microFeatureGroups": 2,
+        "materialLayers": 3,
+        "repetitionSystems": 1
+      }
+    },
+    "specDepthDecision": {
+      "requiredDepth": "moderate",
+      "minimumComponentLevels": ["macro", "meso"],
+      "needsRepetitionSystems": true,
+      "needsActionReadyHierarchy": true,
+      "rationale": "Parametric plate sockets are the product feature. Static reconstruction of the empty two-plate drawing would be wrong."
+    },
+    "unknownsToResolveBeforeImplementation": [],
+    "detailInventory": {
+      "scanMethod": "grid-3x3",
+      "targetMinDetails": 6,
+      "details": [
+        {
+          "id": "shaft-line",
+          "kind": "contour",
+          "description": "Hairline silver shaft spanning the full width, stroke #d4d4d4, round cap.",
+          "priority": "critical",
+          "componentRef": "shaft",
+          "materialRef": "satinSteel",
+          "confidence": 0.95,
+          "realization": "cylinder primitive, satin steel"
+        },
+        {
+          "id": "left-plate",
+          "kind": "volume",
+          "description": "Dark filled rounded rectangle, taller than the shaft, faint cool-gray stroke.",
+          "priority": "critical",
+          "componentRef": "plateStack",
+          "materialRef": "plateBody",
+          "confidence": 0.9,
+          "realization": "lathed disc; diameter/thickness from plateDims curve"
+        },
+        {
+          "id": "right-plate",
+          "kind": "volume",
+          "description": "Mirror of the left plate across the shaft midpoint.",
+          "priority": "critical",
+          "componentRef": "plateStack",
+          "materialRef": "plateBody",
+          "confidence": 0.9,
+          "realization": "mirrored instance on right socket"
+        },
+        {
+          "id": "left-collar",
+          "kind": "fastener",
+          "description": "Short vertical tick just inside the left plate.",
+          "priority": "important",
+          "componentRef": "collarLeft",
+          "materialRef": "satinSteel",
+          "confidence": 0.85,
+          "realization": "short collar cylinder at x=-COLLAR_X"
+        },
+        {
+          "id": "right-collar",
+          "kind": "fastener",
+          "description": "Mirror collar tick inside the right plate.",
+          "priority": "important",
+          "componentRef": "collarRight",
+          "materialRef": "satinSteel",
+          "confidence": 0.85,
+          "realization": "short collar cylinder at x=+COLLAR_X"
+        },
+        {
+          "id": "sleeve-overhang",
+          "kind": "contour",
+          "description": "Shaft continues past each plate to the frame edge.",
+          "priority": "important",
+          "componentRef": "sleeveLeft",
+          "materialRef": "satinSteel",
+          "confidence": 0.8,
+          "realization": "sleeves from collar to bar end"
+        },
+        {
+          "id": "plate-bevel",
+          "kind": "bevel",
+          "description": "Reference is a flat rect; bevel/rim is inferred olympic-plate form.",
+          "priority": "important",
+          "componentRef": "plateStack",
+          "materialRef": "plateBody",
+          "confidence": 0.45,
+          "realization": "lathe profile with chamfered rim; approximation"
+        },
+        {
+          "id": "knurl-bands",
+          "kind": "texture",
+          "description": "Not in the line-art. Two raised bands on the shaft, inferred.",
+          "priority": "nice-to-have",
+          "componentRef": "shaft",
+          "materialRef": "satinSteel",
+          "confidence": 0.3,
+          "realization": "slightly proud darker cylinders; no engraved knurl at this scale"
+        }
+      ]
+    }
+  },
+  "componentTree": [
+    {
+      "id": "shaft",
+      "level": "macro",
+      "primitive": "cylinder",
+      "role": "grip",
+      "sockets": ["socketPlateLeft", "socketPlateRight"]
+    },
+    { "id": "sleeveLeft", "level": "macro", "primitive": "cylinder", "role": "sleeve" },
+    { "id": "sleeveRight", "level": "macro", "primitive": "cylinder", "role": "sleeve" },
+    { "id": "collarLeft", "level": "meso", "primitive": "cylinder", "role": "collar" },
+    { "id": "collarRight", "level": "meso", "primitive": "cylinder", "role": "collar" },
+    {
+      "id": "plateStack",
+      "level": "macro",
+      "primitive": "lathe",
+      "role": "load",
+      "repetition": "per-side stack, innermost against collar, grows outward",
+      "parametric": true
+    }
+  ],
+  "sockets": {
+    "socketPlateLeft": { "parent": "shaft", "axis": "x-", "origin": "inner collar face" },
+    "socketPlateRight": { "parent": "shaft", "axis": "x+", "origin": "inner collar face" }
+  },
+  "materials": [
+    { "id": "satinSteel", "baseColor": "#c8c8c8", "metalness": 0.82, "roughness": 0.38 },
+    { "id": "plateBody", "baseColor": "PLATE_COLORS[unit][value]", "metalness": 0.18, "roughness": 0.58 },
+    { "id": "hubRubber", "baseColor": "#141414", "metalness": 0.05, "roughness": 0.82 }
+  ],
+  "approximationNotes": [
+    "Single orthographic line-art cannot show plate faces, knurl, or sleeve chrome. Those are inferred and flagged low-confidence.",
+    "Factory is hand-authored so plate denomination, count, and color stay live with the picker. A static generated Group would be the wrong artifact."
+  ],
+  "reviewHistory": [
+    {
+      "passId": "author",
+      "decision": "hand-author",
+      "reason": "Parametric sockets + MIRIN material register outrank a static generated factory from the line-art.",
+      "aiVisionScore": null
+    }
+  ]
+}

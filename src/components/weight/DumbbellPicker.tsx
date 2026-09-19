@@ -36,7 +36,8 @@ function DumbbellIconSvg({ unit, value }: { unit: Unit; value: number }) {
   return (
     <svg
       viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-      className="w-44"
+      className="w-64"
+      style={{ height: 140 }}
       role="img"
       aria-label={`${formatWeight(value)} ${unit} dumbbell`}
     >
