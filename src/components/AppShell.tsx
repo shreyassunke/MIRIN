@@ -261,6 +261,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <NavLink
               key={to}
               to={to}
+              aria-label={label}
               ref={(el) => {
                 itemRefs.current[index] = el;
               }}
@@ -269,7 +270,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {({ isActive }) => (
                 <span
                   className={[
-                    "nav-pill-label flex h-14 w-full flex-col items-center justify-center gap-1.5 rounded-pill",
+                    "nav-pill-label flex h-12 w-full items-center justify-center rounded-pill",
                     isActive ? "text-ink" : "text-muted",
                   ].join(" ")}
                 >
@@ -279,9 +280,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                       isActive ? "scale-105" : "scale-100",
                     ].join(" ")}
                   />
-                  <span className="whitespace-nowrap text-[12px] font-medium leading-none tracking-tight">
-                    {label}
-                  </span>
                 </span>
               )}
             </NavLink>
