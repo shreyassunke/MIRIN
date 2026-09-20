@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 import type { InputModeOption } from "../../lib/library";
 import type { InputMethod, Unit } from "../../lib/units";
 import { formatWeight } from "../../lib/workout";
@@ -13,7 +13,7 @@ interface LoadInstrumentProps {
   onModeChange: (mode: InputMethod) => void;
   /** Replaces the default live number (barbell bar picker). */
   weightDisplay?: ReactNode;
-  /** Framed implement. Dots sit under this, then `children`. */
+  /** Framed implement. Load controls (`children`) sit under this, then dots. */
   stage?: ReactNode;
   children?: ReactNode;
 }
@@ -29,6 +29,8 @@ export function LoadInstrument({
   stage,
   children,
 }: LoadInstrumentProps) {
+  const extras = Children.toArray(children).filter(Boolean);
+
   return (
     <div>
       <div className="mb-3 text-center" aria-live="polite">
@@ -47,11 +49,15 @@ export function LoadInstrument({
         )}
       </div>
       {stage}
+      {extras}
       {modes.length > 1 && (
         <div
           role="group"
           aria-label="Weight input method"
-          className="mt-1 flex justify-center"
+          className={[
+            extras.length ? "mt-3" : "mt-1",
+            "flex justify-center",
+          ].join(" ")}
         >
           {modes.map((m) => {
             const active = mode === m.id;
@@ -75,7 +81,6 @@ export function LoadInstrument({
           })}
         </div>
       )}
-      {children}
     </div>
   );
 }
