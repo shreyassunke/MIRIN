@@ -15,8 +15,8 @@ import { buildMetricCatalog } from "../lib/metrics";
 import { useLengthUnit, useUnit } from "../lib/settings";
 
 /**
- * The Log shell. The trend sits above the tabs on purpose: switching between
- * writing numbers down and measuring should not take the chart away.
+ * The Log shell. The chart stays in this parent so switching Daily/Body
+ * does not unmount it; logging sits above the trend.
  */
 export function Log() {
   const [unit] = useUnit();
@@ -67,10 +67,6 @@ export function Log() {
         </div>
       </header>
 
-      <div className="mb-8">
-        <MetricTrend groups={groups} loading={data === undefined} />
-      </div>
-
       <div className="mb-6">
         <SegmentedTabs
           ariaLabel="Log views"
@@ -85,6 +81,10 @@ export function Log() {
       <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
         <Outlet />
       </Suspense>
+
+      <div className="mt-8">
+        <MetricTrend groups={groups} loading={data === undefined} />
+      </div>
     </div>
   );
 }
