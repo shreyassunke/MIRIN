@@ -3,6 +3,7 @@
 Provenance for the procedural barbell and dumbbell in the weight picker.
 
 - Gym references: [docs/3d/reference/](reference/) — urethane circular dumbbell, bumper-plate Olympic bar
+- Pose measurements: `barbell-pose-reference.json`, `dumbbell-pose-reference.json`
 - Line-art (fallback SVG): [docs/reference/](../reference/)
 - Authored specs: `barbell-sculpt-spec.json`, `dumbbell-sculpt-spec.json`
 

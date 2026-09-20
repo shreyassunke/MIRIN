@@ -36,7 +36,7 @@ function orientAxialDisc(mesh: THREE.Mesh, side: 1 | -1) {
 export function plateFaceTexture(value: number, hex: string): THREE.CanvasTexture {
   const label = formatWeight(value);
   const ready = fontsReady();
-  const key = `pl:${label}:${hex}:${ready ? "f" : "p"}`;
+  const key = `pl2:${label}:${hex}:${ready ? "f" : "p"}`;
   const hit = texCache.get(key);
   if (hit) return hit;
 
@@ -48,15 +48,6 @@ export function plateFaceTexture(value: number, hex: string): THREE.CanvasTextur
   if (ctx) {
     ctx.clearRect(0, 0, s, s);
     const ink = plateInk(hex);
-    // A painted ring reads as a face marking even when the number itself is
-    // foreshortened to a sliver, which is what happens at this pose.
-    ctx.strokeStyle = ink;
-    ctx.globalAlpha = 0.28;
-    ctx.lineWidth = s * 0.01;
-    ctx.beginPath();
-    ctx.arc(s / 2, s / 2, s * 0.47, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
     const size = label.length >= 4 ? s * 0.15 : s * 0.2;
     paintWeight(ctx, label, s / 2, s * 0.24, size, ink);
     paintWeight(ctx, label, s / 2, s * 0.76, size, ink);
@@ -76,30 +67,32 @@ export function addPlateFaces(
   value: number,
   hex: string,
   radius: number,
-  hole: number,
+  insert: number,
   faceX: number,
 ) {
   const map = plateFaceTexture(value, hex);
-  // Clear the steel hub so the decal never fights it for the same pixels.
-  const inner = Math.max(hole * 1.85, radius * 0.3);
+  const inner = Math.max(insert * 1.12, radius * 0.28);
   const geo = new THREE.RingGeometry(inner, radius * 0.78, 64);
   geo.userData.shared = false;
-  for (const side of [1, -1] as const) {
-    const mat = new THREE.MeshBasicMaterial({
-      map,
-      color: 0xffffff,
-      transparent: true,
-      alphaTest: 0.12,
-      depthWrite: true,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      opacity: 0.82,
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    orientAxialDisc(mesh, side);
-    mesh.position.x = side * faceX;
-    mesh.name = side === 1 ? "plateFaceOut" : "plateFaceIn";
-    mesh.raycast = () => {};
-    parent.add(mesh);
-  }
+  // Inboard face only. The left stack is the right stack under scale.x = -1,
+  // so local -X is toward the collar on both sides — the face the camera sees.
+  const mat = new THREE.MeshBasicMaterial({
+    map,
+    color: 0xffffff,
+    transparent: false,
+    alphaTest: 0.08,
+    depthWrite: true,
+    polygonOffset: true,
+    polygonOffsetFactor: -3,
+    polygonOffsetUnits: -3,
+    toneMapped: false,
+    side: THREE.FrontSide,
+  });
+  mat.name = "plateStamp";
+  const mesh = new THREE.Mesh(geo, mat);
+  orientAxialDisc(mesh, -1);
+  mesh.position.x = -faceX;
+  mesh.name = "plateFaceIn";
+  mesh.raycast = () => {};
+  parent.add(mesh);
 }

@@ -10,7 +10,13 @@ import {
   requestFrames,
   type FrameFn,
 } from "./stage";
-import { aimBarbellCamera, fitBarbellCamera, fitOrthoCamera } from "./scale";
+import {
+  aimFixedCamera,
+  BARBELL_CAM,
+  fitFixedCamera,
+  fitOrthoCamera,
+  type FixedCamPose,
+} from "./scale";
 
 const PITCH_MAX = THREE.MathUtils.degToRad(80);
 /** Movement below this is a tap. Past it, vertical intent scrolls the page; horizontal intent orbits. */
@@ -53,6 +59,8 @@ export function useWeightStage(opts: {
   ) => void;
   padding?: number;
   mode?: StageMode;
+  /** Authored perspective pose. Ignored unless `mode` is `fixed`. */
+  pose?: FixedCamPose;
   /** Symmetric light rig. Required whenever the pose must mirror exactly. */
   symmetricLights?: boolean;
 }) {
@@ -73,6 +81,7 @@ export function useWeightStage(opts: {
   const tapRef = useRef(opts.onTap);
   const padding = opts.padding ?? 1.15;
   const mode = opts.mode ?? "orbit";
+  const pose = opts.pose ?? BARBELL_CAM;
   const symmetricLights = opts.symmetricLights ?? mode === "fixed";
   attachRef.current = opts.attach;
   extraRef.current = opts.extraFrame;
@@ -95,8 +104,8 @@ export function useWeightStage(opts: {
     if (w < 2 || h < 2) return;
     configureSize(w, h);
     if (camera instanceof THREE.PerspectiveCamera) {
-      fitBarbellCamera(camera, pivot, w, h);
-      aimBarbellCamera(camera, parallax.current);
+      fitFixedCamera(camera, pivot, w, h, pose);
+      aimFixedCamera(camera, parallax.current, pose);
     } else if (camera instanceof THREE.OrthographicCamera) {
       const rot = pivot.rotation.clone();
       pivot.rotation.set(0, 0, 0);
@@ -105,7 +114,7 @@ export function useWeightStage(opts: {
       pivot.rotation.copy(rot);
     }
     requestRender();
-  }, [padding, requestRender]);
+  }, [padding, pose, requestRender]);
 
   const spring: FrameFn = useCallback(
     (now) => {
@@ -129,7 +138,7 @@ export function useWeightStage(opts: {
           if (!settling) parallax.current = targetParallax.current;
         }
         if (camera instanceof THREE.PerspectiveCamera) {
-          aimBarbellCamera(camera, parallax.current);
+          aimFixedCamera(camera, parallax.current, pose);
         }
       } else {
         if (still) {
@@ -150,7 +159,7 @@ export function useWeightStage(opts: {
       requestRender();
       return extra || settling || !!drag.current;
     },
-    [mode, requestRender],
+    [mode, pose, requestRender],
   );
 
   const kick = useCallback(() => {

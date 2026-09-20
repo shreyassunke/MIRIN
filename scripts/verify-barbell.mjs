@@ -93,14 +93,18 @@ const GRAB = async ([selector, backdrop]) => {
     size: [w, h],
   };
 
-  // Foreground against the backdrop, as a per-column vertical extent.
+  // Foreground against the backdrop, as a per-column vertical extent. The
+  // backdrop is a flat 2D fill, so untouched pixels differ by exactly 0 and
+  // the threshold only has to clear the contact shadow. It is kept low
+  // because the unlit rim of a plate is nearly backdrop-dark, and a high
+  // threshold erodes exactly the silhouette the ellipse is measured from.
   const bg = [17, 17, 17];
   const isFg = (x, y) =>
     Math.max(
       Math.abs(at(x, y, 0) - bg[0]),
       Math.abs(at(x, y, 1) - bg[1]),
       Math.abs(at(x, y, 2) - bg[2]),
-    ) > 14;
+    ) > 6;
 
   const top = new Int32Array(w).fill(-1);
   const bot = new Int32Array(w).fill(-1);
@@ -135,7 +139,9 @@ const GRAB = async ([selector, backdrop]) => {
   // at y = cy +/- 0.866b — and solve a = 2*(x(cy) - x(that)).
   const tall = cols.filter((x) => height[x] > plateH * 0.55);
   const left = tall.filter((x) => x < w / 2);
-  if (left.length) {
+  // Only meaningful when a stack was actually found: on a bare bar every
+  // column clears the threshold, and there is no face to measure.
+  if (left.length && left[left.length - 1] - left[0] < metrics.barSpanPx * 0.45) {
     const lx0 = left[0];
     const lx1 = left[left.length - 1];
     let yTop = h;
@@ -152,12 +158,17 @@ const GRAB = async ([selector, backdrop]) => {
     };
     const yMid = (yTop + yBot) >> 1;
     const off = Math.round(0.866 * ((yBot - yTop) / 2));
-    const minor =
+    // x(cy) - x(cy +/- 0.866b) = a - 0.5a, so the semi-minor axis is twice the
+    // sampled drop, and the full minor axis is twice that again.
+    const semiMinor =
       2 * (rightEdge(yMid) - (rightEdge(yMid - off) + rightEdge(yMid + off)) / 2);
     metrics.stackWidthPx = lx1 - lx0;
-    metrics.ellipseMinorOverMajor = +(minor / plateH).toFixed(4);
+    metrics.ellipseMinorOverMajor = +((2 * semiMinor) / plateH).toFixed(4);
     metrics.impliedViewAngleDeg = +(
-      (Math.asin(Math.min(1, Math.max(0, minor / plateH))) * 180) /
+      (Math.asin(
+        Math.min(1, Math.max(0, metrics.ellipseMinorOverMajor)),
+      ) *
+        180) /
       Math.PI
     ).toFixed(2);
   }
@@ -239,7 +250,9 @@ for (const c of CASES) {
       console.log(`${c.name}: ${JSON.stringify(m)}`);
 
       // At rest the render must survive a horizontal flip.
-      check(c.name, m.centredBy === 0, `off-centre by ${m.centredBy}px`);
+      // A 1px allowance: the silhouette threshold can land either side of a
+      // single antialiased column at the sleeve tip.
+      check(c.name, Math.abs(m.centredBy) <= 1, `off-centre by ${m.centredBy}px`);
       check(
         c.name,
         m.flipPixelsOver6 <= 0.02,
@@ -251,12 +264,26 @@ for (const c of CASES) {
         m.barMarginPx?.[0] > 0 && m.barMarginPx?.[1] > 0,
         `bar touches the frame edge (margins ${m.barMarginPx})`,
       );
-      if (c.what !== "dumbbell" && c.plates) {
-        // A narrow-but-present ellipse is the whole point of the pose.
+      if (c.what === "dumbbell") {
+        // Same pose language as the bar: a readable inner-face ellipse.
+        // Pixel estimate is loose; the exact figure is asserted from the
+        // scene geometry further down.
         check(
           c.name,
-          m.ellipseMinorOverMajor >= 0.15 && m.ellipseMinorOverMajor <= 0.3,
-          `face ellipse is ${m.ellipseMinorOverMajor} of plate height, want 0.15-0.30`,
+          m.ellipseMinorOverMajor >= 0.05 && m.ellipseMinorOverMajor <= 0.28,
+          `face ellipse is ${m.ellipseMinorOverMajor} of head height, want 0.05-0.28`,
+        );
+      } else if (c.plates) {
+        // A narrow-but-present ellipse is the whole point of the pose. The
+        // band is loose because the pixel estimate reads about a quarter
+        // low — a plate's unlit rim fades into the backdrop, so the
+        // silhouette erodes exactly where the ellipse is widest. The exact
+        // figure is asserted from the scene geometry further down; this is
+        // here to catch the pose collapsing to edge-on or swinging face-on.
+        check(
+          c.name,
+          m.ellipseMinorOverMajor >= 0.1 && m.ellipseMinorOverMajor <= 0.35,
+          `face ellipse is ${m.ellipseMinorOverMajor} of plate height, want 0.10-0.35`,
         );
         // The outermost column should be shaft-thin: a visible sleeve tip.
         check(
@@ -331,7 +358,7 @@ for (const width of [380, 1280]) {
     );
     const m = got.metrics;
     console.log(`${name}: ${JSON.stringify(m)}`);
-    check(name, m.centredBy === 0, `off-centre by ${m.centredBy}px`);
+    check(name, Math.abs(m.centredBy) <= 1, `off-centre by ${m.centredBy}px`);
     check(
       name,
       m.flipPixelsOver6 <= 0.02,
@@ -343,6 +370,76 @@ for (const width of [380, 1280]) {
       `sleeve tip is ${m.tipHeightPx}px against a ${m.plateHeightPx}px plate`,
     );
   }
+  if (errors.length) failures.push(`${name}: ${errors.join(" | ")}`);
+  await page.close();
+}
+
+// --- Pose maths: the ellipse the camera actually produces -----------------
+// Read off the shipped constants rather than off pixels, so the requirement
+// ("inner face 20-25% as wide as the plate is tall") is checked exactly.
+{
+  const name = "pose-geometry";
+  const { page, errors } = await newPage(400);
+  await page.goto(`${BASE}/dev/barbell.html?w=380&plates=45`, {
+    waitUntil: "networkidle",
+  });
+  const pose = await page.evaluate(async () => {
+    const s = await import("/src/components/weight/three/scale.ts");
+    // Innermost plate face sits against the collar's outer face.
+    const faceX = s.COLLAR_X + s.COLLAR_T / 2;
+    const d = s.BAR_CAM_DISTANCE;
+    return {
+      faceX,
+      cameraDistance: d,
+      elevationDeg: s.BAR_CAM_ELEVATION_DEG,
+      // Foreshortening of a disc whose normal is the bar axis: the cosine
+      // between that axis and the eye ray, which is the ellipse's aspect.
+      ellipseMinorOverMajor: +(faceX / Math.hypot(faceX, d)).toFixed(4),
+    };
+  });
+  console.log(`${name}: ${JSON.stringify(pose)}`);
+  check(
+    name,
+    pose.ellipseMinorOverMajor >= 0.2 && pose.ellipseMinorOverMajor <= 0.25,
+    `inner face is ${pose.ellipseMinorOverMajor} as wide as tall, want 0.20-0.25`,
+  );
+  check(
+    name,
+    pose.elevationDeg >= 2 && pose.elevationDeg <= 4,
+    `elevation is ${pose.elevationDeg} deg, want 2-4`,
+  );
+  if (errors.length) failures.push(`${name}: ${errors.join(" | ")}`);
+  await page.close();
+}
+
+{
+  const name = "pose-geometry-dumbbell";
+  const { page, errors } = await newPage(400);
+  await page.goto(`${BASE}/dev/barbell.html?w=220&plates=30&what=dumbbell`, {
+    waitUntil: "networkidle",
+  });
+  const pose = await page.evaluate(async () => {
+    const s = await import("/src/components/weight/three/scale.ts");
+    const faceX = s.DB_OUTER_FACE_X;
+    const d = s.DB_CAM_DISTANCE;
+    return {
+      faceX,
+      cameraDistance: d,
+      elevationDeg: s.DB_CAM_ELEVATION_DEG,
+      ellipseMinorOverMajor: +(faceX / Math.hypot(faceX, d)).toFixed(4),
+    };
+  });
+  console.log(`${name}: ${JSON.stringify(pose)}`);
+  check(
+    name,
+    pose.ellipseMinorOverMajor >= 0.18 && pose.ellipseMinorOverMajor <= 0.22,
+    `outer face is ${pose.ellipseMinorOverMajor} as wide as tall, want 0.18-0.22`,
+  );
+  check(
+    name,
+    pose.elevationDeg >= 1 && pose.elevationDeg <= 3,
+    `elevation is ${pose.elevationDeg} deg, want 1-3`,
+  );
   if (errors.length) failures.push(`${name}: ${errors.join(" | ")}`);
   await page.close();
 }

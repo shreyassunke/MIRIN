@@ -54,24 +54,36 @@ export const COLLAR_T = 1.6;
 export const COLLAR_R = 3.6;
 /** Collar center: sleeve begins at the outer face. */
 export const COLLAR_X = BAR_LEN / 2 - SLEEVE_LEN;
-export const PLATE_GAP = 0.18;
+/** Plates seat flush against the collar and each other. No spacers. */
 export const PLATE_HOLE_R = 2.55;
-
-/* ---------- Barbell pose ----------
- * Measured off docs/3d/reference/barbell (see .img2threejs/reference-*.json):
- * the innermost plate face reads as an ellipse 0.19x as wide as it is tall,
- * which is a 10.9 degree view angle onto a face sitting 0.24 bar-lengths out
- * from centre. That pins the eye at 2.5x the half bar length. Everything else
- * here is framing, so it is safe to tune.
+/**
+ * Face-to-face overlap (cm). Adjacent plates must share a seam or the
+ * chamfered rims open a sightline to the sleeve and the stack reads as
+ * spaced washers instead of a packed load.
  */
+export const PLATE_SEAM_OVERLAP = 0.18;
+
+/* ---------- Fixed product-shot pose ----------
+ * Camera sits on the object's midline and looks slightly down it, so a disc
+ * whose normal is the shaft reads as an ellipse instead of a line. A face at
+ * `faceX` foreshortens to faceX / hypot(faceX, D). Distance is the one number
+ * that is not free; elevation and padding are framing.
+ */
+
+export type FixedCamPose = {
+  distance: number;
+  elevationDeg: number;
+  padX: number;
+  padY: number;
+  parallaxDeg: number;
+};
 
 /**
- * Eye distance as a multiple of the half bar length. This is what sets the
- * ellipse width, so it is the one number here that is not free: 2.7 puts the
- * innermost face at a 13 degree view angle, i.e. an ellipse 0.23x as wide as
- * it is tall, which is what the reference measures.
+ * Eye distance as a multiple of the half bar length. The innermost plate face
+ * sits at COLLAR_X + COLLAR_T / 2 = 60.8, so 2.35 (D = 258.5) gives 0.229 —
+ * the reference's 0.23 (docs/3d/barbell-pose-reference.json).
  */
-export const BAR_CAM_DISTANCE_FACTOR = 2.7;
+export const BAR_CAM_DISTANCE_FACTOR = 2.35;
 export const BAR_CAM_DISTANCE = (BAR_LEN / 2) * BAR_CAM_DISTANCE_FACTOR;
 /** Looking very slightly down the plates, enough to round the top of the stack. */
 export const BAR_CAM_ELEVATION_DEG = 3;
@@ -81,23 +93,57 @@ export const BAR_CAM_PAD_Y = 1.14;
 /** Hard ceiling on pointer parallax. The pose is the design; this is a nudge. */
 export const BAR_CAM_PARALLAX_DEG = 2;
 
+export const BARBELL_CAM: FixedCamPose = {
+  distance: BAR_CAM_DISTANCE,
+  elevationDeg: BAR_CAM_ELEVATION_DEG,
+  padX: BAR_CAM_PAD_X,
+  padY: BAR_CAM_PAD_Y,
+  parallaxDeg: BAR_CAM_PARALLAX_DEG,
+};
+
+/** Inner face of either urethane head, seated against the collar. */
+export const DB_INNER_FACE_X = DB_HANDLE_LEN / 2 + DB_COLLAR_T;
+/** Outer face of the heaviest head — the most face-on disc, so it sets distance. */
+export const DB_OUTER_FACE_X = DB_INNER_FACE_X + dumbbellMaxHeadDims().thickness;
+/**
+ * A close camera opened the outer faces to ~0.48 (almost 3/4), so the pucks
+ * read as discs on a diagonal. Distance is set so the outer face of the
+ * heaviest head foreshortens to this, matching the side-on reference.
+ */
+export const DB_CAM_FACE_ELLIPSE = 0.2;
+export const DB_CAM_DISTANCE =
+  DB_OUTER_FACE_X *
+  Math.sqrt(1 / (DB_CAM_FACE_ELLIPSE * DB_CAM_FACE_ELLIPSE) - 1);
+export const DB_CAM_ELEVATION_DEG = 2;
+export const DB_CAM_PAD_X = 1.1;
+export const DB_CAM_PAD_Y = 1.16;
+export const DB_CAM_PARALLAX_DEG = 2;
+
+export const DUMBBELL_CAM: FixedCamPose = {
+  distance: DB_CAM_DISTANCE,
+  elevationDeg: DB_CAM_ELEVATION_DEG,
+  padX: DB_CAM_PAD_X,
+  padY: DB_CAM_PAD_Y,
+  parallaxDeg: DB_CAM_PARALLAX_DEG,
+};
+
 const _box = new THREE.Box3();
 const _corner = new THREE.Vector3();
 
 /**
- * Park a perspective camera on the bar's midline and widen the FOV until the
- * whole bar fits. Distance and elevation are fixed by the pose, so only the
- * FOV reacts to the element's size — that keeps the plate ellipses identical
- * at every breakpoint instead of letting the framing change the pose.
+ * Park a perspective camera on the object's midline and widen the FOV until
+ * the whole thing fits. Distance and elevation stay put, so the face ellipses
+ * are identical at every breakpoint — framing cannot change the pose.
  */
-export function fitBarbellCamera(
+export function fitFixedCamera(
   camera: THREE.PerspectiveCamera,
   object: THREE.Object3D,
   width: number,
   height: number,
+  pose: FixedCamPose = BARBELL_CAM,
 ) {
-  const d = BAR_CAM_DISTANCE;
-  const elev = THREE.MathUtils.degToRad(BAR_CAM_ELEVATION_DEG);
+  const d = pose.distance;
+  const elev = THREE.MathUtils.degToRad(pose.elevationDeg);
   camera.position.set(0, d * Math.sin(elev), d * Math.cos(elev));
   camera.lookAt(0, 0, 0);
   camera.near = d * 0.2;
@@ -113,8 +159,8 @@ export function fitBarbellCamera(
   }
 
   // Fit against the box corners in view space rather than a flat half-width:
-  // the plate rims lean toward the eye, so they need more angle per unit of
-  // world x than the sleeve tips do.
+  // the rims lean toward the eye, so they need more angle per unit of world x
+  // than the tips do.
   let tanH = 1e-4;
   let tanV = 1e-4;
   for (const x of [_box.min.x, _box.max.x]) {
@@ -122,8 +168,8 @@ export function fitBarbellCamera(
       for (const z of [_box.min.z, _box.max.z]) {
         _corner.set(x, y, z).applyMatrix4(camera.matrixWorldInverse);
         const depth = Math.max(-_corner.z, 1e-3);
-        tanH = Math.max(tanH, (Math.abs(_corner.x) / depth) * BAR_CAM_PAD_X);
-        tanV = Math.max(tanV, (Math.abs(_corner.y) / depth) * BAR_CAM_PAD_Y);
+        tanH = Math.max(tanH, (Math.abs(_corner.x) / depth) * pose.padX);
+        tanV = Math.max(tanV, (Math.abs(_corner.y) / depth) * pose.padY);
       }
     }
   }
@@ -138,17 +184,33 @@ export function fitBarbellCamera(
 }
 
 /**
- * Re-aim the fixed bar camera with a parallax offset. `t` in [-1, 1] maps to
- * the elevation cap, so t = 0 is the exact symmetric rest pose. x stays 0.
+ * Re-aim a fixed camera with a parallax offset. `t` in [-1, 1] maps to the
+ * elevation cap, so t = 0 is the exact symmetric rest pose. x stays 0.
  */
-export function aimBarbellCamera(camera: THREE.PerspectiveCamera, t: number) {
-  const d = BAR_CAM_DISTANCE;
+export function aimFixedCamera(
+  camera: THREE.PerspectiveCamera,
+  t: number,
+  pose: FixedCamPose = BARBELL_CAM,
+) {
+  const d = pose.distance;
   const elev =
-    THREE.MathUtils.degToRad(BAR_CAM_ELEVATION_DEG) +
-    THREE.MathUtils.degToRad(BAR_CAM_PARALLAX_DEG) *
-      THREE.MathUtils.clamp(t, -1, 1);
+    THREE.MathUtils.degToRad(pose.elevationDeg) +
+    THREE.MathUtils.degToRad(pose.parallaxDeg) * THREE.MathUtils.clamp(t, -1, 1);
   camera.position.set(0, d * Math.sin(elev), d * Math.cos(elev));
   camera.lookAt(0, 0, 0);
+}
+
+export function fitBarbellCamera(
+  camera: THREE.PerspectiveCamera,
+  object: THREE.Object3D,
+  width: number,
+  height: number,
+) {
+  fitFixedCamera(camera, object, width, height, BARBELL_CAM);
+}
+
+export function aimBarbellCamera(camera: THREE.PerspectiveCamera, t: number) {
+  aimFixedCamera(camera, t, BARBELL_CAM);
 }
 
 /**
@@ -192,7 +254,9 @@ export function plateWorldDims(value: number, unit: Unit) {
     radius: d / 2,
     thickness: t,
     hole: PLATE_HOLE_R,
-    insert: Math.min(d * 0.11, 5.8),
+    // Steel hub has to outrun the Olympic hole on every denomination,
+    // including change plates whose diameter would otherwise undershoot it.
+    insert: Math.max(PLATE_HOLE_R + 0.75, Math.min(d * 0.09, 4.0)),
     rim: d * 0.045,
   };
 }

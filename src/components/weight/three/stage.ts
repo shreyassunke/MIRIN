@@ -134,10 +134,9 @@ export function createInstrumentScene(opts?: {
   scene.background = null;
   addInstrumentLights(scene, opts);
   scene.environment = getEnvironment();
-  // The fixed bar pose leans on the environment for the gradients that make
-  // a stack of discs read as round, so it gets a stronger dose than the
-  // orbitable dumbbell, which can rely on motion for that instead.
-  scene.environmentIntensity = opts?.symmetric ? 1.45 : 1.12;
+  // The fixed product-shot pose leans on the environment for the gradients
+  // that make a disc read as round, so it gets a stronger dose than orbit.
+  scene.environmentIntensity = opts?.symmetric ? 1.12 : 1.0;
   return scene;
 }
 

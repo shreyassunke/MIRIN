@@ -190,35 +190,39 @@ export function headMaterial() {
 }
 
 export function plateMaterial(hex: string) {
-  return remember(`plate:${hex}`, () => {
-    // Enough sheen for the rim to carry a gradient — that curvature cue is
-    // the only thing separating stacked discs at a near edge-on view — while
-    // staying well short of a glass or chrome read.
-    const mat = new THREE.MeshStandardMaterial({
+  return remember(`urethane2:${hex}`, () => {
+    // Competition bumper: dense coloured urethane, not chrome and not glass.
+    // Clearcoat is the thin factory coat; the base stays dielectric so the
+    // sleeve cannot read through the face.
+    const mat = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(hex),
-      metalness: 0.22,
-      roughness: 0.48,
-      envMapIntensity: 0.85,
+      metalness: 0.04,
+      roughness: 0.62,
+      envMapIntensity: 0.38,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.48,
+      ior: 1.46,
       transparent: false,
       opacity: 1,
+      depthWrite: true,
     });
-    assignBump(mat, rubberBumpMap(), 2.4, 2.4, 0.016);
+    assignBump(mat, rubberBumpMap(), 3.2, 3.2, 0.02);
     return mat;
   });
 }
 
 export function hubMaterial() {
-  return remember("hub", () => {
+  return remember("hub-insert3", () => {
     return new THREE.MeshStandardMaterial({
-      color: new THREE.Color("#c2c2c8"),
-      metalness: 0.72,
-      roughness: 0.3,
-      envMapIntensity: 1.3,
-      // The insert's outer wall sits flush against the plate's bore, where
-      // the lathe leaves it wound away from the camera. Two-sided is the
-      // cheap correct answer for a closed part this small; three.js flips
-      // the normal for back faces, so the shading stays right.
-      side: THREE.DoubleSide,
+      color: new THREE.Color("#e8e8ec"),
+      metalness: 0.48,
+      roughness: 0.32,
+      envMapIntensity: 0.9,
+      emissive: new THREE.Color("#9a9aa0"),
+      emissiveIntensity: 0.28,
+      transparent: false,
+      opacity: 1,
+      depthWrite: true,
     });
   });
 }
@@ -301,32 +305,30 @@ export function addInstrumentLights(
 ) {
   const symmetric = opts?.symmetric ?? false;
 
-  const key = new THREE.DirectionalLight(0xf2f2f2, symmetric ? 1.1 : 1.35);
-  key.position.set(symmetric ? 0 : -0.6, 1.8, 2.2);
+  // High key so packed rims pick up a bright grazing edge — that is what
+  // separates stacked discs once the air gap is gone.
+  const key = new THREE.DirectionalLight(0xf4f4f4, symmetric ? 1.45 : 1.5);
+  key.position.set(symmetric ? 0 : -0.6, 2.4, 1.8);
   scene.add(key);
 
   if (symmetric) {
     // A plate face points along +/-x, so a light on the x = 0 midline leaves
-    // it at NdotL = 0 — the faces the whole pose exists to show would render
-    // on ambient alone. This raking pair is what actually lights them, and
-    // each face only ever sees the one on its own side.
+    // it at NdotL = 0. Keep the raking pair quieter than the key so the
+    // faces stay saturated instead of washing to chrome.
     for (const x of [-1.9, 1.9]) {
-      const fill = new THREE.DirectionalLight(0xdcdce2, 0.85);
-      fill.position.set(x, 0.5, 1.1);
+      const fill = new THREE.DirectionalLight(0xe0e0e6, 0.72);
+      fill.position.set(x, 0.4, 1.35);
       scene.add(fill);
     }
   } else {
-    const fill = new THREE.DirectionalLight(0xc8c8c8, 0.45);
+    const fill = new THREE.DirectionalLight(0xc8c8c8, 0.4);
     fill.position.set(1.4, 0.4, 0.8);
     scene.add(fill);
   }
 
-  // Looking slightly down the bar means the top of each stack is the disc's
-  // far side, which the front key never reaches. The back kicker is what
-  // stops that crescent from going black.
-  const rim = new THREE.DirectionalLight(0xffffff, symmetric ? 0.9 : 0.55);
-  rim.position.set(symmetric ? 0 : 0.1, 0.9, -1.8);
+  const rim = new THREE.DirectionalLight(0xffffff, symmetric ? 0.7 : 0.5);
+  rim.position.set(symmetric ? 0 : 0.1, 1.1, -1.6);
   scene.add(rim);
 
-  scene.add(new THREE.AmbientLight(0x7a7a7a, 0.28));
+  scene.add(new THREE.AmbientLight(0x7a7a7a, 0.32));
 }

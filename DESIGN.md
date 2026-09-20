@@ -184,7 +184,7 @@ Thin 1.5px lines in #d4d4d4, no gridlines, no area fills, no dots except the lat
 ### 3D weight instrument
 The barbell and dumbbell in the weight picker are procedural Three.js models, not mesh files. They sit in the same slot the line-art occupied: a short, wide frame above the plate chips or the drum. Gym references: urethane circular dumbbell, competition bumper plates on a chrome Olympic bar.
 
-- **Camera:** orthographic, looking down −Z at the object center, fitted to the bounding box with 15% padding. Rest pose is level. Horizontal drag orbits 360° (unbounded yaw, pitch clamped to ±80°) and stays; a tap still removes a plate. Vertical drags scroll the page. `prefers-reduced-motion` disables orbit.
+- **Camera:** fixed perspective, parked on the object's midline and looking slightly down the shaft so a disc reads as an ellipse (~0.23 of plate height on the bar, ~0.20 on the dumbbell's outer face). Distance is the pose; only FOV reacts to the element's size. Pointer input nudges elevation by at most 2°. `prefers-reduced-motion` holds the rest pose. A tap still removes a plate.
 - **Lighting:** grayscale key / fill / rim plus a PMREM-filtered studio environment (overhead softbox). No HDRI file, no hue in the lights.
 - **Materials:** mirror chrome shaft and handle; diamond knurl (albedo + bump); matte urethane heads; bumper plates pull hue only from the Plate Exception swatches. Code-only — no `.glb`. Canvas numerals are generated at runtime from the selected weight.
 - **Motion:** plates settle onto the sleeve in 160ms ease-out-expo. Under `prefers-reduced-motion`, they appear in place and tilt is off.

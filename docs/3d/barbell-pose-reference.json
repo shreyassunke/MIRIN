@@ -17,11 +17,12 @@
     "impliedViewAngleDeg": 13.0
   },
   "adopted": {
-    "BAR_CAM_DISTANCE_FACTOR": 2.7,
+    "BAR_CAM_DISTANCE_FACTOR": 2.35,
     "BAR_CAM_ELEVATION_DEG": 3,
     "SLEEVE_LEN": 50,
     "plateThickness_over_plateDiameter": 0.16,
-    "faceEllipse_minor_over_major": 0.2
+    "faceEllipse_minor_over_major": 0.229,
+    "faceEllipseNote": "The innermost face sits at COLLAR_X + COLLAR_T / 2 = 60.8 and foreshortens to faceX / hypot(faceX, D). With D = 2.35 * 110 = 258.5 that is 0.229, matching the reference's 0.23. scripts/verify-barbell.mjs asserts this off the shipped constants, because the pixel estimate reads about a quarter low — a plate's unlit rim fades into the backdrop and erodes the silhouette exactly where the ellipse is widest."
   },
   "deviations": [
     {

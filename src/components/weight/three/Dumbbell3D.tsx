@@ -6,6 +6,7 @@ import {
   createDumbbellModel,
   type DumbbellRuntime,
 } from "./createDumbbellModel";
+import { DUMBBELL_CAM } from "./scale";
 import { useWeightStage } from "./useWeightStage";
 
 interface Dumbbell3DProps {
@@ -35,7 +36,8 @@ export function Dumbbell3D({ unit, value }: Dumbbell3DProps) {
 
   const { hostRef, requestRender, pointer } = useWeightStage({
     attach,
-    padding: 1.28,
+    mode: "fixed",
+    pose: DUMBBELL_CAM,
   });
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export function Dumbbell3D({ unit, value }: Dumbbell3DProps) {
   return (
     <div
       ref={hostRef}
-      className="h-[88px] w-52 cursor-grab active:cursor-grabbing"
+      className="h-[88px] w-52"
       style={{ touchAction: "pan-y" }}
       role="img"
       aria-label={`${formatWeight(value)} ${unit} dumbbell`}

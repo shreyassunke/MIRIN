@@ -1,0 +1,38 @@
+{
+  "note": "Pose measurements taken off the side-on product shot of a loaded dumbbell (camera on the handle's midline). These are what the camera constants in src/components/weight/three/scale.ts are derived from. Pixel figures come from the 586x374 source; ratios are what actually carry over.",
+  "method": "Threshold dark metal against the pale backdrop, take the per-column vertical extent, then read the innermost plate's face ellipse off the inner silhouette. The ellipse is sampled where sqrt(1 - ((y-cy)/b)^2) = 0.5, i.e. at y = cy +/- 0.866b.",
+  "reference": {
+    "barSpanPx": 541,
+    "plateHeightPx": 191,
+    "stackWidthPx": 110,
+    "platesPerSide": 4,
+    "ratios": {
+      "plateHeight_over_barLength": 0.353,
+      "stackWidth_over_plateHeight": 0.576,
+      "shaftDiameter_over_plateHeight": 0.168,
+      "faceEllipse_minor_over_major": 0.293
+    },
+    "impliedViewAngleDeg": 17.05
+  },
+  "adopted": {
+    "DB_CAM_FACE_ELLIPSE": 0.2,
+    "DB_CAM_ELEVATION_DEG": 2,
+    "DB_INNER_FACE_X": 7.8,
+    "DB_OUTER_FACE_X": 14.6,
+    "faceEllipseNote": "The first pass derived distance from the inner face at 0.29. On a thick urethane puck the outer face then opened to ~0.48, so each head read as a disc on a diagonal. Distance is now set from the outer face of the heaviest head (DB_INNER_FACE_X + max thickness) so that face foreshortens to 0.20 — side-on, same language as the loaded bar. The inner face falls out at ~0.11."
+  },
+  "deviations": [
+    {
+      "what": "head geometry",
+      "reference": "plate-loaded stack, four discs per side, spinlock collars",
+      "ours": "urethane circular heads",
+      "why": "The gym reference for the model is a circular-head urethane dumbbell. The photo is used only as the camera pose — midline, slight elevation, faces reading as ellipses — the same language as the loaded bar."
+    },
+    {
+      "what": "plateHeight / barLength",
+      "reference": 0.353,
+      "ours": 0.6,
+      "why": "A circular-head bell is a short handle with two fat pucks. Keeping real urethane proportions matters more than matching a long plate-loaded handle."
+    }
+  ]
+}

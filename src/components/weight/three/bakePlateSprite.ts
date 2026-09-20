@@ -87,7 +87,7 @@ export function bakePlateSprite(
   const dpr = Math.min(2, typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
   const px = Math.max(48, Math.round(cssPx * dpr));
   const hex = plateColor(unit, value);
-  const key = `${unit}:${value}:${px}:${fontTag()}:${hex}:face3`;
+  const key = `${unit}:${value}:${px}:${fontTag()}:${hex}:face5`;
   const hit = cache.get(key);
   if (hit) return hit;
 
@@ -95,7 +95,7 @@ export function bakePlateSprite(
   dest.width = px;
   dest.height = px;
 
-  const plate = createPlate(value, unit);
+  const plate = createPlate(value, unit, { stamp: false });
   plate.traverse((child) => {
     if (child.name === "plateFaceOut" || child.name === "plateFaceIn") {
       child.visible = false;
