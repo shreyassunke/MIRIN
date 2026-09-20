@@ -12,6 +12,7 @@ interface LoadedBar3DProps {
   unit: Unit;
   plates: number[];
   onRemove: (index: number) => void;
+  onSwipe?: (direction: -1 | 1) => void;
 }
 
 /** Matches the SVG fallback's 44px plate hit so edge-on taps still land. */
@@ -78,7 +79,12 @@ function plateIndexFromScreen(
   return best;
 }
 
-export function LoadedBar3D({ unit, plates, onRemove }: LoadedBar3DProps) {
+export function LoadedBar3D({
+  unit,
+  plates,
+  onRemove,
+  onSwipe,
+}: LoadedBar3DProps) {
   const runtimeRef = useRef<BarbellRuntime | null>(null);
   const platesRef = useRef(plates);
   const unitRef = useRef(unit);
@@ -124,6 +130,7 @@ export function LoadedBar3D({ unit, plates, onRemove }: LoadedBar3DProps) {
     attach,
     extraFrame,
     onTap,
+    onSwipe,
     mode: "fixed",
   });
 

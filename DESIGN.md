@@ -152,7 +152,7 @@ Component vocabulary is small and identical on every screen. Content corners are
 ### Buttons
 - **Shape:** Primary and glass controls use pill radius on mobile; minimum 44px tall for mid-workout controls.
 - **Primary (`.btn-primary`):** Off-white accent fill (#d4d4d4) with near-black text. One per screen. Light press scale (0.98).
-- **Secondary (`.glass-btn`):** Frosted disc/pill with inset specular edge, blur, and press scale (0.94). Steppers, "Same as last time", timer adjustments, icon buttons.
+- **Secondary (`.glass-btn`):** Frosted disc/pill with inset specular edge, blur, and press scale (0.94). Steppers, timer adjustments, icon buttons.
 - **Segment chips (`.glass-chip`):** Sit inside a `.glass` track; active chip uses `.glass-chip-active`.
 - **Disabled:** Opacity 0.4; no press transform.
 - **Motion:** 160–200ms ease-out-quint; suppressed under `prefers-reduced-motion`.
@@ -182,20 +182,20 @@ Floating glass chip above the mobile nav. Subtle progress ring, 1.5px stroke in 
 Thin 1.5px lines in #d4d4d4, no gridlines, no area fills, no dots except the latest point, minimal muted-ink axis labels. A chart is an instrument for reading a trend, not a decoration.
 
 ### 3D weight instrument
-The barbell and dumbbell in the weight picker are procedural Three.js models, not mesh files. They sit in the same slot the line-art occupied: a short, wide frame above the plate chips or the drum. Gym references: urethane circular dumbbell, competition bumper plates on a chrome Olympic bar.
+The barbell and dumbbell in the weight picker are procedural Three.js models, not mesh files. They sit under one large live weight with no chrome around them. Gym references: urethane circular dumbbell, competition bumper plates on a chrome Olympic bar. Last session's matching weight sits as a muted ghost under the live number. Equipment (dumbbell / barbell / custom) cycles by swiping the object or tapping the dots underneath.
 
-- **Camera:** fixed perspective, parked on the object's midline and looking slightly down the shaft so a disc reads as an ellipse (~0.23 of plate height on the bar, ~0.20 on the dumbbell's outer face). Distance is the pose; only FOV reacts to the element's size. The bar is fitted to a constant 45 cm envelope, so adding or removing plates never changes its size on screen. Pointer input nudges elevation by at most 2°. `prefers-reduced-motion` holds the rest pose. A tap still removes a plate.
+- **Camera:** fixed perspective, parked on the object's midline and looking slightly down the shaft so a disc reads as an ellipse (~0.23 of plate height on the bar, ~0.20 on the dumbbell's outer face). Distance is the pose; only FOV reacts to the element's size. The bar is fitted to a constant 45 cm envelope, so adding or removing plates never changes its size on screen. Pointer input nudges elevation by at most 2°. On the dumbbell, a vertical drag steps through rack sizes (heavier up); a tap toggles pair (two bells) vs single (one). Horizontal swipe on the dumbbell or barbell cycles equipment. Outside the dumbbell frame, vertical scroll still owns the page. `prefers-reduced-motion` holds the rest pose. A tap on a plate still removes it.
 - **Lighting:** grayscale key / fill / rim plus a PMREM-filtered studio environment (overhead softbox). No HDRI file, no hue in the lights.
-- **Materials:** mirror chrome shaft and handle; diamond knurl (albedo + bump); matte urethane heads; bumper plates pull hue only from the Plate Exception swatches. Plate faces share the chip drawing — raised outer lip, hub flange, Olympic chrome insert, and 3/9 weight numerals — so the loaded bar and the plate controls are the same bumper. Code-only — no `.glb`. Canvas numerals are generated at runtime from the selected weight.
+- **Materials:** mirror chrome shaft and handle; diamond knurl (albedo + bump); matte urethane heads with the selected weight stamped on the outer faces; bumper plates pull hue only from the Plate Exception swatches. Plate faces share the chip drawing — raised outer lip, hub flange, Olympic chrome insert, and 3/9 weight numerals — so the loaded bar and the plate controls are the same bumper. Code-only — no `.glb`. Canvas numerals are generated at runtime from the selected weight.
 - **Motion:** plates settle onto the sleeve in 160ms ease-out-expo. Under `prefers-reduced-motion`, they appear in place and tilt is off.
-- **Fallback:** the original SVG line-art renders when WebGL is missing or the 3D chunk fails to load. Layout does not shift.
-- **Role:** a mid-workout control. Tap a plate to remove it. Scroll still owns the page.
+- **Fallback:** the original SVG line-art renders when WebGL is missing or the 3D chunk fails to load. Layout does not shift. Pair vs single is the same object count.
+- **Role:** a mid-workout control. The dumbbell *is* the weight input. Barbell load stays chip-driven; custom / cable / machine keep the stepper. Scroll still owns the page outside the dumbbell frame.
 
 ## 6. Do's and Don'ts
 
 ### Do:
 - **Do** keep exactly one accent-filled primary action per screen — everything else is glass secondary.
-- **Do** prefill last session's weight×reps and make adjustment stepper-only; zero required typing for a normal set.
+- **Do** prefill last session's weight×reps so Log is already "same as last time"; adjust only to deviate — drag the dumbbell, chips on the bar, stepper for custom.
 - **Do** use frosted glass + press feedback on interactive controls; keep charts unfrosted.
 - **Do** set all comparable numerals in tabular figures.
 - **Do** write copy that states facts: "3 sets logged", "No sessions yet — defaults below", never praise or hype.

@@ -10,7 +10,6 @@ interface TodayExerciseTileProps {
   isActive: boolean;
   /** The user called this exercise done; there is no fixed set target. */
   finished: boolean;
-  lastSummary: string;
   isSwapping: boolean;
   excludeSwapIds: string[];
   reorderIndex: number;
@@ -29,6 +28,8 @@ interface TodayExerciseTileProps {
   onCancelSwap: () => void;
   onSwapPick: (entry: ExerciseLibraryEntry) => void;
   formatLoggedSet: (log: SetLog) => string;
+  onUndoLast?: () => void;
+  undoLastHasDrop?: boolean;
   children?: ReactNode;
 }
 
@@ -44,7 +45,6 @@ export function TodayExerciseTile({
   logged,
   isActive,
   finished,
-  lastSummary,
   isSwapping,
   excludeSwapIds,
   reorderIndex,
@@ -63,6 +63,8 @@ export function TodayExerciseTile({
   onCancelSwap,
   onSwapPick,
   formatLoggedSet,
+  onUndoLast,
+  undoLastHasDrop = false,
   children,
 }: TodayExerciseTileProps) {
   return (
@@ -131,12 +133,9 @@ export function TodayExerciseTile({
                   </svg>
                 </span>
               )}
-              <span className="block truncate text-[17px] font-semibold tracking-tight">
+              <span className="block truncate text-lg font-semibold tracking-tight">
                 {exercise.name}
               </span>
-            </span>
-            <span className="tnum mt-0.5 block text-[13px] text-muted">
-              {lastSummary}
             </span>
           </span>
           <span className="tnum shrink-0 text-[13px] font-medium text-muted">
@@ -167,13 +166,37 @@ export function TodayExerciseTile({
       {logged.length > 0 && (
         <div
           data-no-drag=""
-          className="tnum flex flex-wrap gap-x-4 gap-y-1 border-t border-hairline px-4 py-2.5 text-sm text-muted"
+          className="tnum flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-hairline px-4 py-2.5 text-sm text-muted"
         >
-          {logged.map((s) => (
-            <span key={s.id} className="text-ink">
-              {formatLoggedSet(s)}
-            </span>
-          ))}
+          {logged.map((s, i) => {
+            const isLast = i === logged.length - 1;
+            if (isLast && onUndoLast) {
+              const label = formatLoggedSet(s);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={onUndoLast}
+                  aria-label={
+                    undoLastHasDrop
+                      ? `Undo last drop on ${label}`
+                      : `Undo ${label}`
+                  }
+                  className="glass-chip inline-flex h-8 items-center gap-1.5 rounded-pill px-2.5 text-ink"
+                >
+                  <span>{label}</span>
+                  <span className="text-[13px] font-medium text-muted">
+                    Undo
+                  </span>
+                </button>
+              );
+            }
+            return (
+              <span key={s.id} className="text-ink">
+                {formatLoggedSet(s)}
+              </span>
+            );
+          })}
         </div>
       )}
 

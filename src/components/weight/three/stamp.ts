@@ -111,3 +111,77 @@ export function addPlateFaces(
   if (faces.inboard) add(-1, "plateFaceIn");
   if (faces.outboard) add(1, "plateFaceOut");
 }
+
+function dumbbellFaceTexture(value: number): THREE.CanvasTexture {
+  const ready = fontsReady();
+  const key = `dbn3:${value}:${ready ? "f" : "p"}`;
+  const hit = texCache.get(key);
+  if (hit) return hit;
+
+  const s = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = s;
+  canvas.height = s;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.clearRect(0, 0, s, s);
+    ctx.fillStyle = "#f2f2f2";
+    ctx.font = "600 200px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(parseFloat(value.toFixed(2))), s / 2, s / 2);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.center.set(0.5, 0.5);
+  tex.rotation = Math.PI / 2;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  texCache.set(key, tex);
+  return tex;
+}
+
+/** Outer-face weight numeral on a urethane dumbbell head. */
+export function clearDumbbellFace(head: THREE.Object3D) {
+  const prev = head.getObjectByName("dbStamp");
+  if (!(prev instanceof THREE.Mesh)) return;
+  head.remove(prev);
+  prev.geometry.dispose();
+  const mat = prev.material;
+  if (mat && !Array.isArray(mat)) {
+    mat.map = null;
+    mat.dispose();
+  }
+}
+
+export function replaceDumbbellFace(
+  head: THREE.Object3D,
+  side: 1 | -1,
+  value: number,
+  radius: number,
+  thickness: number,
+) {
+  clearDumbbellFace(head);
+
+  const map = dumbbellFaceTexture(value);
+  const geo = new THREE.CircleGeometry(radius * 0.5, 48);
+  geo.userData.shared = false;
+  const mat = new THREE.MeshBasicMaterial({
+    map,
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
+    toneMapped: false,
+    side: THREE.DoubleSide,
+  });
+  mat.name = "dbStamp";
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.name = "dbStamp";
+  mesh.raycast = () => {};
+  orientAxialDisc(mesh, side);
+  mesh.position.x = side * (thickness / 2 + 0.03);
+  head.add(mesh);
+}

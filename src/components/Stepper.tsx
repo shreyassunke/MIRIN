@@ -112,7 +112,7 @@ export function Stepper({
     >
       {display}
       {layout === "inline" && inlineSuffix ? (
-        <span className="ml-1 text-[12px] font-medium text-muted">
+        <span className="ml-1 text-[13px] font-medium text-muted">
           {inlineSuffix}
         </span>
       ) : null}

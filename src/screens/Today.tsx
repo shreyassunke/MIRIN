@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   db,
@@ -39,7 +39,6 @@ import {
 import {
   convertLoadForLaterality,
   defaultLaterality,
-  lateralityCaption,
   loadSharing,
   supportsLaterality,
   type Laterality,
@@ -67,6 +66,7 @@ import {
   warmupDisplayWeight,
   workingSets,
 } from "../lib/exerciseMeta";
+import { deleteSetDrop, deleteSetLog } from "../lib/history";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { TodayExerciseTile } from "../components/TodayExerciseTile";
 import { NoteEditor } from "../components/NoteEditor";
@@ -74,6 +74,7 @@ import { FormVideoPanel } from "../components/FormVideo";
 import { formClipsFor } from "../lib/formVideos";
 import {
   IconDone,
+  IconHistory,
   IconNote,
   IconRemove,
   IconReplace,
@@ -102,8 +103,13 @@ import { RestTimer } from "../components/RestTimer";
 import { UnitToggle } from "../components/UnitToggle";
 import { DaySwitcher } from "../components/DaySwitcher";
 import { LateralityToggle } from "../components/LateralityToggle";
-import { BarbellPicker } from "../components/weight/BarbellPicker";
+import {
+  BarbellPicker,
+  BarbellRack,
+  BarWeightControl,
+} from "../components/weight/BarbellPicker";
 import { DumbbellPicker } from "../components/weight/DumbbellPicker";
+import { LoadInstrument } from "../components/weight/LoadInstrument";
 
 interface TodayData {
   splitId: string;
@@ -303,6 +309,7 @@ function useTodayData(): TodayData | undefined {
 
 export function Today() {
   const data = useTodayData();
+  const navigate = useNavigate();
   const [unit] = useUnit();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** When false, derived auto-expand is paused (user closed the open card). */
@@ -318,6 +325,7 @@ export function Today() {
     kind: "session" | "sticky";
   } | null>(null);
   const [formVideoId, setFormVideoId] = useState<string | null>(null);
+  const loggingRef = useRef(false);
   /** Completing fills sets from last session, so it takes a second tap. */
   const [finishArmed, setFinishArmed] = useState(false);
 
@@ -736,36 +744,53 @@ export function Today() {
   }
 
   async function logCurrent(exerciseId: string) {
-    const breakdown: LoadBreakdown | undefined =
-      inputMode === "barbell"
-        ? {
-            barWeight: toCanonical(barWeight, unit),
-            platesPerSide: plates.map((p) => toCanonical(p, unit)),
-          }
-        : undefined;
-    const exercise = data?.exercises.find((e) => e.id === exerciseId);
-    const equipment = exercise ? equipmentForExercise(exercise) : "other";
-    await logSet(
-      exerciseId,
-      toCanonical(totalDisplay, unit),
-      reps,
-      inputMode,
-      breakdown,
-      supportsLaterality(inputMode, equipment) ? laterality : undefined,
-    );
+    if (loggingRef.current) return;
+    loggingRef.current = true;
+    try {
+      const breakdown: LoadBreakdown | undefined =
+        inputMode === "barbell"
+          ? {
+              barWeight: toCanonical(barWeight, unit),
+              platesPerSide: plates.map((p) => toCanonical(p, unit)),
+            }
+          : undefined;
+      const exercise = data?.exercises.find((e) => e.id === exerciseId);
+      const equipment = exercise ? equipmentForExercise(exercise) : "other";
+      await logSet(
+        exerciseId,
+        toCanonical(totalDisplay, unit),
+        reps,
+        inputMode,
+        breakdown,
+        supportsLaterality(inputMode, equipment) ? laterality : undefined,
+      );
+    } finally {
+      loggingRef.current = false;
+    }
   }
 
-  async function logSameAsLastTime(exerciseId: string) {
-    if (!sourceSet) return;
-    // Replays the exact prior load: canonical weight, method, plate stack.
-    await logSet(
-      exerciseId,
-      sourceSet.weight,
-      sourceSet.reps,
-      sourceSet.inputMethod ?? inputMode,
-      sourceSet.loadBreakdown,
-      sourceSet.laterality,
-    );
+  function cycleMode(
+    exerciseId: string,
+    dir: -1 | 1,
+    available: ReturnType<typeof inputModesForEquipment>,
+    current: InputMethod,
+  ) {
+    const i = available.findIndex((m) => m.id === current);
+    const at = i < 0 ? 0 : i;
+    const next = available[(at + dir + available.length) % available.length];
+    if (next && next.id !== current) setMode(next.id, exerciseId);
+  }
+
+  async function undoLastLog(exerciseId: string) {
+    const logged = logsByExercise.get(exerciseId) ?? [];
+    const last = logged[logged.length - 1];
+    if (!last) return;
+    if (last.drops?.length) {
+      await deleteSetDrop(last.id, last.drops.length - 1);
+    } else {
+      await deleteSetLog(last.id);
+    }
+    setTimerVisible(false);
   }
 
   /**
@@ -892,12 +917,6 @@ export function Today() {
           const isActive = exercise.id === activeId;
           const finished = finishedIds.has(exercise.id);
           const prior = data.prefills[exercise.id] ?? [];
-          const lastSummary = prior.length
-            ? `Last: ${prior
-                .map((s) => formatSet(s, (lb) => toDisplay(lb, unit)))
-                // Explicit separator: a drop chain already reads as one set.
-                .join(" · ")}`
-            : "First time — starting defaults ready";
           const dragProps = getItemProps(index);
           const equipment = equipmentForExercise(exercise);
           const modes = inputModesForEquipment(equipment);
@@ -905,7 +924,12 @@ export function Today() {
             ? mode
             : modes[0]?.id ?? "manual";
           const showLaterality = supportsLaterality(activeMode, equipment);
-          const sharing = loadSharing(activeMode, equipment);
+          const ghostSource = prior.length
+            ? (prior[activeWorkingCount] ?? prior[prior.length - 1])
+            : undefined;
+          const ghostWeight = ghostSource
+            ? toDisplay(ghostSource.weight, unit)
+            : null;
           const grouped = inSuperset(data.supersets, exercise.id);
           const sessionNote = data.exerciseNotes[exercise.id];
           const stickyNote = data.stickyNotes[exercise.id];
@@ -923,7 +947,6 @@ export function Today() {
               logged={logged}
               isActive={isActive}
               finished={finished}
-              lastSummary={lastSummary}
               isSwapping={swappingIndex === index}
               excludeSwapIds={data.exerciseIds.filter((id) => id !== exercise.id)}
               reorderIndex={index}
@@ -1000,6 +1023,12 @@ export function Today() {
                           },
                         ]
                       : []),
+                    {
+                      id: "history",
+                      label: "History",
+                      icon: <IconHistory />,
+                      onSelect: () => navigate(`/exercise/${exercise.id}`),
+                    },
                     {
                       id: "superset",
                       label: grouped ? "Break superset" : "Create superset",
@@ -1090,6 +1119,10 @@ export function Today() {
               onCancelSwap={() => setSwappingIndex(null)}
               onSwapPick={(entry) => void handleSwapExercise(index, entry)}
               formatLoggedSet={(s) => formatSet(s, (lb) => toDisplay(lb, unit))}
+              onUndoLast={() => void undoLastLog(exercise.id)}
+              undoLastHasDrop={
+                (logged[logged.length - 1]?.drops?.length ?? 0) > 0
+              }
             >
               {showingVideo && (
                 <FormVideoPanel
@@ -1100,88 +1133,110 @@ export function Today() {
               )}
               {isActive && (
                 <div className="border-t border-hairline px-4 py-4">
-                  {/* Input mode: remembered per exercise */}
-                  <div className="mb-4 flex justify-center">
-                    <div
-                      role="group"
-                      aria-label="Weight input method"
-                      className="glass flex overflow-hidden rounded-pill p-0.5"
-                    >
-                      {modes.map((m) => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          aria-pressed={activeMode === m.id}
-                          onClick={() => setMode(m.id, exercise.id)}
-                          className={[
-                            "glass-chip h-11 rounded-pill px-4 text-[13px] font-medium",
-                            activeMode === m.id
-                              ? "glass-chip-active text-ink"
-                              : "text-muted hover:text-ink",
-                          ].join(" ")}
-                        >
-                          {m.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Dumbbell and barbell: the hero numeral IS the picker. */}
-                  {activeMode === "manual" && (
-                    <div className="mb-4 text-center" aria-live="polite">
-                      <span className="tnum text-3xl font-semibold tracking-tight">
-                        {formatWeight(totalDisplay)}
-                      </span>
-                      <span className="ml-1.5 text-sm text-muted">{unit}</span>
-                      {showLaterality && (
-                        <p className="mt-0.5 text-[13px] text-muted">
-                          {lateralityCaption(laterality, sharing)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {activeMode === "barbell" && (
-                    <BarbellPicker
-                      key={`${exercise.id}:${unit}`}
-                      unit={unit}
-                      barWeight={barWeight}
-                      plates={plates}
-                      onChange={(bar, next) => {
-                        setBarWeight(bar);
-                        setPlates(next);
-                      }}
-                    />
-                  )}
-                  {activeMode === "dumbbell" && (
-                    <DumbbellPicker
-                      unit={unit}
-                      value={dumbbell}
-                      laterality={laterality}
-                      onChange={setDumbbell}
-                      onLateralityChange={(next) =>
-                        setLateralityFor(next, exercise.id)
-                      }
-                    />
-                  )}
-                  {activeMode === "manual" && (
-                    <div className="flex flex-col items-center">
-                      <Stepper
-                        label={`Weight (${unit})`}
-                        value={manualWeight}
-                        step={MANUAL_STEP[unit]}
-                        onChange={setManualWeight}
+                  <LoadInstrument
+                    weight={totalDisplay}
+                    unit={unit}
+                    ghost={ghostWeight}
+                    modes={modes}
+                    mode={activeMode}
+                    onModeChange={(next) => setMode(next, exercise.id)}
+                    weightDisplay={
+                      activeMode === "barbell" ? (
+                        <BarWeightControl
+                          unit={unit}
+                          barWeight={barWeight}
+                          plates={plates}
+                          onChange={(bar, next) => {
+                            setBarWeight(bar);
+                            setPlates(next);
+                          }}
+                        />
+                      ) : undefined
+                    }
+                    stage={
+                      activeMode === "barbell" ? (
+                        <BarbellPicker
+                          key={`${exercise.id}:${unit}`}
+                          unit={unit}
+                          barWeight={barWeight}
+                          plates={plates}
+                          onChange={(bar, next) => {
+                            setBarWeight(bar);
+                            setPlates(next);
+                          }}
+                          onSwipe={
+                            modes.length > 1
+                              ? (dir) =>
+                                  cycleMode(
+                                    exercise.id,
+                                    dir,
+                                    modes,
+                                    activeMode,
+                                  )
+                              : undefined
+                          }
+                        />
+                      ) : activeMode === "dumbbell" ? (
+                        <DumbbellPicker
+                          unit={unit}
+                          value={dumbbell}
+                          laterality={laterality}
+                          onChange={setDumbbell}
+                          onToggleLaterality={() =>
+                            setLateralityFor(
+                              laterality === "bilateral"
+                                ? "unilateral"
+                                : "bilateral",
+                              exercise.id,
+                            )
+                          }
+                          onSwipe={
+                            modes.length > 1
+                              ? (dir) =>
+                                  cycleMode(
+                                    exercise.id,
+                                    dir,
+                                    modes,
+                                    activeMode,
+                                  )
+                              : undefined
+                          }
+                        />
+                      ) : undefined
+                    }
+                  >
+                    {activeMode === "barbell" && (
+                      <BarbellRack
+                        unit={unit}
+                        barWeight={barWeight}
+                        plates={plates}
+                        onChange={(bar, next) => {
+                          setBarWeight(bar);
+                          setPlates(next);
+                        }}
                       />
-                      {showLaterality && (
-                        <div className="mt-3">
-                          <LateralityToggle
-                            value={laterality}
-                            onChange={(next) =>
-                              setLateralityFor(next, exercise.id)
-                            }
-                          />
-                        </div>
-                      )}
+                    )}
+                    {activeMode === "manual" && (
+                      <div className="flex flex-col items-center">
+                        <Stepper
+                          label={`Weight (${unit})`}
+                          value={manualWeight}
+                          step={MANUAL_STEP[unit]}
+                          onChange={setManualWeight}
+                        />
+                      </div>
+                    )}
+                  </LoadInstrument>
+
+                  {showLaterality && activeMode !== "dumbbell" && (
+                    <div className="mt-3 flex justify-center">
+                      <LateralityToggle
+                        value={laterality}
+                        onChange={(next) =>
+                          setLateralityFor(next, exercise.id)
+                        }
+                        variant="arms"
+                      />
                     </div>
                   )}
 
@@ -1195,56 +1250,30 @@ export function Today() {
                     />
                   </div>
 
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-4">
                     <button
                       type="button"
                       onClick={() => logCurrent(exercise.id)}
-                      className="btn-primary h-12 flex-1 rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
+                      className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
                     >
-                      Log {loggingWarmup ? "warm-up" : "set"}{" "}
                       {loggingWarmup
-                        ? activeWarmupCount + 1
-                        : activeWorkingCount + 1}
+                        ? `Log warm-up ${formatWeight(totalDisplay)}×${reps}`
+                        : `Log ${formatWeight(totalDisplay)}×${reps}`}
                     </button>
-                    {prior.length > 0 && !loggingWarmup && (
-                      <button
-                        type="button"
-                        onClick={() => logSameAsLastTime(exercise.id)}
-                        className="glass-btn h-12 rounded-pill px-4 text-[15px] font-medium text-ink"
-                      >
-                        Same as last time
-                      </button>
-                    )}
                   </div>
 
                   {logged.length > 0 && (
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-2">
                       <button
                         type="button"
                         onClick={() => void logDrop(exercise.id)}
                         aria-label={`Add a drop to set ${logged.length} of ${exercise.name}`}
-                        className="glass-btn h-12 flex-1 rounded-pill text-[15px] font-medium text-ink"
+                        className="glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
                       >
                         Add drop to set {logged.length}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void toggleExerciseFinished(exercise.id, true)
-                        }
-                        aria-label={`Mark ${exercise.name} done`}
-                        className="glass-btn h-12 rounded-pill px-5 text-[15px] font-medium text-ink"
-                      >
-                        Done
-                      </button>
                     </div>
                   )}
-                  <Link
-                    to={`/exercise/${exercise.id}`}
-                    className="mt-3 inline-block text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-                  >
-                    View history
-                  </Link>
                 </div>
               )}
             </TodayExerciseTile>

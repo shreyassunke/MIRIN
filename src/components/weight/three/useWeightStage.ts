@@ -19,7 +19,7 @@ import {
 } from "./scale";
 
 const PITCH_MAX = THREE.MathUtils.degToRad(80);
-/** Movement below this is a tap. Past it, vertical intent scrolls the page; horizontal intent orbits. */
+/** Movement below this is a tap. Past it, the step/swipe axis captures; the other axis may scroll. */
 export const TAP_PX = 12;
 
 /**
@@ -39,6 +39,8 @@ export function prefersReducedMotion() {
 
 type AttachFn = (pivot: THREE.Group) => () => void;
 
+type CaptureKind = "step" | "swipe";
+
 type DragStart = {
   x: number;
   y: number;
@@ -47,6 +49,7 @@ type DragStart = {
   pointerId: number;
   captured: boolean;
   discarded: boolean;
+  kind?: CaptureKind;
 };
 
 export function useWeightStage(opts: {
@@ -57,6 +60,16 @@ export function useWeightStage(opts: {
     camera: THREE.Camera,
     rect: DOMRectReadOnly,
   ) => void;
+  /** Drag steps the rack. Sign is index delta. Axis comes from `stepAxis`. */
+  onStep?: (direction: -1 | 1) => void;
+  /** "y" = vertical drag (up = +1). "x" = horizontal. Default "y". */
+  stepAxis?: "x" | "y";
+  /** One horizontal flick. -1 = right (prev), +1 = left (next). */
+  onSwipe?: (direction: -1 | 1) => void;
+  /** Pixels of travel per onStep. Default 36. */
+  stepPx?: number;
+  /** Pixels of horizontal travel to commit a swipe. Default 40. */
+  swipePx?: number;
   padding?: number;
   mode?: StageMode;
   /** Authored perspective pose. Ignored unless `mode` is `fixed`. */
@@ -79,6 +92,11 @@ export function useWeightStage(opts: {
   const attachRef = useRef(opts.attach);
   const extraRef = useRef(opts.extraFrame);
   const tapRef = useRef(opts.onTap);
+  const stepRef = useRef(opts.onStep);
+  const swipeRef = useRef(opts.onSwipe);
+  const stepPx = opts.stepPx ?? 36;
+  const swipePx = opts.swipePx ?? 40;
+  const stepAxis = opts.stepAxis ?? "y";
   const padding = opts.padding ?? 1.15;
   const mode = opts.mode ?? "orbit";
   const pose = opts.pose ?? BARBELL_CAM;
@@ -86,6 +104,8 @@ export function useWeightStage(opts: {
   attachRef.current = opts.attach;
   extraRef.current = opts.extraFrame;
   tapRef.current = opts.onTap;
+  stepRef.current = opts.onStep;
+  swipeRef.current = opts.onSwipe;
 
   const requestRender = useCallback(() => {
     const scene = sceneRef.current;
@@ -232,7 +252,61 @@ export function useWeightStage(opts: {
 
   const onPointerMove = (e: PointerEvent) => {
     if (mode === "fixed") {
-      setParallaxFromEvent(e);
+      const start = drag.current;
+      const host = hostRef.current;
+      if (start && !start.discarded && host) {
+        const dx = e.clientX - start.x;
+        const dy = e.clientY - start.y;
+        if (!start.captured) {
+          if (Math.hypot(dx, dy) > TAP_PX) {
+            const vertical = Math.abs(dy) >= Math.abs(dx);
+            if (vertical) {
+              if (stepAxis === "y" && stepRef.current) {
+                start.captured = true;
+                start.kind = "step";
+                start.y = e.clientY;
+                host.setPointerCapture(e.pointerId);
+              } else {
+                start.discarded = true;
+              }
+            } else if (stepAxis === "x" && stepRef.current) {
+              start.captured = true;
+              start.kind = "step";
+              start.x = e.clientX;
+              host.setPointerCapture(e.pointerId);
+            } else if (swipeRef.current) {
+              start.captured = true;
+              start.kind = "swipe";
+              host.setPointerCapture(e.pointerId);
+            } else {
+              start.discarded = true;
+            }
+          }
+        } else if (start.kind === "step" && stepRef.current) {
+          e.preventDefault();
+          if (stepAxis === "y") {
+            let remain = e.clientY - start.y;
+            while (Math.abs(remain) >= stepPx) {
+              const dir = remain > 0 ? 1 : -1;
+              // Finger up (negative dy) advances to the next heavier bell.
+              stepRef.current(-dir as -1 | 1);
+              start.y += dir * stepPx;
+              remain = e.clientY - start.y;
+            }
+          } else {
+            let remain = e.clientX - start.x;
+            while (Math.abs(remain) >= stepPx) {
+              const dir = remain > 0 ? 1 : -1;
+              stepRef.current(-dir as -1 | 1);
+              start.x += dir * stepPx;
+              remain = e.clientX - start.x;
+            }
+          }
+        } else if (start.kind === "swipe") {
+          e.preventDefault();
+        }
+      }
+      if (!drag.current?.captured) setParallaxFromEvent(e);
       return;
     }
     const start = drag.current;
@@ -274,6 +348,13 @@ export function useWeightStage(opts: {
     const host = hostRef.current as HTMLElement | null;
     if (host?.hasPointerCapture(e.pointerId)) {
       host.releasePointerCapture(e.pointerId);
+    }
+    if (start.kind === "swipe" && swipeRef.current) {
+      const travel = e.clientX - start.x;
+      if (Math.abs(travel) >= swipePx) {
+        swipeRef.current((travel < 0 ? 1 : -1) as -1 | 1);
+      }
+      return;
     }
     if (start.captured || start.discarded) return;
     const dx = e.clientX - start.x;

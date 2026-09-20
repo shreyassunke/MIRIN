@@ -256,9 +256,9 @@ for (const c of CASES) {
       // A 1px allowance: the silhouette threshold can land either side of a
       // single antialiased column at the sleeve tip.
       check(c.name, Math.abs(m.centredBy) <= 1, `off-centre by ${m.centredBy}px`);
-      // Loaded bars stamp readable numerals on both inner faces, so the
-      // render is no longer a pixel-perfect horizontal flip.
-      if (c.what === "dumbbell" || !c.plates) {
+      // Loaded bars and stamped dumbbells carry numerals, so the render is
+      // no longer a pixel-perfect horizontal flip.
+      if (!c.plates && c.what !== "dumbbell") {
         check(
           c.name,
           m.flipPixelsOver6 <= 0.02,

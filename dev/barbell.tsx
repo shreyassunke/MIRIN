@@ -18,6 +18,7 @@ function Harness() {
   const width = Number(params.get("w") ?? 380);
   const unit = (params.get("unit") ?? "lb") as Unit;
   const what = params.get("what") ?? "bar";
+  const pair = params.get("pair") === "1";
   const initial = (params.get("plates") ?? "45,45,45,45")
     .split(",")
     .filter(Boolean)
@@ -34,7 +35,9 @@ function Harness() {
 
   return (
     <div id="stage" style={{ width }}>
-      {what === "dumbbell" && <Dumbbell3D unit={unit} value={plates[0] ?? 30} />}
+      {what === "dumbbell" && (
+        <Dumbbell3D unit={unit} value={plates[0] ?? 30} pair={pair} />
+      )}
       {what === "rack" && (
         <PlateRack unit={unit} counts={new Map()} onAdd={() => {}} />
       )}

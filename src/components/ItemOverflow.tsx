@@ -363,6 +363,15 @@ export function IconVideo(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconHistory(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
+      <rect x="6.5" y="5" width="11" height="14" rx="1.5" {...stroke} />
+      <path d="M9.5 9.5h5M9.5 12.5h5M9.5 15.5h3.5" {...stroke} />
+    </svg>
+  );
+}
+
 export function RestPresetPanel({
   value,
   onPick,

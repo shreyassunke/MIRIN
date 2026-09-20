@@ -16,6 +16,7 @@ import {
   dumbbellHeadDims,
   dumbbellMaxHeadDims,
 } from "./scale";
+import { replaceDumbbellFace, clearDumbbellFace } from "./stamp";
 
 const SEG = 96;
 const headGeoCache = new Map<string, THREE.BufferGeometry>();
@@ -145,6 +146,8 @@ export function createDumbbellModel(): THREE.Group {
     headR.position.x = headX;
     shadow.scale.set(headX + thickness / 2, 1, radius);
     shadow.position.y = -radius * 0.96;
+    replaceDumbbellFace(headL, -1, value, radius, thickness);
+    replaceDumbbellFace(headR, 1, value, radius, thickness);
   };
 
   const runtime: DumbbellRuntime = {
@@ -159,6 +162,8 @@ export function createDumbbellModel(): THREE.Group {
     setWeight,
     dispose: () => {
       for (const geo of owned) geo.dispose();
+      clearDumbbellFace(headL);
+      clearDumbbellFace(headR);
     },
   };
   root.userData.sculptRuntime = runtime;

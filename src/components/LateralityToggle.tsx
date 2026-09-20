@@ -15,7 +15,11 @@ export function LateralityToggle({
 }: LateralityToggleProps) {
   const bilateralLabel = variant === "pair" ? "Pair" : "Both arms";
   return (
-    <div role="group" aria-label="Arm variation" className={chipTrackClass}>
+    <div
+      role="group"
+      aria-label={variant === "pair" ? "Pair or single arm" : "Both arms or single arm"}
+      className={chipTrackClass}
+    >
       <button
         type="button"
         aria-pressed={value === "bilateral"}
