@@ -33,22 +33,21 @@ export function Dumbbell3D({ unit, value }: Dumbbell3DProps) {
     };
   }, []);
 
-  const { hostRef, requestRender, fit, pointer } = useWeightStage({
+  const { hostRef, requestRender, pointer } = useWeightStage({
     attach,
-    padding: 1.15,
+    padding: 1.28,
   });
 
   useEffect(() => {
     runtimeRef.current?.setWeight(value, unit);
-    fit();
     requestRender();
-  }, [value, unit, fit, requestRender]);
+  }, [value, unit, requestRender]);
 
   return (
     <div
       ref={hostRef}
-      className="w-64 cursor-grab active:cursor-grabbing"
-      style={{ height: 140, touchAction: "pan-y" }}
+      className="h-[88px] w-52 cursor-grab active:cursor-grabbing"
+      style={{ touchAction: "pan-y" }}
       role="img"
       aria-label={`${formatWeight(value)} ${unit} dumbbell`}
       {...pointer}

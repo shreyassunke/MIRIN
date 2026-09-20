@@ -1126,25 +1126,20 @@ export function Today() {
                     </div>
                   </div>
 
-                  {/* The number that gets logged, always visible and large */}
-                  <div className="mb-4 text-center" aria-live="polite">
-                    <span className="tnum text-3xl font-semibold tracking-tight">
-                      {formatWeight(totalDisplay)}
-                    </span>
-                    <span className="ml-1.5 text-sm text-muted">{unit}</span>
-                    {activeMode === "barbell" && (
-                      <p className="tnum mt-0.5 text-[13px] text-muted">
-                        {formatWeight(barWeight)} bar
-                        {plates.length > 0 &&
-                          ` + 2 × ${formatWeight(round2(plates.reduce((a, b) => a + b, 0)))}`}
-                      </p>
-                    )}
-                    {showLaterality && (
-                      <p className="mt-0.5 text-[13px] text-muted">
-                        {lateralityCaption(laterality, sharing)}
-                      </p>
-                    )}
-                  </div>
+                  {/* Dumbbell and barbell: the hero numeral IS the picker. */}
+                  {activeMode === "manual" && (
+                    <div className="mb-4 text-center" aria-live="polite">
+                      <span className="tnum text-3xl font-semibold tracking-tight">
+                        {formatWeight(totalDisplay)}
+                      </span>
+                      <span className="ml-1.5 text-sm text-muted">{unit}</span>
+                      {showLaterality && (
+                        <p className="mt-0.5 text-[13px] text-muted">
+                          {lateralityCaption(laterality, sharing)}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {activeMode === "barbell" && (
                     <BarbellPicker

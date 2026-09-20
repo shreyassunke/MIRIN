@@ -42,31 +42,42 @@ export function isChangePlate(value: number) {
 }
 
 /**
- * Muted takes on real plate color conventions. Subtle by design: these
- * appear only on plate chips and the loaded-bar illustration.
+ * Gym plate color conventions. These appear only on plate chips and
+ * the loaded-bar instrument — never elsewhere in the UI.
  */
 export const PLATE_COLORS: Record<Unit, Record<number, string>> = {
   lb: {
-    45: "#5b7d9e", // blue
-    35: "#a08f56", // yellow
-    25: "#5f8a6e", // green
-    10: "#c2c2c2", // white
-    5: "#6e6e6e", // black
-    2.5: "#98989f", // silver
+    45: "#1f4fa3", // blue
+    35: "#f2c500", // yellow
+    25: "#1e8c4a", // green
+    10: "#f2f2f2", // white
+    5: "#d22a2a", // red
+    2.5: "#6e6e6e", // black
   },
   kg: {
-    25: "#9e6060", // red
-    20: "#5b7d9e", // blue
-    15: "#a08f56", // yellow
-    10: "#5f8a6e", // green
-    5: "#c2c2c2", // white
-    2.5: "#6e6e6e", // black
+    25: "#d22a2a", // red
+    20: "#1f4fa3", // blue
+    15: "#f2c500", // yellow
+    10: "#1e8c4a", // green
+    5: "#f2f2f2", // white
+    2.5: "#d22a2a", // red
     1.25: "#98989f", // silver
   },
 };
 
 export const plateColor = (unit: Unit, value: number) =>
   PLATE_COLORS[unit][value] ?? "#8a8a8a";
+
+/** Ink on a plate face: dark on light bumpers so the denomination still reads. */
+export function plateInk(hex: string) {
+  const n = Number.parseInt(hex.slice(1), 16);
+  if (!Number.isFinite(n)) return "#fafafa";
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return L > 0.5 ? "#0a0a0a" : "#fafafa";
+}
 
 function buildDumbbells(unit: Unit): number[] {
   if (unit === "lb") {

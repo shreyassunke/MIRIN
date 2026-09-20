@@ -1,13 +1,25 @@
-import { lazy, Suspense, useId, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   BAR_OPTIONS,
   PLATE_SIZES,
   plateColor,
+  round2,
   type Unit,
 } from "../../lib/units";
 import { formatWeight } from "../../lib/workout";
+import { useDismissOnPointerOutside } from "../../hooks/useDismissOnPointerOutside";
+import { chipClass, chipTrackClass } from "../chip";
 import { Stepper } from "../Stepper";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
+import { PlateRack } from "./PlateRack";
 
 const LoadedBar3D = lazy(() =>
   import("./three/LoadedBar3D").then((m) => ({ default: m.LoadedBar3D })),
@@ -20,16 +32,11 @@ interface BarbellPickerProps {
   onChange: (barWeight: number, plates: number[]) => void;
 }
 
-/** Chip diameter follows real plate size hierarchy. */
-function chipDiameter(value: number, max: number) {
-  return Math.round(30 + 26 * Math.sqrt(value / max));
-}
-
 /** SVG plate proportions: taller and slightly thicker for bigger plates. */
 function plateDims(value: number, max: number) {
   return {
     h: Math.round(18 + 44 * Math.pow(value / max, 0.75)),
-    w: Math.round(6 + 5 * (value / max)),
+    w: Math.round(10 + 8 * (value / max)),
   };
 }
 
@@ -207,6 +214,25 @@ function LoadedBar(props: {
   );
 }
 
+function Chevron() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="ml-1 inline h-3.5 w-3.5 text-muted"
+      aria-hidden="true"
+    >
+      <path
+        d="M4 6.5 8 10.5 12 6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function BarbellPicker({
   unit,
   barWeight,
@@ -214,10 +240,43 @@ export function BarbellPicker({
   onChange,
 }: BarbellPickerProps) {
   const bars = BAR_OPTIONS[unit];
+  const listId = useId();
   // Explicit user choice; a nonstandard bar weight also opens the stepper.
   const [customChosen, setCustomChosen] = useState(false);
+  const [pickingBar, setPickingBar] = useState(false);
   const customBar = customChosen || !bars.includes(barWeight);
-  const max = PLATE_SIZES[unit][0];
+  const plateSum = round2(plates.reduce((a, b) => a + b, 0));
+  const total = round2(barWeight + 2 * plateSum);
+
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const wasPicking = useRef(false);
+
+  useDismissOnPointerOutside(
+    pickerRef,
+    () => setPickingBar(false),
+    pickingBar,
+  );
+
+  useEffect(() => {
+    if (!pickingBar) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPickingBar(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [pickingBar]);
+
+  useLayoutEffect(() => {
+    if (pickingBar) {
+      pickerRef.current
+        ?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')
+        ?.focus();
+    } else if (wasPicking.current) {
+      triggerRef.current?.focus();
+    }
+    wasPicking.current = pickingBar;
+  }, [pickingBar]);
 
   const counts = new Map<number, number>();
   for (const p of plates) counts.set(p, (counts.get(p) ?? 0) + 1);
@@ -231,58 +290,88 @@ export function BarbellPicker({
       plates.filter((_, i) => i !== index),
     );
 
+  const pickBar = (bar: number) => {
+    setCustomChosen(false);
+    setPickingBar(false);
+    onChange(bar, plates);
+  };
+
   return (
     <div>
-      {/* Bar selection */}
-      <div className="mb-4 flex items-center gap-2">
-        <span className="text-[13px] font-medium text-muted">Bar</span>
-        <div className="glass flex gap-0.5 rounded-pill p-0.5">
-          {bars.map((bar) => (
-            <button
-              key={bar}
-              type="button"
-              aria-pressed={!customBar && barWeight === bar}
-              onClick={() => {
-                setCustomChosen(false);
-                onChange(bar, plates);
-              }}
-              className={[
-                "glass-chip tnum h-11 rounded-pill px-3 text-[13px] font-medium",
-                !customBar && barWeight === bar
-                  ? "glass-chip-active text-ink"
-                  : "text-muted hover:text-ink",
-              ].join(" ")}
+      <div ref={pickerRef} className="mb-4 text-center">
+        <div className="flex min-h-11 flex-col items-center justify-center">
+          {pickingBar && plates.length > 0 && (
+            <p className="mb-2">
+              <span className="tnum text-3xl font-semibold tracking-tight">
+                {formatWeight(total)}
+              </span>
+              <span className="ml-1.5 text-sm text-muted">{unit}</span>
+            </p>
+          )}
+          {pickingBar ? (
+            <div
+              id={listId}
+              role="group"
+              aria-label="Bar weight"
+              className={chipTrackClass}
             >
-              {formatWeight(bar)} {unit}
+              {bars.map((bar) => (
+                <button
+                  key={bar}
+                  type="button"
+                  aria-pressed={!customBar && barWeight === bar}
+                  onClick={() => pickBar(bar)}
+                  className={`${chipClass(!customBar && barWeight === bar)} tnum h-11 px-3 text-[13px]`}
+                >
+                  {formatWeight(bar)} {unit}
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-pressed={customBar}
+                onClick={() => setCustomChosen(true)}
+                className={`${chipClass(customBar)} h-11 px-3 text-[13px]`}
+              >
+                Custom
+              </button>
+            </div>
+          ) : (
+            <button
+              ref={triggerRef}
+              type="button"
+              aria-expanded={false}
+              aria-haspopup="true"
+              aria-controls={listId}
+              aria-label={`Total ${formatWeight(total)} ${unit}. Bar ${formatWeight(barWeight)} ${unit}. Change bar.`}
+              aria-live="polite"
+              onClick={() => setPickingBar(true)}
+              className="inline-flex min-h-11 items-center rounded-pill px-3"
+            >
+              <span className="tnum text-3xl font-semibold tracking-tight">
+                {formatWeight(total)}
+              </span>
+              <span className="ml-1.5 text-sm text-muted">{unit}</span>
+              <Chevron />
             </button>
-          ))}
-          <button
-            type="button"
-            aria-pressed={customBar}
-            onClick={() => setCustomChosen(true)}
-            className={[
-              "glass-chip h-11 rounded-pill px-3 text-[13px] font-medium",
-              customBar
-                ? "glass-chip-active text-ink"
-                : "text-muted hover:text-ink",
-            ].join(" ")}
-          >
-            Custom
-          </button>
+          )}
         </div>
+        {plates.length > 0 && !pickingBar && (
+          <p className="tnum mt-0.5 text-[13px] text-muted">
+            {formatWeight(barWeight)} bar + 2 × {formatWeight(plateSum)}
+          </p>
+        )}
+        {customBar && (
+          <div className="mt-3 flex justify-center">
+            <Stepper
+              label={`Bar weight (${unit})`}
+              value={barWeight}
+              step={unit === "lb" ? 5 : 2.5}
+              min={0}
+              onChange={(v) => onChange(v, plates)}
+            />
+          </div>
+        )}
       </div>
-
-      {customBar && (
-        <div className="mb-4 flex justify-center">
-          <Stepper
-            label={`Bar weight (${unit})`}
-            value={barWeight}
-            step={unit === "lb" ? 5 : 2.5}
-            min={0}
-            onChange={(v) => onChange(v, plates)}
-          />
-        </div>
-      )}
 
       {/* Live loaded bar */}
       <div className="mb-1 flex justify-center">
@@ -309,37 +398,7 @@ export function BarbellPicker({
           </button>
         )}
       </div>
-      <div className="flex flex-wrap items-end justify-center gap-1">
-        {PLATE_SIZES[unit].map((value) => {
-          const d = chipDiameter(value, max);
-          const color = plateColor(unit, value);
-          const count = counts.get(value) ?? 0;
-          return (
-            <button
-              key={value}
-              type="button"
-              onClick={() => addPlate(value)}
-              aria-label={`Add ${formatWeight(value)} ${unit} plate to each side`}
-              className="flex min-h-11 min-w-11 flex-col items-center justify-end gap-0.5 rounded-md py-1 transition-colors duration-150 hover:bg-surface-raised"
-            >
-              <span
-                className="tnum flex items-center justify-center rounded-full border text-[13px] font-semibold text-ink"
-                style={{
-                  width: d,
-                  height: d,
-                  borderColor: color,
-                  backgroundColor: `${color}26`,
-                }}
-              >
-                {formatWeight(value)}
-              </span>
-              <span className="tnum h-5 text-[13px] text-muted">
-                {count > 0 ? `×${count}` : ""}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <PlateRack unit={unit} counts={counts} onAdd={addPlate} />
     </div>
   );
 }

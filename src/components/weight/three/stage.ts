@@ -127,11 +127,63 @@ if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", onVisibility);
 }
 
-export function createInstrumentScene(): THREE.Scene {
+export function createInstrumentScene(opts?: {
+  symmetric?: boolean;
+}): THREE.Scene {
   const scene = new THREE.Scene();
   scene.background = null;
-  addInstrumentLights(scene);
+  addInstrumentLights(scene, opts);
   scene.environment = getEnvironment();
-  scene.environmentIntensity = 1.12;
+  // The fixed bar pose leans on the environment for the gradients that make
+  // a stack of discs read as round, so it gets a stronger dose than the
+  // orbitable dumbbell, which can rely on motion for that instead.
+  scene.environmentIntensity = opts?.symmetric ? 1.45 : 1.12;
   return scene;
+}
+
+/** Offscreen render into a 2D canvas. Leaves the on-screen bar framebuffer alone. */
+export function bakeSceneToCanvas(
+  scene: THREE.Scene,
+  camera: THREE.Camera,
+  dest: HTMLCanvasElement,
+  opts?: { exposure?: number; toneMapping?: THREE.ToneMapping },
+) {
+  const r = ensureRenderer();
+  const w = dest.width;
+  const h = dest.height;
+  const rt = new THREE.WebGLRenderTarget(w, h, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    colorSpace: THREE.SRGBColorSpace,
+  });
+  const prevTarget = r.getRenderTarget();
+  const prevColor = r.getClearColor(new THREE.Color());
+  const prevAlpha = r.getClearAlpha();
+  const prevExposure = r.toneMappingExposure;
+  const prevTone = r.toneMapping;
+  try {
+    if (opts?.exposure != null) r.toneMappingExposure = opts.exposure;
+    if (opts?.toneMapping != null) r.toneMapping = opts.toneMapping;
+    r.setRenderTarget(rt);
+    r.setClearColor(0x000000, 0);
+    r.clear();
+    r.render(scene, camera);
+    const buf = new Uint8Array(w * h * 4);
+    r.readRenderTargetPixels(rt, 0, 0, w, h, buf);
+
+    const ctx = dest.getContext("2d");
+    if (!ctx) return;
+    const img = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) {
+      const src = (h - 1 - y) * w * 4;
+      img.data.set(buf.subarray(src, src + w * 4), y * w * 4);
+    }
+    ctx.putImageData(img, 0, 0);
+  } finally {
+    r.setRenderTarget(prevTarget);
+    r.setClearColor(prevColor, prevAlpha);
+    r.toneMappingExposure = prevExposure;
+    r.toneMapping = prevTone;
+    rt.dispose();
+  }
 }

@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type KeyboardEvent,
+} from "react";
 
-const ITEM_H = 44;
-const VISIBLE = 3;
-const WHEEL_H = ITEM_H * VISIBLE;
-const MAX_TILT_ITEMS = 2;
+export const SNAP_ITEM_W = 80;
+const SNAP_ITEM_H = 56;
 
 interface WheelPickerProps {
   values: number[];
@@ -14,9 +18,10 @@ interface WheelPickerProps {
 }
 
 /**
- * iOS-timer-style drum picker. Scrolling is native (CSS scroll-snap does
- * the settling), while a rAF loop applies the rotateX/opacity drum effect
- * with direct style writes so nothing re-renders mid-flick.
+ * Horizontal snap picker. The selected value is the hero numeral; neighbors
+ * peek at reduced scale so the control is the number, not a separate drum.
+ * Native scroll-snap settles; a rAF loop paints opacity/scale without
+ * re-rendering mid-flick.
  */
 export function WheelPicker({
   values,
@@ -34,18 +39,20 @@ export function WheelPicker({
       window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   ).current;
 
-  const paintDrum = useCallback(() => {
+  const paint = useCallback(() => {
     const wheel = wheelRef.current;
     if (!wheel) return;
-    const centerIndex = wheel.scrollTop / ITEM_H;
+    const centerIndex = wheel.scrollLeft / SNAP_ITEM_W;
     itemRefs.current.forEach((item, i) => {
       if (!item) return;
-      const distance = i - centerIndex;
-      const clamped = Math.max(-MAX_TILT_ITEMS, Math.min(MAX_TILT_ITEMS, distance));
-      item.style.opacity = String(Math.max(0.2, 1 - Math.abs(clamped) * 0.28));
+      const ad = Math.abs(i - centerIndex);
+      item.style.opacity = String(Math.max(0.14, 1 - ad * 0.55));
       item.style.transform = reducedMotion
         ? ""
-        : `rotateX(${clamped * -16}deg) scale(${1 - Math.abs(clamped) * 0.05})`;
+        : `scale(${Math.max(0.52, 1 - ad * 0.28)})`;
+      const on = ad < 0.5;
+      item.style.color = on ? "var(--color-ink)" : "var(--color-muted)";
+      item.style.fontWeight = on ? "600" : "500";
     });
   }, [reducedMotion]);
 
@@ -54,10 +61,10 @@ export function WheelPicker({
     rafId.current = requestAnimationFrame(() => {
       const wheel = wheelRef.current;
       if (!wheel) return;
-      paintDrum();
+      paint();
       const index = Math.max(
         0,
-        Math.min(values.length - 1, Math.round(wheel.scrollTop / ITEM_H)),
+        Math.min(values.length - 1, Math.round(wheel.scrollLeft / SNAP_ITEM_W)),
       );
       const next = values[index];
       if (next !== lastEmitted.current) {
@@ -65,29 +72,32 @@ export function WheelPicker({
         onChange(next);
       }
     });
-  }, [values, onChange, paintDrum]);
+  }, [values, onChange, paint]);
 
-  // Position the drum when the value changes from outside (prefill, unit
-  // switch, "same as last time"), never when the change came from a scroll.
+  // Position when the value changes from outside (prefill, unit switch,
+  // "same as last time"), never when the change came from a scroll.
   const knownValues = useRef<number[] | null>(null);
   useLayoutEffect(() => {
     const wheel = wheelRef.current;
     if (!wheel) return;
     const valuesChanged = knownValues.current !== values;
-    if (!valuesChanged && value === lastEmitted.current) return;
+    if (!valuesChanged && value === lastEmitted.current) {
+      paint();
+      return;
+    }
     knownValues.current = values;
     itemRefs.current.length = values.length;
     const index = Math.max(0, values.indexOf(value));
     lastEmitted.current = value;
-    wheel.scrollTo({ top: index * ITEM_H, behavior: "instant" });
-    paintDrum();
-  }, [value, values, paintDrum]);
+    wheel.scrollTo({ left: index * SNAP_ITEM_W, behavior: "instant" });
+    paint();
+  }, [value, values, paint]);
 
   useEffect(() => () => cancelAnimationFrame(rafId.current), []);
 
   const selectIndex = (index: number) => {
     wheelRef.current?.scrollTo({
-      top: index * ITEM_H,
+      left: index * SNAP_ITEM_W,
       behavior: reducedMotion ? "instant" : "smooth",
     });
   };
@@ -111,49 +121,42 @@ export function WheelPicker({
     }
   };
 
+  const edge = `calc(50% - ${SNAP_ITEM_W / 2}px)`;
+
   return (
-    <div className="relative mx-auto w-36" style={{ perspective: "640px" }}>
-      {/* center row indicator */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-1/2 z-10 h-11 -translate-y-1/2 rounded-md glass"
-      />
-      <div
-        ref={wheelRef}
-        role="listbox"
-        aria-label={ariaLabel}
-        tabIndex={0}
-        onScroll={handleScroll}
-        onKeyDown={onKeyDown}
-        className="no-scrollbar relative snap-y snap-mandatory overflow-y-auto overscroll-contain"
-        style={{
-          height: WHEEL_H,
-          paddingTop: ITEM_H * Math.floor(VISIBLE / 2),
-          paddingBottom: ITEM_H * Math.floor(VISIBLE / 2),
-          transformStyle: "preserve-3d",
-        }}
-      >
-        {values.map((v, i) => (
-          <button
-            key={v}
-            ref={(el) => {
-              itemRefs.current[i] = el;
-            }}
-            type="button"
-            role="option"
-            tabIndex={-1}
-            aria-selected={v === value}
-            onClick={() => selectIndex(i)}
-            className={[
-              "tnum flex w-full snap-center items-center justify-center text-lg transition-colors duration-150",
-              v === value ? "font-semibold text-ink" : "font-normal text-muted",
-            ].join(" ")}
-            style={{ height: ITEM_H }}
-          >
-            {format(v)}
-          </button>
-        ))}
-      </div>
+    <div
+      ref={wheelRef}
+      role="listbox"
+      aria-label={ariaLabel}
+      aria-orientation="horizontal"
+      tabIndex={0}
+      onScroll={handleScroll}
+      onKeyDown={onKeyDown}
+      className="snap-fade-x no-scrollbar relative flex snap-x snap-mandatory overflow-x-auto overscroll-contain select-none"
+      style={{
+        height: SNAP_ITEM_H,
+        paddingLeft: edge,
+        paddingRight: edge,
+        touchAction: "pan-x",
+      }}
+    >
+      {values.map((v, i) => (
+        <button
+          key={v}
+          ref={(el) => {
+            itemRefs.current[i] = el;
+          }}
+          type="button"
+          role="option"
+          tabIndex={-1}
+          aria-selected={v === value}
+          onClick={() => selectIndex(i)}
+          className="tnum box-border flex w-20 min-w-20 max-w-20 shrink-0 grow-0 snap-center items-center justify-center border-0 bg-transparent p-0 text-3xl tracking-tight touch-pan-x"
+          style={{ height: SNAP_ITEM_H }}
+        >
+          {format(v)}
+        </button>
+      ))}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { DUMBBELL_SIZES, type Unit } from "../../lib/units";
-import type { Laterality } from "../../lib/laterality";
+import { lateralityCaption, type Laterality } from "../../lib/laterality";
 import { formatWeight } from "../../lib/workout";
 import { LateralityToggle } from "../LateralityToggle";
 import { WheelPicker } from "./WheelPicker";
@@ -36,8 +36,7 @@ function DumbbellIconSvg({ unit, value }: { unit: Unit; value: number }) {
   return (
     <svg
       viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-      className="w-64"
-      style={{ height: 140 }}
+      className="h-[88px] w-52"
       role="img"
       aria-label={`${formatWeight(value)} ${unit} dumbbell`}
     >
@@ -118,12 +117,10 @@ export function DumbbellPicker({
   onChange,
   onLateralityChange,
 }: DumbbellPickerProps) {
+  const caption = lateralityCaption(laterality, "independent");
+
   return (
     <div>
-      <div className="mb-1 flex justify-center">
-        <DumbbellIcon unit={unit} value={value} />
-      </div>
-
       <WheelPicker
         values={DUMBBELL_SIZES[unit]}
         value={value}
@@ -131,8 +128,16 @@ export function DumbbellPicker({
         format={formatWeight}
         ariaLabel={`Dumbbell weight (${unit})`}
       />
+      <p className="mt-1 text-center text-sm text-muted" aria-live="polite">
+        <span className="sr-only">{formatWeight(value)} </span>
+        {unit} · {caption}
+      </p>
 
-      <div className="mt-3 flex justify-center">
+      <div className="mt-4 flex justify-center">
+        <DumbbellIcon unit={unit} value={value} />
+      </div>
+
+      <div className="mt-4 flex justify-center">
         <LateralityToggle
           value={laterality}
           onChange={onLateralityChange}

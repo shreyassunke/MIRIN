@@ -1,0 +1,46 @@
+{
+  "note": "Pose measurements taken off the target reference photo (a loaded Olympic bar shot from its own midline). These are what the camera constants in src/components/weight/three/scale.ts are derived from. Pixel figures come from the 649x325 source; ratios are what actually carry over.",
+  "method": "Threshold the object against the white backdrop, take the per-column vertical extent, then read the innermost plate's face ellipse off the inner silhouette. The ellipse is sampled where sqrt(1 - ((y-cy)/b)^2) = 0.5, i.e. at y = cy +/- 0.866b, because the apex is both noisy and biased.",
+  "reference": {
+    "barSpanPx": 611,
+    "plateHeightPx": 159,
+    "stackWidthPx": 103,
+    "platesPerSide": 4,
+    "ratios": {
+      "plateHeight_over_barLength": 0.26,
+      "plateThickness_over_plateDiameter": 0.19,
+      "sleeveExposed_over_plateHeight": 0.36,
+      "sleeveLength_over_barLength": 0.26,
+      "shaftDiameter_over_plateHeight": 0.063,
+      "faceEllipse_minor_over_major": 0.23
+    },
+    "impliedViewAngleDeg": 13.0
+  },
+  "adopted": {
+    "BAR_CAM_DISTANCE_FACTOR": 2.7,
+    "BAR_CAM_ELEVATION_DEG": 3,
+    "SLEEVE_LEN": 50,
+    "plateThickness_over_plateDiameter": 0.16,
+    "faceEllipse_minor_over_major": 0.2
+  },
+  "deviations": [
+    {
+      "what": "plateHeight / barLength",
+      "reference": 0.26,
+      "ours": 0.2,
+      "why": "The reference bar is stylised and short — its collar sits 0.48 of the half length out, where a real Olympic bar's sits at 0.6. Real 220cm / 45cm proportions were kept so that picking a 35 or a 25 reads as a genuinely smaller plate."
+    },
+    {
+      "what": "plate thickness / diameter",
+      "reference": 0.19,
+      "ours": 0.16,
+      "why": "0.19 is thicker than any real bumper and would push a six-plate stack off the end of the sleeve. 0.16 is the most the sleeve takes while still leaving the tip visible."
+    },
+    {
+      "what": "sleeve length",
+      "reference": 0.26,
+      "ours": 0.227,
+      "why": "Longer than a real 41cm sleeve, but required: at this view angle the outermost plate's near rim projects almost as far out as the tip, so a real-length sleeve leaves a loaded bar with no visible tip."
+    }
+  ]
+}

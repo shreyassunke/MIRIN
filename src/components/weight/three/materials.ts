@@ -191,11 +191,14 @@ export function headMaterial() {
 
 export function plateMaterial(hex: string) {
   return remember(`plate:${hex}`, () => {
+    // Enough sheen for the rim to carry a gradient — that curvature cue is
+    // the only thing separating stacked discs at a near edge-on view — while
+    // staying well short of a glass or chrome read.
     const mat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(hex),
-      metalness: 0.1,
-      roughness: 0.7,
-      envMapIntensity: 0.32,
+      metalness: 0.22,
+      roughness: 0.48,
+      envMapIntensity: 0.85,
       transparent: false,
       opacity: 1,
     });
@@ -207,10 +210,15 @@ export function plateMaterial(hex: string) {
 export function hubMaterial() {
   return remember("hub", () => {
     return new THREE.MeshStandardMaterial({
-      color: new THREE.Color("#b8b8bc"),
-      metalness: 0.9,
-      roughness: 0.35,
-      envMapIntensity: 1,
+      color: new THREE.Color("#c2c2c8"),
+      metalness: 0.72,
+      roughness: 0.3,
+      envMapIntensity: 1.3,
+      // The insert's outer wall sits flush against the plate's bore, where
+      // the lathe leaves it wound away from the camera. Two-sided is the
+      // cheap correct answer for a closed part this small; three.js flips
+      // the normal for back faces, so the shading stays right.
+      side: THREE.DoubleSide,
     });
   });
 }
@@ -249,14 +257,23 @@ export function createEnvironment(): THREE.DataTexture {
       const u = x / (w - 1);
       const i = (y * w + x) * 4;
       const floor = 12 + (1 - v) * 8;
-      const sky = 24 + v * 32;
+      // Lifted overhead band: the upward-facing rims of a plate stack see
+      // almost nothing but the zenith, and a dark zenith renders the top of
+      // every stack as a black crescent.
+      const sky = 30 + v * 62;
       let lum = v < 0.42 ? floor : sky;
+      // three.js samples an equirect as u = atan2(z, x) / 2pi + 0.5, so
+      // mirroring the world about x = 0 maps u to 1.5 - u: the fold line is
+      // u = 0.75 (+z, toward the viewer), not u = 0.5. Driving every light
+      // off `az` — 0 dead ahead, 1 dead behind, 0.5 at both sides — makes
+      // the map symmetric under that mirror by construction.
+      const az = Math.abs((((u - 0.75 + 1.5) % 1) + 1) % 1 - 0.5) * 2;
       const box =
-        Math.exp(-Math.pow((u - 0.5) * 2.4, 2) * 2) *
+        Math.exp(-Math.pow(az * 2.4, 2) * 2) *
         Math.exp(-Math.pow((v - 0.78) * 4.2, 2));
       lum += box * 180;
       const fill =
-        Math.exp(-Math.pow((u - 0.12) * 4.5, 2)) *
+        Math.exp(-Math.pow((az - 0.5) * 4.5, 2)) *
         Math.exp(-Math.pow((v - 0.55) * 2.8, 2));
       lum += fill * 70;
       const k = Math.max(10, Math.min(255, lum));
@@ -273,17 +290,42 @@ export function createEnvironment(): THREE.DataTexture {
   return tex;
 }
 
-export function addInstrumentLights(scene: THREE.Scene) {
-  const key = new THREE.DirectionalLight(0xf2f2f2, 1.35);
-  key.position.set(-0.6, 1.8, 2.2);
+/**
+ * Soft key from front-top, a fill, and a rim. Pass `symmetric` when the pose
+ * has to survive a horizontal flip: it puts the key and rim on x = 0 and
+ * splits the fill into a mirrored pair of half-intensity lights.
+ */
+export function addInstrumentLights(
+  scene: THREE.Scene,
+  opts?: { symmetric?: boolean },
+) {
+  const symmetric = opts?.symmetric ?? false;
+
+  const key = new THREE.DirectionalLight(0xf2f2f2, symmetric ? 1.1 : 1.35);
+  key.position.set(symmetric ? 0 : -0.6, 1.8, 2.2);
   scene.add(key);
 
-  const fill = new THREE.DirectionalLight(0xc8c8c8, 0.45);
-  fill.position.set(1.4, 0.4, 0.8);
-  scene.add(fill);
+  if (symmetric) {
+    // A plate face points along +/-x, so a light on the x = 0 midline leaves
+    // it at NdotL = 0 — the faces the whole pose exists to show would render
+    // on ambient alone. This raking pair is what actually lights them, and
+    // each face only ever sees the one on its own side.
+    for (const x of [-1.9, 1.9]) {
+      const fill = new THREE.DirectionalLight(0xdcdce2, 0.85);
+      fill.position.set(x, 0.5, 1.1);
+      scene.add(fill);
+    }
+  } else {
+    const fill = new THREE.DirectionalLight(0xc8c8c8, 0.45);
+    fill.position.set(1.4, 0.4, 0.8);
+    scene.add(fill);
+  }
 
-  const rim = new THREE.DirectionalLight(0xffffff, 0.55);
-  rim.position.set(0.1, 0.6, -1.8);
+  // Looking slightly down the bar means the top of each stack is the disc's
+  // far side, which the front key never reaches. The back kicker is what
+  // stops that crescent from going black.
+  const rim = new THREE.DirectionalLight(0xffffff, symmetric ? 0.9 : 0.55);
+  rim.position.set(symmetric ? 0 : 0.1, 0.9, -1.8);
   scene.add(rim);
 
   scene.add(new THREE.AmbientLight(0x7a7a7a, 0.28));

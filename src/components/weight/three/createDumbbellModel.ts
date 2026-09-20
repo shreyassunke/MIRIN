@@ -14,6 +14,7 @@ import {
   DB_HANDLE_LEN,
   DB_HANDLE_R,
   dumbbellHeadDims,
+  dumbbellMaxHeadDims,
 } from "./scale";
 
 const SEG = 96;
@@ -118,6 +119,21 @@ export function createDumbbellModel(): THREE.Group {
   root.add(headR);
 
   const shadow = addContactShadow(root, 1, 1, -8);
+
+  // Invisible envelope so the camera fits the heaviest dumbbell, not the
+  // current one — otherwise every weight fills the frame the same way.
+  const max = dumbbellMaxHeadDims();
+  const maxHeadX = DB_HANDLE_LEN / 2 + DB_COLLAR_T + max.thickness / 2;
+  const fitGeo = new THREE.BoxGeometry(
+    (maxHeadX + max.thickness / 2) * 2,
+    max.radius * 2,
+    max.radius * 2,
+  );
+  owned.push(fitGeo);
+  const fitBounds = new THREE.Mesh(fitGeo);
+  fitBounds.visible = false;
+  fitBounds.name = "fitBounds";
+  root.add(fitBounds);
 
   const setWeight = (value: number, unit: Unit) => {
     const { radius, thickness, chamfer } = dumbbellHeadDims(value, unit);

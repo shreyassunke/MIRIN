@@ -73,9 +73,11 @@ await expect("wheel prefilled at 15", () =>
 );
 await page.screenshot({ path: `${OUT}/wheel-initial.png`, fullPage: true });
 
-// Flick the wheel: scroll three notches heavier (15 -> 22.5 in lb steps).
+// Flick the snap picker: scroll three notches heavier (15 -> 22.5 in lb steps).
 await wheel.evaluate((el) => {
-  el.scrollBy({ top: 36 * 3, behavior: "instant" });
+  const opt = el.querySelector('[role="option"]');
+  const itemW = opt ? opt.getBoundingClientRect().width : 80;
+  el.scrollBy({ left: itemW * 3, behavior: "instant" });
 });
 await page.waitForTimeout(500);
 await expect("wheel scrolled to 22.5", () =>

@@ -10,11 +10,19 @@ import {
   requestFrames,
   type FrameFn,
 } from "./stage";
-import { fitOrthoCamera } from "./scale";
+import { aimBarbellCamera, fitBarbellCamera, fitOrthoCamera } from "./scale";
 
 const PITCH_MAX = THREE.MathUtils.degToRad(80);
 /** Movement below this is a tap. Past it, vertical intent scrolls the page; horizontal intent orbits. */
 export const TAP_PX = 12;
+
+/**
+ * `orbit` frames the object orthographically and lets a drag spin it.
+ * `fixed` holds one authored perspective pose: the camera never leaves the
+ * x = 0 midline and the model is never rotated, so the render stays mirror
+ * symmetric. Pointer input only nudges the camera's elevation.
+ */
+export type StageMode = "orbit" | "fixed";
 
 export function prefersReducedMotion() {
   return (
@@ -38,23 +46,34 @@ type DragStart = {
 export function useWeightStage(opts: {
   attach: AttachFn;
   extraFrame?: FrameFn;
-  onTap?: (ndc: THREE.Vector2, camera: THREE.Camera) => void;
+  onTap?: (
+    ndc: THREE.Vector2,
+    camera: THREE.Camera,
+    rect: DOMRectReadOnly,
+  ) => void;
   padding?: number;
+  mode?: StageMode;
+  /** Symmetric light rig. Required whenever the pose must mirror exactly. */
+  symmetricLights?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
+  const cameraRef = useRef<THREE.Camera | null>(null);
   const pivotRef = useRef<THREE.Group | null>(null);
   const yaw = useRef(0);
   const pitch = useRef(0);
   const targetYaw = useRef(0);
   const targetPitch = useRef(0);
+  const parallax = useRef(0);
+  const targetParallax = useRef(0);
   const drag = useRef<DragStart | null>(null);
   const attachRef = useRef(opts.attach);
   const extraRef = useRef(opts.extraFrame);
   const tapRef = useRef(opts.onTap);
   const padding = opts.padding ?? 1.15;
+  const mode = opts.mode ?? "orbit";
+  const symmetricLights = opts.symmetricLights ?? mode === "fixed";
   attachRef.current = opts.attach;
   extraRef.current = opts.extraFrame;
   tapRef.current = opts.onTap;
@@ -75,36 +94,63 @@ export function useWeightStage(opts: {
     const h = host.clientHeight;
     if (w < 2 || h < 2) return;
     configureSize(w, h);
-    const rot = pivot.rotation.clone();
-    pivot.rotation.set(0, 0, 0);
-    pivot.updateWorldMatrix(true, true);
-    fitOrthoCamera(camera, pivot, w, h, padding);
-    pivot.rotation.copy(rot);
+    if (camera instanceof THREE.PerspectiveCamera) {
+      fitBarbellCamera(camera, pivot, w, h);
+      aimBarbellCamera(camera, parallax.current);
+    } else if (camera instanceof THREE.OrthographicCamera) {
+      const rot = pivot.rotation.clone();
+      pivot.rotation.set(0, 0, 0);
+      pivot.updateWorldMatrix(true, true);
+      fitOrthoCamera(camera, pivot, w, h, padding);
+      pivot.rotation.copy(rot);
+    }
     requestRender();
   }, [padding, requestRender]);
 
   const spring: FrameFn = useCallback(
     (now) => {
       const extra = extraRef.current?.(now) ?? false;
-      if (prefersReducedMotion()) {
-        yaw.current = 0;
-        pitch.current = 0;
-        targetYaw.current = 0;
-        targetPitch.current = 0;
-      } else {
-        yaw.current += (targetYaw.current - yaw.current) * 0.28;
-        pitch.current += (targetPitch.current - pitch.current) * 0.28;
-      }
+      const still = prefersReducedMotion();
+      const camera = cameraRef.current;
       const pivot = pivotRef.current;
-      if (pivot) pivot.rotation.set(pitch.current, yaw.current, 0);
+      let settling = false;
+
+      if (mode === "fixed") {
+        if (still) {
+          parallax.current = 0;
+          targetParallax.current = 0;
+        } else {
+          parallax.current += (targetParallax.current - parallax.current) * 0.22;
+          settling =
+            Math.abs(targetParallax.current - parallax.current) > 0.0015;
+          // Snap the tail so the rest pose is exactly symmetric, not merely
+          // close to it — the flip test has no tolerance for a stray fraction
+          // of a degree.
+          if (!settling) parallax.current = targetParallax.current;
+        }
+        if (camera instanceof THREE.PerspectiveCamera) {
+          aimBarbellCamera(camera, parallax.current);
+        }
+      } else {
+        if (still) {
+          yaw.current = 0;
+          pitch.current = 0;
+          targetYaw.current = 0;
+          targetPitch.current = 0;
+        } else {
+          yaw.current += (targetYaw.current - yaw.current) * 0.28;
+          pitch.current += (targetPitch.current - pitch.current) * 0.28;
+          settling =
+            Math.abs(targetYaw.current - yaw.current) > 0.0004 ||
+            Math.abs(targetPitch.current - pitch.current) > 0.0004;
+        }
+        if (pivot) pivot.rotation.set(pitch.current, yaw.current, 0);
+      }
+
       requestRender();
-      const settling =
-        !prefersReducedMotion() &&
-        (Math.abs(targetYaw.current - yaw.current) > 0.0004 ||
-          Math.abs(targetPitch.current - pitch.current) > 0.0004);
       return extra || settling || !!drag.current;
     },
-    [requestRender],
+    [mode, requestRender],
   );
 
   const kick = useCallback(() => {
@@ -117,8 +163,11 @@ export function useWeightStage(opts: {
     const canvas = acquireCanvas(host);
     canvasRef.current = canvas;
 
-    const scene = createInstrumentScene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 400);
+    const scene = createInstrumentScene({ symmetric: symmetricLights });
+    const camera =
+      mode === "fixed"
+        ? new THREE.PerspectiveCamera(20, 1, 1, 1000)
+        : new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 400);
     const pivot = new THREE.Group();
     scene.add(pivot);
 
@@ -144,7 +193,21 @@ export function useWeightStage(opts: {
       pivotRef.current = null;
       canvasRef.current = null;
     };
-  }, [fit, kick, spring]);
+  }, [fit, kick, mode, spring, symmetricLights]);
+
+  const setParallaxFromEvent = (e: PointerEvent) => {
+    const host = hostRef.current;
+    if (!host || prefersReducedMotion()) return;
+    const rect = host.getBoundingClientRect();
+    const t = 1 - ((e.clientY - rect.top) / Math.max(rect.height, 1)) * 2;
+    targetParallax.current = THREE.MathUtils.clamp(t, -1, 1);
+    kick();
+  };
+
+  const releaseParallax = () => {
+    targetParallax.current = 0;
+    kick();
+  };
 
   const onPointerDown = (e: PointerEvent) => {
     drag.current = {
@@ -159,6 +222,10 @@ export function useWeightStage(opts: {
   };
 
   const onPointerMove = (e: PointerEvent) => {
+    if (mode === "fixed") {
+      setParallaxFromEvent(e);
+      return;
+    }
     const start = drag.current;
     if (!start || start.discarded) return;
     const host = hostRef.current;
@@ -192,7 +259,8 @@ export function useWeightStage(opts: {
   const onPointerUp = (e: PointerEvent) => {
     const start = drag.current;
     drag.current = null;
-    kick();
+    if (mode === "fixed") releaseParallax();
+    else kick();
     if (!start) return;
     const host = hostRef.current as HTMLElement | null;
     if (host?.hasPointerCapture(e.pointerId)) {
@@ -209,7 +277,11 @@ export function useWeightStage(opts: {
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
       -(((e.clientY - rect.top) / rect.height) * 2 - 1),
     );
-    tapRef.current(ndc, camera);
+    tapRef.current(ndc, camera, rect);
+  };
+
+  const onPointerLeave = () => {
+    if (mode === "fixed") releaseParallax();
   };
 
   return {
@@ -223,6 +295,7 @@ export function useWeightStage(opts: {
       onPointerDown,
       onPointerUp,
       onPointerCancel: onPointerUp,
+      onPointerLeave,
     },
   };
 }

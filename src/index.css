@@ -104,6 +104,24 @@ a,
   display: none;
 }
 
+/* Horizontal snap picker: peek the neighbors, keep the center fully inked. */
+.snap-fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+}
+
 :focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;

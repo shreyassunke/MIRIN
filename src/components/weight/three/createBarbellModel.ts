@@ -1,50 +1,36 @@
 import * as THREE from "three";
-import { plateColor, type Unit } from "../../../lib/units";
+import type { Unit } from "../../../lib/units";
 import {
   addContactShadow,
+  collarMaterial,
   knurlMaterial,
-  plateMaterial,
   steelMaterial,
 } from "./materials";
 import {
   alongX,
   BAR_LEN,
+  COLLAR_R,
+  COLLAR_T,
   COLLAR_X,
   PLATE_GAP,
   plateWorldDims,
   SHAFT_R,
   SLEEVE_LEN,
   SLEEVE_R,
+  SLEEVE_TIP_MARGIN,
 } from "./scale";
-import { addPlateFaces } from "./stamp";
+import { createPlate } from "./createPlate";
 
 export const SETTLE_MS = 160;
-const SEG = 64;
-const plateGeoCache = new Map<string, THREE.BufferGeometry>();
 
-function bumperGeometry(radius: number, thickness: number, hole: number) {
-  const key = `${radius.toFixed(3)}:${thickness.toFixed(3)}:${hole.toFixed(3)}`;
-  const hit = plateGeoCache.get(key);
-  if (hit) return hit;
-  const half = thickness / 2;
-  const bevel = Math.min(0.18, half * 0.18, radius * 0.02);
-  const points: THREE.Vector2[] = [];
-  const push = (x: number, y: number) => points.push(new THREE.Vector2(x, y));
-
-  push(hole, -half);
-  push(hole, half);
-  push(radius - bevel, half);
-  push(radius, half - bevel);
-  push(radius, -half + bevel);
-  push(radius - bevel, -half);
-
-  const geo = alongX(new THREE.LatheGeometry(points, SEG));
-  geo.userData.shared = true;
-  plateGeoCache.set(key, geo);
-  return geo;
-}
-
+/**
+ * Clamped, because the rAF timestamp is the frame's start time and can
+ * predate the `performance.now()` taken when the slot was born. A negative
+ * t turns 2^(-10t) into an astronomical number, which flings the plates off
+ * to ~1e18 and permanently poisons the camera fit that follows.
+ */
 function easeOutExpo(t: number) {
+  if (t <= 0) return 0;
   return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
 }
 
@@ -57,8 +43,13 @@ export type BarbellRuntime = {
   dispose: () => void;
 };
 
+/**
+ * One slot drives both stacks. There is no per-side position anywhere in
+ * this file: the left half is the right half under a scale.x = -1 wrapper,
+ * so the two can never drift apart.
+ */
 type Slot = {
-  mesh: THREE.Object3D;
+  meshes: THREE.Object3D[];
   restX: number;
   startX: number;
   born: number;
@@ -79,6 +70,7 @@ export function createBarbellModel(): THREE.Group {
 
   const chrome = steelMaterial();
   const knurlMat = knurlMaterial();
+  const collarMat = collarMaterial();
   const owned: THREE.BufferGeometry[] = [];
 
   const shaftLen = COLLAR_X * 2;
@@ -91,143 +83,168 @@ export function createBarbellModel(): THREE.Group {
   root.add(shaft);
 
   const knurlLen = 22;
-  for (const x of [-28, 0, 28]) {
-    const geo = alongX(
-      new THREE.CylinderGeometry(SHAFT_R * 1.04, SHAFT_R * 1.04, knurlLen, 48),
-    );
-    owned.push(geo);
-    const band = new THREE.Mesh(geo, knurlMat);
-    band.position.x = x;
-    band.name = `knurl-${x}`;
-    root.add(band);
-  }
+  const knurlGeo = alongX(
+    new THREE.CylinderGeometry(SHAFT_R * 1.04, SHAFT_R * 1.04, knurlLen, 48),
+  );
+  owned.push(knurlGeo);
+  // The centre band is built as two mirrored halves rather than one mesh
+  // straddling x = 0: the knurl's diagonal cross-hatch is not symmetric
+  // about its own midpoint, so a single mesh would break the flip test.
+  const halfKnurlGeo = alongX(
+    new THREE.CylinderGeometry(SHAFT_R * 1.04, SHAFT_R * 1.04, knurlLen / 2, 48),
+  );
+  owned.push(halfKnurlGeo);
 
   const sleeveGeo = alongX(
     new THREE.CylinderGeometry(SLEEVE_R, SLEEVE_R, SLEEVE_LEN, 48),
   );
   owned.push(sleeveGeo);
-  const sleeveL = new THREE.Mesh(sleeveGeo, chrome);
-  sleeveL.position.x = -(COLLAR_X + SLEEVE_LEN / 2);
-  sleeveL.name = "sleeveLeft";
-  root.add(sleeveL);
-  const sleeveR = sleeveL.clone();
-  sleeveR.position.x = COLLAR_X + SLEEVE_LEN / 2;
-  sleeveR.name = "sleeveRight";
-  root.add(sleeveR);
-
   const capGeo = alongX(
     new THREE.CylinderGeometry(SLEEVE_R * 1.05, SLEEVE_R * 0.92, 1.2, 32),
   );
   owned.push(capGeo);
-  const capL = new THREE.Mesh(capGeo, chrome);
-  capL.position.x = -BAR_LEN / 2;
-  capL.name = "sleeveCapLeft";
-  root.add(capL);
-  const capR = capL.clone();
-  capR.position.x = BAR_LEN / 2;
-  capR.name = "sleeveCapRight";
-  root.add(capR);
+  const collarGeo = alongX(
+    new THREE.CylinderGeometry(COLLAR_R, COLLAR_R, COLLAR_T, 48),
+  );
+  owned.push(collarGeo);
 
-  const socketL = new THREE.Group();
-  socketL.name = "socketPlateLeft";
-  root.add(socketL);
-  const socketR = new THREE.Group();
-  socketR.name = "socketPlateRight";
-  root.add(socketR);
+  /** Everything outboard of centre, authored once at +x. */
+  function buildSide() {
+    const side = new THREE.Group();
 
+    const centre = new THREE.Mesh(halfKnurlGeo, knurlMat);
+    centre.position.x = knurlLen / 4;
+    centre.name = "knurlCentreHalf";
+    side.add(centre);
+
+    const knurl = new THREE.Mesh(knurlGeo, knurlMat);
+    knurl.position.x = 28;
+    knurl.name = "knurlGrip";
+    side.add(knurl);
+
+    const collar = new THREE.Mesh(collarGeo, collarMat);
+    collar.position.x = COLLAR_X;
+    collar.name = "collar";
+    side.add(collar);
+
+    const sleeve = new THREE.Mesh(sleeveGeo, chrome);
+    sleeve.position.x = COLLAR_X + SLEEVE_LEN / 2;
+    sleeve.name = "sleeve";
+    side.add(sleeve);
+
+    const cap = new THREE.Mesh(capGeo, chrome);
+    cap.position.x = BAR_LEN / 2;
+    cap.name = "sleeveCap";
+    side.add(cap);
+
+    const socket = new THREE.Group();
+    socket.name = "socketPlate";
+    side.add(socket);
+
+    return { side, socket };
+  }
+
+  const right = buildSide();
+  right.side.name = "sideRight";
+  root.add(right.side);
+
+  const left = buildSide();
+  left.side.name = "sideLeft";
+  left.side.scale.x = -1;
+  root.add(left.side);
+
+  const sockets = [right.socket, left.socket];
   const shadow = addContactShadow(root, 1, 1, -24);
 
   const plateMeshes: THREE.Object3D[] = [];
   const slots: Slot[] = [];
 
   const setPlates = (plates: number[], unit: Unit, animate: boolean) => {
-    while (socketL.children.length) {
-      const child = socketL.children[0];
-      socketL.remove(child);
-      disposePlate(child);
-    }
-    while (socketR.children.length) {
-      const child = socketR.children[0];
-      socketR.remove(child);
-      disposePlate(child);
+    for (const socket of sockets) {
+      while (socket.children.length) {
+        const child = socket.children[0];
+        socket.remove(child);
+        disposePlate(child);
+      }
     }
     plateMeshes.length = 0;
     slots.length = 0;
 
-    const shoulder = COLLAR_X;
-    let cursor = PLATE_GAP;
+    // Plates butt against the collar's outer face and grow toward the tip.
+    const shoulder = COLLAR_X + COLLAR_T / 2;
+    const dims = plates.map((value) => plateWorldDims(value, unit));
+
+    // A very deep stack would otherwise run off the end of the sleeve. Thin
+    // the discs to fit rather than let them float past the tip; the squeeze
+    // is identical on both sides, so the pose stays symmetric.
+    const needed =
+      dims.reduce((sum, d) => sum + d.thickness, 0) +
+      (dims.length + 1) * PLATE_GAP;
+    const room = BAR_LEN / 2 - shoulder - SLEEVE_TIP_MARGIN;
+    const squeeze = needed > room ? room / needed : 1;
+
+    let cursor = PLATE_GAP * squeeze;
     const now = performance.now();
     let maxR = 8;
     plates.forEach((value, index) => {
-      const { radius, thickness, hole } = plateWorldDims(value, unit);
-      maxR = Math.max(maxR, radius);
-      const rest = cursor + thickness / 2;
-      const start = animate ? rest + 8 + index * 1.2 : rest;
-      const hex = plateColor(unit, value);
-      const geo = bumperGeometry(radius, thickness, hole);
-      const mat = plateMaterial(hex);
+      const meshes = sockets.map((socket) => {
+        const plate = createPlate(value, unit);
+        plate.scale.x = squeeze;
+        plate.userData.plateIndex = index;
+        plate.name = `plate-${index}`;
+        socket.add(plate);
+        return plate;
+      });
+      maxR = Math.max(maxR, dims[index].radius);
+      const thickness = dims[index].thickness * squeeze;
 
-      const left = new THREE.Group();
-      left.add(new THREE.Mesh(geo, mat));
-      addPlateFaces(left, value, hex, radius, thickness / 2 - 0.04);
-      left.position.x = -(shoulder + start);
-      left.userData.plateIndex = index;
-      left.name = `plateL-${index}`;
-      socketL.add(left);
+      const restX = shoulder + cursor + thickness / 2;
+      // Capped at the sleeve tip: the camera is fitted to the bar's bounding
+      // box, so a fly-in that overshoots the tip would widen the framing for
+      // the whole life of that stack.
+      const restY = restX + 8 + index * 1.2;
+      const startX = animate
+        ? Math.min(restY, BAR_LEN / 2 - thickness / 2)
+        : restX;
+      for (const mesh of meshes) mesh.position.x = startX;
 
-      const right = new THREE.Group();
-      right.add(new THREE.Mesh(geo, mat));
-      addPlateFaces(right, value, hex, radius, thickness / 2 - 0.04);
-      right.position.x = shoulder + start;
-      right.userData.plateIndex = index;
-      right.name = `plateR-${index}`;
-      socketR.add(right);
-
-      plateMeshes.push(left, right);
-      slots.push(
-        {
-          mesh: left,
-          restX: -(shoulder + rest),
-          startX: -(shoulder + start),
-          born: now,
-        },
-        {
-          mesh: right,
-          restX: shoulder + rest,
-          startX: shoulder + start,
-          born: now,
-        },
-      );
-      cursor += thickness + PLATE_GAP;
+      plateMeshes.push(...meshes);
+      slots.push({ meshes, restX, startX, born: now });
+      cursor += thickness + PLATE_GAP * squeeze;
     });
 
     shadow.scale.set(BAR_LEN * 0.55, 1, maxR * 1.1);
     shadow.position.y = -maxR * 0.98;
   };
 
+  // Report "still running" from the clock, not from whether a position
+  // moved. On the first frame the rAF timestamp can predate `born`, so
+  // nothing has moved yet — answering "not dirty" there ends the loop
+  // before the animation starts and strands every plate at its fly-in
+  // offset until some unrelated event happens to restart the loop.
   const tick = (now: number) => {
-    let dirty = false;
+    let running = false;
     for (const slot of slots) {
-      const t = easeOutExpo(Math.min(1, (now - slot.born) / SETTLE_MS));
+      const t = easeOutExpo((now - slot.born) / SETTLE_MS);
+      if (t < 1) running = true;
       const x = slot.startX + (slot.restX - slot.startX) * t;
-      if (Math.abs(slot.mesh.position.x - x) > 1e-4) {
-        slot.mesh.position.x = x;
-        dirty = true;
+      for (const mesh of slot.meshes) {
+        if (Math.abs(mesh.position.x - x) > 1e-4) mesh.position.x = x;
       }
     }
-    return dirty;
+    return running;
   };
 
   const runtime: BarbellRuntime = {
     nodes: {
       root,
       shaft,
-      sleeveLeft: sleeveL,
-      sleeveRight: sleeveR,
-      socketPlateLeft: socketL,
-      socketPlateRight: socketR,
+      sideLeft: left.side,
+      sideRight: right.side,
+      socketPlateLeft: left.socket,
+      socketPlateRight: right.socket,
     },
-    sockets: { plateLeft: socketL, plateRight: socketR },
+    sockets: { plateLeft: left.socket, plateRight: right.socket },
     plateMeshes,
     setPlates,
     tick,
