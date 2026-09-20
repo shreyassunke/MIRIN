@@ -1,26 +1,10 @@
 import * as THREE from "three";
-import { plateInk } from "../../../lib/units";
-import { formatWeight } from "../../../lib/workout";
+import { paintPlateChipFace, plateChipHub } from "../paintPlateChip";
 
 const texCache = new Map<string, THREE.CanvasTexture>();
 
 function fontsReady() {
   return typeof document !== "undefined" && document.fonts?.status === "loaded";
-}
-
-function paintWeight(
-  ctx: CanvasRenderingContext2D,
-  label: string,
-  cx: number,
-  cy: number,
-  size: number,
-  fill: string,
-) {
-  ctx.font = `700 ${size}px "Inter Variable", Inter, system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = fill;
-  ctx.fillText(label, cx, cy);
 }
 
 /**
@@ -33,10 +17,20 @@ function orientAxialDisc(mesh: THREE.Mesh, side: 1 | -1) {
   mesh.rotation.set(0, (side * Math.PI) / 2, 0);
 }
 
-export function plateFaceTexture(value: number, hex: string): THREE.CanvasTexture {
-  const label = formatWeight(value);
+export type PlateFaceDims = {
+  radius: number;
+  hole: number;
+  insert: number;
+};
+
+/** Same drawing as the plate chips, mapped onto a disc. */
+export function plateFaceTexture(
+  value: number,
+  hex: string,
+  dims: PlateFaceDims,
+): THREE.CanvasTexture {
   const ready = fontsReady();
-  const key = `pl2:${label}:${hex}:${ready ? "f" : "p"}`;
+  const key = `face5:${value}:${hex}:${dims.hole.toFixed(3)}:${dims.insert.toFixed(3)}:${ready ? "f" : "p"}`;
   const hit = texCache.get(key);
   if (hit) return hit;
 
@@ -47,52 +41,73 @@ export function plateFaceTexture(value: number, hex: string): THREE.CanvasTextur
   const ctx = canvas.getContext("2d");
   if (ctx) {
     ctx.clearRect(0, 0, s, s);
-    const ink = plateInk(hex);
-    const size = label.length >= 4 ? s * 0.15 : s * 0.2;
-    paintWeight(ctx, label, s / 2, s * 0.24, size, ink);
-    paintWeight(ctx, label, s / 2, s * 0.76, size, ink);
+    const cx = s / 2;
+    const cy = s / 2;
+    const r = s / 2;
+    const { hub, bore } = plateChipHub(r, dims);
+    paintPlateChipFace(ctx, value, hex, cx, cy, r, hub, {
+      wash: true,
+      bore,
+      baseFill: hex,
+      // Chip-sized along the hub–rim band; stretched on the axis the
+      // 0.23 face ellipse compresses so they stay readable, not giant.
+      numeralYScale: 2.8,
+    });
   }
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.center.set(0.5, 0.5);
+  // 3/9 on the chip become 12/6 in the bar pose, so the numerals sit on
+  // the face ellipse's major axis instead of collapsing into the rim.
+  tex.rotation = Math.PI / 2;
   tex.anisotropy = 8;
   tex.needsUpdate = true;
   texCache.set(key, tex);
   return tex;
 }
 
+export type PlateStampFaces = {
+  inboard?: boolean;
+  outboard?: boolean;
+  /** Parent lives under scale.x = -1; flip the decal so the label still reads. */
+  unmirror?: boolean;
+};
+
 export function addPlateFaces(
   parent: THREE.Object3D,
   value: number,
   hex: string,
-  radius: number,
-  insert: number,
+  dims: PlateFaceDims,
   faceX: number,
+  faces: PlateStampFaces = { inboard: true },
 ) {
-  const map = plateFaceTexture(value, hex);
-  const inner = Math.max(insert * 1.12, radius * 0.28);
-  const geo = new THREE.RingGeometry(inner, radius * 0.78, 64);
+  const map = plateFaceTexture(value, hex, dims);
+  const geo = new THREE.CircleGeometry(dims.radius * 0.998, 64);
   geo.userData.shared = false;
-  // Inboard face only. The left stack is the right stack under scale.x = -1,
-  // so local -X is toward the collar on both sides — the face the camera sees.
-  const mat = new THREE.MeshBasicMaterial({
-    map,
-    color: 0xffffff,
-    transparent: false,
-    alphaTest: 0.08,
-    depthWrite: true,
-    polygonOffset: true,
-    polygonOffsetFactor: -3,
-    polygonOffsetUnits: -3,
-    toneMapped: false,
-    side: THREE.FrontSide,
-  });
-  mat.name = "plateStamp";
-  const mesh = new THREE.Mesh(geo, mat);
-  orientAxialDisc(mesh, -1);
-  mesh.position.x = -faceX;
-  mesh.name = "plateFaceIn";
-  mesh.raycast = () => {};
-  parent.add(mesh);
+
+  const add = (side: 1 | -1, name: string) => {
+    const mat = new THREE.MeshBasicMaterial({
+      map,
+      color: 0xffffff,
+      transparent: false,
+      depthWrite: true,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+      toneMapped: false,
+      side: THREE.DoubleSide,
+    });
+    mat.name = "plateStamp";
+    const mesh = new THREE.Mesh(geo, mat);
+    orientAxialDisc(mesh, side);
+    mesh.position.x = side * (faceX + 0.02);
+    if (faces.unmirror) mesh.scale.x = -1;
+    mesh.name = name;
+    mesh.raycast = () => {};
+    parent.add(mesh);
+  };
+
+  if (faces.inboard) add(-1, "plateFaceIn");
+  if (faces.outboard) add(1, "plateFaceOut");
 }

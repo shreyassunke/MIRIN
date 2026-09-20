@@ -120,7 +120,7 @@ export function LoadedBar3D({ unit, plates, onRemove }: LoadedBar3DProps) {
     };
   }, []);
 
-  const { hostRef, requestRender, fit, pointer } = useWeightStage({
+  const { hostRef, requestRender, pointer } = useWeightStage({
     attach,
     extraFrame,
     onTap,
@@ -129,9 +129,8 @@ export function LoadedBar3D({ unit, plates, onRemove }: LoadedBar3DProps) {
 
   useEffect(() => {
     runtimeRef.current?.setPlates(plates, unit, !prefersReducedMotion());
-    fit();
     requestRender();
-  }, [plates, unit, fit, requestRender]);
+  }, [plates, unit, requestRender]);
 
   const label = plates.length
     ? `Bar loaded with ${plates.map((p) => formatWeight(p)).join(", ")} per side`

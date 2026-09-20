@@ -1,12 +1,12 @@
 import * as THREE from "three";
-import { plateColor, plateInk, type Unit } from "../../../lib/units";
-import { formatWeight } from "../../../lib/workout";
+import { plateColor, type Unit } from "../../../lib/units";
+import { paintPlateChipFace, plateChipHub } from "../paintPlateChip";
 import { createPlate, disposeUnsharedPlate } from "./createPlate";
-import { PLATE_HOLE_R } from "./scale";
+import { plateWorldDims } from "./scale";
 import { bakeSceneToCanvas, getEnvironment } from "./stage";
 
 const cache = new Map<string, HTMLCanvasElement>();
-const CHIP_PAD = 1.08;
+const CHIP_PAD = 1.12;
 
 function fontTag() {
   return typeof document !== "undefined" && document.fonts?.status === "loaded"
@@ -14,23 +14,27 @@ function fontTag() {
     : "p";
 }
 
-/** Frontal key so the Plate Exception swatches survive the bake. */
+/** Grazing key so the urethane rim and hub flange read as volume. */
 function createChipScene() {
   const scene = new THREE.Scene();
   scene.background = null;
   scene.environment = getEnvironment();
-  scene.environmentIntensity = 0.95;
+  scene.environmentIntensity = 1.05;
 
-  const key = new THREE.DirectionalLight(0xffffff, 1.7);
-  key.position.set(0.12, 0.35, 2.6);
+  const key = new THREE.DirectionalLight(0xffffff, 2.15);
+  key.position.set(0.55, 0.95, 1.8);
   scene.add(key);
 
-  const fill = new THREE.DirectionalLight(0xf2f2f2, 0.7);
-  fill.position.set(-1.3, 0.7, 1.4);
+  const fill = new THREE.DirectionalLight(0xf2f2f2, 0.38);
+  fill.position.set(-1.6, 0.2, 1.1);
   scene.add(fill);
 
-  scene.add(new THREE.HemisphereLight(0xe8e8e8, 0x2a2a2a, 0.42));
-  scene.add(new THREE.AmbientLight(0xffffff, 0.48));
+  const rim = new THREE.DirectionalLight(0xffffff, 0.55);
+  rim.position.set(-0.4, -0.2, -1.6);
+  scene.add(rim);
+
+  scene.add(new THREE.HemisphereLight(0xdedede, 0x1a1a1a, 0.22));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.16));
   return scene;
 }
 
@@ -50,8 +54,8 @@ function fitChipCamera(camera: THREE.OrthographicCamera, radius: number) {
 function paintChipOverlay(
   dest: HTMLCanvasElement,
   value: number,
+  unit: Unit,
   hex: string,
-  radius: number,
 ) {
   const ctx = dest.getContext("2d");
   if (!ctx) return;
@@ -59,23 +63,13 @@ function paintChipOverlay(
   const cx = s / 2;
   const cy = s / 2;
   const rPx = s / (2 * CHIP_PAD);
-  const hub = Math.max(s * 0.08, rPx * (PLATE_HOLE_R / radius));
-  ctx.fillStyle = "#1c1c1c";
-  ctx.beginPath();
-  ctx.arc(cx, cy, hub, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#98989f";
-  ctx.lineWidth = Math.max(1.25, s * 0.02);
-  ctx.stroke();
-
-  const label = formatWeight(value);
-  const yOff = Math.max(rPx * 0.4, hub + s * 0.12);
-  ctx.fillStyle = plateInk(hex);
-  ctx.font = `700 ${Math.round(s * (label.length >= 4 ? 0.17 : 0.22))}px "Inter Variable", Inter, system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, cx, cy - yOff);
-  ctx.fillText(label, cx, cy + yOff);
+  const dims = plateWorldDims(value, unit);
+  const { hub, bore } = plateChipHub(rPx, dims);
+  const hubPx = Math.max(s * 0.07, hub);
+  paintPlateChipFace(ctx, value, hex, cx, cy, rPx, hubPx, {
+    wash: true,
+    bore: hubPx * (bore / hub),
+  });
 }
 
 /** Face-on bumper, same mesh the bar loads. */
@@ -87,7 +81,7 @@ export function bakePlateSprite(
   const dpr = Math.min(2, typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
   const px = Math.max(48, Math.round(cssPx * dpr));
   const hex = plateColor(unit, value);
-  const key = `${unit}:${value}:${px}:${fontTag()}:${hex}:face5`;
+  const key = `${unit}:${value}:${px}:${fontTag()}:${hex}:face15`;
   const hit = cache.get(key);
   if (hit) return hit;
 
@@ -95,9 +89,15 @@ export function bakePlateSprite(
   dest.width = px;
   dest.height = px;
 
-  const plate = createPlate(value, unit, { stamp: false });
+  const plate = createPlate(value, unit);
   plate.traverse((child) => {
-    if (child.name === "plateFaceOut" || child.name === "plateFaceIn") {
+    if (
+      child.name === "plateFaceOut" ||
+      child.name === "plateFaceIn" ||
+      child.name.startsWith("lip") ||
+      child.name.startsWith("hubFlange") ||
+      child.name.startsWith("hubBead")
+    ) {
       child.visible = false;
     }
     if (!(child instanceof THREE.Mesh)) return;
@@ -106,13 +106,14 @@ export function bakePlateSprite(
     const clone = mat.clone();
     clone.name = "";
     clone.side = THREE.DoubleSide;
-    clone.roughness = Math.min(clone.roughness, 0.52);
-    clone.envMapIntensity = Math.max(clone.envMapIntensity, 0.6);
+    clone.roughness = Math.min(clone.roughness, 0.48);
+    clone.envMapIntensity = Math.max(clone.envMapIntensity, 0.75);
     child.material = clone;
   });
   plate.rotation.order = "YXZ";
-  // Thickness is +X; −Y yaw puts the wound −X face on camera.
-  plate.rotation.set(0, -Math.PI / 2, 0);
+  // Thickness is +X; −Y yaw puts the face on camera. A few degrees of
+  // pitch lets the outer lip catch the key without reading as an oval.
+  plate.rotation.set(0.07, -Math.PI / 2, 0);
   const radius = plate.userData.radius as number;
 
   const scene = createChipScene();
@@ -123,7 +124,7 @@ export function bakePlateSprite(
     toneMapping: THREE.NoToneMapping,
     exposure: 1,
   });
-  paintChipOverlay(dest, value, hex, radius);
+  paintChipOverlay(dest, value, unit, hex);
 
   disposeUnsharedPlate(plate);
   cache.set(key, dest);

@@ -56,12 +56,6 @@ export const COLLAR_R = 3.6;
 export const COLLAR_X = BAR_LEN / 2 - SLEEVE_LEN;
 /** Plates seat flush against the collar and each other. No spacers. */
 export const PLATE_HOLE_R = 2.55;
-/**
- * Face-to-face overlap (cm). Adjacent plates must share a seam or the
- * chamfered rims open a sightline to the sleeve and the stack reads as
- * spaced washers instead of a packed load.
- */
-export const PLATE_SEAM_OVERLAP = 0.18;
 
 /* ---------- Fixed product-shot pose ----------
  * Camera sits on the object's midline and looks slightly down it, so a disc
@@ -152,15 +146,17 @@ export function fitFixedCamera(
   camera.updateMatrixWorld(true);
 
   object.updateWorldMatrix(true, true);
-  _box.setFromObject(object);
+  const envelope = object.getObjectByName("fitBounds") ?? object;
+  _box.setFromObject(envelope);
   if (_box.isEmpty()) {
     camera.updateProjectionMatrix();
     return;
   }
 
-  // Fit against the box corners in view space rather than a flat half-width:
-  // the rims lean toward the eye, so they need more angle per unit of world x
-  // than the tips do.
+  // Fit against the envelope corners in view space rather than a flat
+  // half-width: the rims lean toward the eye, so they need more angle per
+  // unit of world x than the tips do. A named `fitBounds` child is the
+  // authored envelope; without it the live bounding box is used.
   let tanH = 1e-4;
   let tanV = 1e-4;
   for (const x of [_box.min.x, _box.max.x]) {
@@ -259,6 +255,18 @@ export function plateWorldDims(value: number, unit: Unit) {
     insert: Math.max(PLATE_HOLE_R + 0.75, Math.min(d * 0.09, 4.0)),
     rim: d * 0.045,
   };
+}
+
+/**
+ * Largest plate the picker can load (25 kg is a hair over a 45 lb bumper).
+ * The camera fits this envelope whether the bar is empty or stacked, so
+ * adding a plate cannot change the instrument's size on screen.
+ */
+export function barbellFitRadius() {
+  return Math.max(
+    plateWorldDims(45, "lb").radius,
+    plateWorldDims(25, "kg").radius,
+  );
 }
 
 export function fitOrthoCamera(

@@ -9,15 +9,14 @@ import {
 import {
   alongX,
   BAR_LEN,
+  barbellFitRadius,
   COLLAR_R,
   COLLAR_T,
   COLLAR_X,
-  PLATE_SEAM_OVERLAP,
   plateWorldDims,
   SHAFT_R,
   SLEEVE_LEN,
   SLEEVE_R,
-  SLEEVE_TIP_MARGIN,
 } from "./scale";
 import { createPlate } from "./createPlate";
 
@@ -60,7 +59,11 @@ function disposePlate(group: THREE.Object3D) {
     if (!(child instanceof THREE.Mesh)) return;
     if (!child.geometry.userData.shared) child.geometry.dispose();
     const mat = child.material;
-    if (mat && !Array.isArray(mat) && (!mat.name || mat.name === "plateStamp")) {
+    if (
+      mat &&
+      !Array.isArray(mat) &&
+      (!mat.name || mat.name === "plateStamp" || mat.name === "plateRimStamp")
+    ) {
       mat.dispose();
     }
   });
@@ -158,6 +161,16 @@ export function createBarbellModel(): THREE.Group {
   const sockets = [right.socket, left.socket];
   const shadow = addContactShadow(root, 1, 1, -24);
 
+  // Invisible envelope: always a 45 cm bumper, so the camera never refits
+  // when plates go on or come off. Same idea as the dumbbell's fitBounds.
+  const fitR = barbellFitRadius();
+  const fitGeo = new THREE.BoxGeometry(BAR_LEN, fitR * 2, fitR * 2);
+  owned.push(fitGeo);
+  const fitBounds = new THREE.Mesh(fitGeo);
+  fitBounds.visible = false;
+  fitBounds.name = "fitBounds";
+  root.add(fitBounds);
+
   const plateMeshes: THREE.Object3D[] = [];
   const slots: Slot[] = [];
 
@@ -172,43 +185,32 @@ export function createBarbellModel(): THREE.Group {
     plateMeshes.length = 0;
     slots.length = 0;
 
-    // Plates seat against the collar's outer face and against each other —
-    // overlap closes the chamfer so the sleeve cannot show between discs.
+    // Plates seat flush against the collar's outer face and each other.
+    // Position is accumulated thickness only — no overlap, no X-squeeze.
     const shoulder = COLLAR_X + COLLAR_T / 2;
     const dims = plates.map((value) => plateWorldDims(value, unit));
-    const seams = Math.max(0, plates.length - 1) * PLATE_SEAM_OVERLAP;
-
-    // A very deep stack would otherwise run off the end of the sleeve. Thin
-    // the discs to fit rather than let them float past the tip; the squeeze
-    // is identical on both sides, so the pose stays symmetric.
-    const needed = Math.max(
-      0,
-      dims.reduce((sum, d) => sum + d.thickness, 0) - seams,
-    );
-    const room = BAR_LEN / 2 - shoulder - SLEEVE_TIP_MARGIN;
-    const squeeze = needed > room ? room / needed : 1;
+    const last = plates.length - 1;
 
     let cursor = 0;
     const now = performance.now();
     let maxR = 8;
     plates.forEach((value, index) => {
-      const stamp = index === 0 || plates[index - 1] !== value;
-      const meshes = sockets.map((socket) => {
-        const plate = createPlate(value, unit, { stamp });
-        plate.scale.x = squeeze;
+      const thickness = dims[index].thickness;
+      const meshes = sockets.map((socket, side) => {
+        const plate = createPlate(value, unit, {
+          stampInboard: index === 0,
+          stampOutboard: index === last,
+          unmirror: side === 1,
+        });
         plate.userData.plateIndex = index;
         plate.name = `plate-${index}`;
         socket.add(plate);
         return plate;
       });
       maxR = Math.max(maxR, dims[index].radius);
-      const thickness = dims[index].thickness * squeeze;
-      const seam = index < plates.length - 1 ? PLATE_SEAM_OVERLAP * squeeze : 0;
 
       const restX = shoulder + cursor + thickness / 2;
-      // Capped at the sleeve tip: the camera is fitted to the bar's bounding
-      // box, so a fly-in that overshoots the tip would widen the framing for
-      // the whole life of that stack.
+      // Capped at the sleeve tip so a fly-in cannot overshoot the bar.
       const restY = restX + 8 + index * 1.2;
       const startX = animate
         ? Math.min(restY, BAR_LEN / 2 - thickness / 2)
@@ -217,7 +219,7 @@ export function createBarbellModel(): THREE.Group {
 
       plateMeshes.push(...meshes);
       slots.push({ meshes, restX, startX, born: now });
-      cursor += thickness - seam;
+      cursor += thickness;
     });
 
     shadow.scale.set(BAR_LEN * 0.55, 1, maxR * 1.1);

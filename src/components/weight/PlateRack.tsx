@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { PLATE_SIZES, plateColor, plateInk, type Unit } from "../../lib/units";
+import { PLATE_SIZES, plateColor, type Unit } from "../../lib/units";
 import { formatWeight } from "../../lib/workout";
+import { paintPlateChipFace } from "./paintPlateChip";
 import { hasWebGL } from "./three/fallback";
 
 interface PlateRackProps {
@@ -23,7 +24,7 @@ function drawFallbackPlate(
   const cx = size * 0.5;
   const cy = size * 0.5;
   const r = size * 0.46;
-  const hole = Math.max(3, r * 0.14);
+  const hole = Math.max(3, r * 0.18);
   ctx.clearRect(0, 0, size, size);
 
   ctx.fillStyle = "rgba(0,0,0,0.4)";
@@ -31,36 +32,23 @@ function drawFallbackPlate(
   ctx.ellipse(cx, cy + r * 0.1, r * 0.9, r * 0.16, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = hex;
+  const face = ctx.createRadialGradient(
+    cx - r * 0.22,
+    cy - r * 0.28,
+    r * 0.08,
+    cx,
+    cy,
+    r,
+  );
+  face.addColorStop(0, hex);
+  face.addColorStop(0.7, hex);
+  face.addColorStop(1, "rgba(0,0,0,0.38)");
+  ctx.fillStyle = face;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = "rgba(255,255,255,0.2)";
-  ctx.lineWidth = Math.max(1.25, r * 0.045);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.965, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.beginPath();
-  ctx.arc(cx, cy, hole, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalCompositeOperation = "source-over";
-
-  ctx.strokeStyle = "#98989f";
-  ctx.lineWidth = Math.max(1, r * 0.04);
-  ctx.beginPath();
-  ctx.arc(cx, cy, hole + ctx.lineWidth * 0.5, 0, Math.PI * 2);
-  ctx.stroke();
-
-  const label = formatWeight(value);
-  ctx.fillStyle = plateInk(hex);
-  ctx.font = `700 ${Math.round(size * (label.length >= 4 ? 0.16 : 0.2))}px Inter, system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, cx, cy - r * 0.5);
-  ctx.fillText(label, cx, cy + r * 0.5);
+  paintPlateChipFace(ctx, value, hex, cx, cy, r, hole, { wash: true });
 }
 
 function PlateThumb({
@@ -97,7 +85,7 @@ function PlateThumb({
       style={{
         width: size,
         height: size,
-        filter: "drop-shadow(0 2px 3px rgb(0 0 0 / 0.5))",
+        filter: "drop-shadow(0 3px 5px rgb(0 0 0 / 0.55))",
       }}
       aria-hidden="true"
     />

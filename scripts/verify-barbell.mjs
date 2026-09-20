@@ -227,6 +227,8 @@ const newPage = async (width, height = 320, scale = 2) => {
   return { page, errors };
 };
 
+const barSpans = {};
+
 // --- Harness pass: pose and symmetry across plate selections ---------------
 for (const c of CASES) {
   const { page, errors } = await newPage(Math.max(c.w, 400));
@@ -248,16 +250,21 @@ for (const c of CASES) {
       );
       const m = got.metrics;
       console.log(`${c.name}: ${JSON.stringify(m)}`);
+      if (!c.what || c.what === "bar") barSpans[c.name] = m.barSpanPx;
 
       // At rest the render must survive a horizontal flip.
       // A 1px allowance: the silhouette threshold can land either side of a
       // single antialiased column at the sleeve tip.
       check(c.name, Math.abs(m.centredBy) <= 1, `off-centre by ${m.centredBy}px`);
-      check(
-        c.name,
-        m.flipPixelsOver6 <= 0.02,
-        `${(m.flipPixelsOver6 * 100).toFixed(2)}% of pixels break mirror symmetry`,
-      );
+      // Loaded bars stamp readable numerals on both inner faces, so the
+      // render is no longer a pixel-perfect horizontal flip.
+      if (c.what === "dumbbell" || !c.plates) {
+        check(
+          c.name,
+          m.flipPixelsOver6 <= 0.02,
+          `${(m.flipPixelsOver6 * 100).toFixed(2)}% of pixels break mirror symmetry`,
+        );
+      }
       // Padding on both sides, and the whole bar inside the frame.
       check(
         c.name,
@@ -296,6 +303,27 @@ for (const c of CASES) {
   }
   if (errors.length) failures.push(`${c.name}: ${errors.join(" | ")}`);
   await page.close();
+}
+
+{
+  const name = "frame-stable";
+  const empty = barSpans["w380-empty"];
+  const loaded = barSpans["w380-45x4"];
+  const single = barSpans["w1280-single"];
+  const stacked = barSpans["w1280-45x4"];
+  check(
+    name,
+    empty != null && loaded != null && Math.abs(empty - loaded) <= 2,
+    `empty bar spans ${empty}px, loaded spans ${loaded}px — adding plates must not change the frame`,
+  );
+  check(
+    name,
+    single != null && stacked != null && Math.abs(single - stacked) <= 2,
+    `one 45 spans ${single}px, four 45s span ${stacked}px — stack depth must not change the frame`,
+  );
+  console.log(
+    `${name}: ${JSON.stringify({ empty, loaded, single, stacked })}`,
+  );
 }
 
 // --- Today pass: the picker as it is actually wired up ---------------------
@@ -359,11 +387,6 @@ for (const width of [380, 1280]) {
     const m = got.metrics;
     console.log(`${name}: ${JSON.stringify(m)}`);
     check(name, Math.abs(m.centredBy) <= 1, `off-centre by ${m.centredBy}px`);
-    check(
-      name,
-      m.flipPixelsOver6 <= 0.02,
-      `${(m.flipPixelsOver6 * 100).toFixed(2)}% of pixels break mirror symmetry`,
-    );
     check(
       name,
       m.tipHeightPx < m.plateHeightPx * 0.35,
