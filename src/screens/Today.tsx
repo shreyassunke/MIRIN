@@ -1128,11 +1128,11 @@ export function Today() {
                 <FormVideoPanel
                   exerciseId={exercise.id}
                   open
-                  className="border-t border-hairline px-4 pt-3 pb-1"
+                  className="border-t border-hairline pt-3 pb-1"
                 />
               )}
               {isActive && (
-                <div className="border-t border-hairline px-4 py-4">
+                <div className="border-t border-hairline py-4">
                   <LoadInstrument
                     weight={totalDisplay}
                     unit={unit}

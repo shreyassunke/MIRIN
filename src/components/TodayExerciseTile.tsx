@@ -33,11 +33,10 @@ interface TodayExerciseTileProps {
   children?: ReactNode;
 }
 
-function groupRadius(pos: GroupPos): string {
-  if (pos === "first") return "rounded-t-xl rounded-b-none";
-  if (pos === "middle") return "rounded-none";
-  if (pos === "last") return "rounded-b-xl rounded-t-none";
-  return "rounded-xl";
+function rowSpacing(reorderIndex: number, groupPos: GroupPos): string {
+  if (reorderIndex === 0) return "";
+  if (groupPos === "middle" || groupPos === "last") return "";
+  return "mt-1";
 }
 
 export function TodayExerciseTile({
@@ -76,32 +75,35 @@ export function TodayExerciseTile({
       onPointerUp={onDragPointerUp}
       onPointerCancel={onDragPointerCancel}
       className={[
-        isActive ? "overflow-visible glass select-none" : "overflow-hidden glass select-none",
-        groupRadius(groupPos),
-        groupPos === "middle" || groupPos === "last"
-          ? "-mt-px"
-          : reorderIndex > 0
-            ? "mt-3"
-            : "",
+        "select-none",
+        isActive ? "overflow-visible" : "overflow-hidden",
+        rowSpacing(reorderIndex, groupPos),
         dragRowClassName,
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="flex items-stretch gap-1 px-2 py-2">
+      <div className="flex items-stretch gap-2">
         <button
           type="button"
           data-drag-surface=""
+          onPointerDown={(e) => {
+            e.currentTarget.classList.add("is-pressed");
+          }}
+          onPointerUp={(e) => {
+            e.currentTarget.classList.remove("is-pressed");
+          }}
+          onPointerCancel={(e) => {
+            e.currentTarget.classList.remove("is-pressed");
+          }}
+          onPointerLeave={(e) => {
+            e.currentTarget.classList.remove("is-pressed");
+          }}
           onClick={() => {
             if (shouldSuppressClick?.()) return;
             onToggle();
           }}
-          className={[
-            "glass-chip flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-md px-3 py-1.5 text-left select-none",
-            isActive ? "glass-chip-active" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
+          className="exercise-row-hit flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 py-1.5 text-left select-none"
           aria-expanded={isActive}
           aria-label={
             isActive
@@ -138,7 +140,7 @@ export function TodayExerciseTile({
               </span>
             </span>
           </span>
-          <span className="tnum shrink-0 text-[13px] font-medium text-muted">
+          <span className="exercise-row-meta tnum shrink-0 text-[13px] font-medium">
             {finished
               ? `Done · ${logged.filter((s) => !s.isWarmup).length}`
               : logged.length === 0
@@ -149,10 +151,14 @@ export function TodayExerciseTile({
         {overflow}
       </div>
 
-      {notes ? <div data-no-drag="" className="px-4 pb-2">{notes}</div> : null}
+      {notes ? (
+        <div data-no-drag="" className="pb-2">
+          {notes}
+        </div>
+      ) : null}
 
       {isSwapping && (
-        <div data-no-drag="" className="border-t border-hairline px-4 py-3">
+        <div data-no-drag="" className="py-3">
           <ExerciseCombobox
             label="Replace with…"
             excludeIds={excludeSwapIds}
@@ -166,7 +172,7 @@ export function TodayExerciseTile({
       {logged.length > 0 && (
         <div
           data-no-drag=""
-          className="tnum flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-hairline px-4 py-2.5 text-sm text-muted"
+          className="tnum flex flex-wrap items-center gap-x-4 gap-y-1 py-1.5 text-sm text-muted"
         >
           {logged.map((s, i) => {
             const isLast = i === logged.length - 1;

@@ -5,18 +5,18 @@ import {
   useRef,
   useState,
   type ReactNode,
-  type SVGProps,
 } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { getContactLine, getDisplayName } from "../lib/user";
+import { NAV_GLYPHS, NavGlyph } from "./NavGlyph";
 
 const NAV_ITEMS = [
-  { to: "/today", label: "Today", Icon: IconToday },
-  { to: "/history", label: "History", Icon: IconHistory },
-  { to: "/log", label: "Log", Icon: IconLog },
-  { to: "/split", label: "Split", Icon: IconSplit },
-  { to: "/profile", label: "Profile", Icon: IconProfile },
+  { to: "/today", label: "Today", glyph: NAV_GLYPHS.today },
+  { to: "/history", label: "History", glyph: NAV_GLYPHS.history },
+  { to: "/log", label: "Log", glyph: NAV_GLYPHS.log },
+  { to: "/split", label: "Split", glyph: NAV_GLYPHS.split },
+  { to: "/profile", label: "Profile", glyph: NAV_GLYPHS.profile },
 ] as const;
 
 function activeNavIndex(pathname: string): number {
@@ -28,103 +28,9 @@ function activeNavIndex(pathname: string): number {
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [
-    "rounded-md px-3 py-3 text-sm font-medium transition-colors duration-150",
+    "flex items-center gap-2.5 rounded-md px-3 py-3 text-sm font-medium transition-colors duration-150",
     isActive ? "text-ink" : "text-muted hover:text-ink",
   ].join(" ");
-}
-
-function IconToday(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <rect
-        x="4"
-        y="5"
-        width="16"
-        height="15"
-        rx="2.5"
-        stroke="currentColor"
-        strokeWidth="1.75"
-      />
-      <path
-        d="M8 3.5v3M16 3.5v3M4 10h16"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-      <path
-        d="M9 14.5h2.5M14.5 14.5H17"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconHistory({ className }: SVGProps<SVGSVGElement>) {
-  return (
-    <img
-      src="/icons/history-clock.png"
-      alt=""
-      aria-hidden="true"
-      draggable={false}
-      className={["nav-raster-icon object-contain", className]
-        .filter(Boolean)
-        .join(" ")}
-    />
-  );
-}
-
-function IconLog(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <rect
-        x="5"
-        y="4"
-        width="14"
-        height="16"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="1.75"
-      />
-      <path
-        d="M8.5 9h7M8.5 12.5h7M8.5 16h4.5"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconSplit(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <path
-        d="M5 8h14M5 12h14M5 16h14"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-      <circle cx="9" cy="8" r="1.35" fill="currentColor" />
-      <circle cx="14" cy="12" r="1.35" fill="currentColor" />
-      <circle cx="11" cy="16" r="1.35" fill="currentColor" />
-    </svg>
-  );
-}
-
-function IconProfile(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <circle cx="12" cy="9" r="3.25" stroke="currentColor" strokeWidth="1.75" />
-      <path
-        d="M5.5 18.5c1.4-2.4 3.5-3.6 6.5-3.6s5.1 1.2 6.5 3.6"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -205,7 +111,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           {NAV_ITEMS.map((item) => (
             <NavLink key={item.to} to={item.to} className={navClass}>
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  <NavGlyph
+                    glyph={item.glyph}
+                    active={isActive}
+                    animate={canAnimate}
+                    className="nav-glyph-sm"
+                  />
+                  {item.label}
+                </>
+              )}
             </NavLink>
           ))}
           <div className="mt-auto border-t border-hairline pt-4">
@@ -257,7 +173,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               transform: `translateX(${indicator.x}px)`,
             }}
           />
-          {NAV_ITEMS.map(({ to, label, Icon }, index) => (
+          {NAV_ITEMS.map(({ to, label, glyph }, index) => (
             <NavLink
               key={to}
               to={to}
@@ -268,17 +184,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="nav-pill-item relative z-10 min-w-0 flex-1"
             >
               {({ isActive }) => (
-                <span
-                  className={[
-                    "nav-pill-label flex h-12 w-full items-center justify-center rounded-pill",
-                    isActive ? "text-ink" : "text-muted",
-                  ].join(" ")}
-                >
-                  <Icon
-                    className={[
-                      "h-7 w-7 transition-transform duration-[280ms] ease-out-expo",
-                      isActive ? "scale-105" : "scale-100",
-                    ].join(" ")}
+                <span className="nav-pill-label flex h-12 w-full items-center justify-center rounded-pill">
+                  <NavGlyph
+                    glyph={glyph}
+                    active={isActive}
+                    animate={canAnimate}
                   />
                 </span>
               )}

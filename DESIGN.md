@@ -171,8 +171,8 @@ The signature control. A weight/reps stepper is a horizontal group — minus but
 - **Focus:** Border shifts to #8a8a8a plus a visible outline. No glow.
 
 ### Navigation
-- **Mobile:** Floating pill tab bar above the safe area — frosted glass, icon + label per tab, active item seated in a translucent highlight pill. Accent fill stays on the log action, not the nav.
-- **Desktop:** Slim sidebar, solid surface, hairline border. Active item: ink text; inactive: muted ink.
+- **Mobile:** Floating pill tab bar above the safe area — frosted glass, icon-only tabs, active item seated in a translucent highlight pill. Selected icon fills solid ink from the outline (a center bloom); inactive stays outline. Accent fill stays on the log action, not the nav.
+- **Desktop:** Slim sidebar, solid surface, hairline border. Active item: ink text and a filled icon; inactive: muted ink and outline.
 - **Cold open:** Logo mark alone holds ~900ms, then blur-fade into the shell (once per browser session). Skip under reduced motion.
 
 ### Rest Timer (signature component)

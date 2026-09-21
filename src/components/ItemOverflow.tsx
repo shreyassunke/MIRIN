@@ -186,8 +186,11 @@ export function ItemOverflow({ label, items }: ItemOverflowProps) {
         aria-controls={open ? menuId : undefined}
         onClick={() => (open ? close() : setOpen(true))}
         className={[
-          "glass-btn flex h-11 w-11 items-center justify-center rounded-pill",
-          open ? "glass-btn-active text-ink" : "text-muted hover:text-ink",
+          "flex h-11 w-11 items-center justify-center bg-transparent",
+          "transition-colors duration-150 motion-reduce:transition-none",
+          open
+            ? "text-muted"
+            : "text-ink hover:text-muted active:text-muted",
         ].join(" ")}
       >
         <IconEllipsis className="h-5 w-5" />
