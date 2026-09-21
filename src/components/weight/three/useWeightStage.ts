@@ -96,6 +96,7 @@ export function useWeightStage(opts: {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stillRef = useRef<HTMLCanvasElement | null>(null);
   const liveRef = useRef(live);
+  const pagingRef = useRef(false);
   liveRef.current = live;
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -224,12 +225,32 @@ export function useWeightStage(opts: {
   );
 
   const kick = useCallback(() => {
-    if (!liveRef.current) {
+    if (!liveRef.current || pagingRef.current) {
       bakeStill();
       return;
     }
     requestFrames(spring);
   }, [bakeStill, spring]);
+
+  const syncHost = useCallback(() => {
+    const host = hostRef.current;
+    const dest = stillRef.current;
+    if (!host || !dest) return;
+    const wantLive = liveRef.current && !pagingRef.current;
+    if (wantLive) {
+      if (dest.parentElement === host) dest.remove();
+      const canvas = attachCanvas(host);
+      canvasRef.current = canvas;
+      fit();
+      kick();
+      return;
+    }
+    cancelFrames(spring);
+    bakeStill();
+    detachCanvas(host);
+    canvasRef.current = null;
+    if (dest.parentElement !== host) host.appendChild(dest);
+  }, [bakeStill, fit, kick, spring]);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -280,27 +301,34 @@ export function useWeightStage(opts: {
 
   useLayoutEffect(() => {
     const host = hostRef.current;
-    const dest = stillRef.current;
     if (!host) return;
-    if (live) {
-      if (dest?.parentElement === host) dest.remove();
-      const canvas = attachCanvas(host);
-      canvasRef.current = canvas;
-      fit();
-      kick();
-      return () => {
-        bakeStill();
-        detachCanvas(host);
-        canvasRef.current = null;
-      };
-    }
-    cancelFrames(spring);
-    bakeStill();
-    if (dest && dest.parentElement !== host) host.appendChild(dest);
+    syncHost();
     return () => {
+      bakeStill();
+      detachCanvas(host);
+      canvasRef.current = null;
+      const dest = stillRef.current;
       if (dest?.parentElement === host) dest.remove();
     };
-  }, [bakeStill, fit, kick, live, spring]);
+  }, [bakeStill, live, syncHost]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const watched =
+      host.closest(".load-swipe-field") ?? host.closest(".load-pager-root");
+    if (!watched) return;
+    const update = () => {
+      const next = Boolean(host.closest(".is-paging"));
+      if (next === pagingRef.current) return;
+      pagingRef.current = next;
+      syncHost();
+    };
+    const observer = new MutationObserver(update);
+    observer.observe(watched, { attributes: true, attributeFilter: ["class"] });
+    update();
+    return () => observer.disconnect();
+  }, [syncHost]);
 
   const setParallaxFromEvent = (e: PointerEvent) => {
     const host = hostRef.current;

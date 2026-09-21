@@ -237,7 +237,7 @@ textarea {
   color: var(--color-muted);
 }
 
-/* Pill nav — nested hairline bubbles, Instagram-tight inset */
+/* Pill nav — fill-only active bubble, Instagram-tight inset */
 .nav-pill-track {
   --nav-pill-inset: 0.25rem;
   isolation: isolate;
@@ -256,7 +256,7 @@ textarea {
   z-index: 0;
   border-radius: var(--radius-pill);
   background: rgb(250 250 250 / 0.14);
-  border: 1px solid rgb(250 250 250 / 0.14);
+  border: 0;
   box-shadow: none;
   opacity: 0;
   pointer-events: none;
@@ -523,22 +523,29 @@ textarea {
 
 .load-pager {
   overflow: hidden;
+  perspective: 900px;
+  perspective-origin: 50% 38%;
 }
 
 .load-pager-track {
   display: flex;
   width: 100%;
   align-items: flex-start;
+  transform-style: preserve-3d;
 }
 
 .load-pager-page {
   flex: 0 0 100%;
   width: 100%;
+  transform-origin: 50% 38%;
+  backface-visibility: hidden;
 }
 
 .load-swipe-field.is-paging .load-pager-track,
-.load-pager-root.is-paging .load-pager-track {
-  will-change: transform;
+.load-swipe-field.is-paging .load-pager-page,
+.load-pager-root.is-paging .load-pager-track,
+.load-pager-root.is-paging .load-pager-page {
+  will-change: transform, opacity;
 }
 
 .mirin-splash-exit {
@@ -626,5 +633,9 @@ html.reorder-active [data-reorder-index] {
   .nav-glyph-on .nav-glyph-fill {
     clip-path: none;
     transform: none;
+  }
+
+  .load-pager-page {
+    transform: none !important;
   }
 }

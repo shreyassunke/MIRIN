@@ -96,14 +96,24 @@ export function LoadInstrument({
       const track = trackRef.current;
       const viewport = viewportRef.current;
       const reduced = prefersReducedMotion();
-      const width = viewport?.clientWidth ?? 0;
       if (track) {
-        if (reduced) {
-          track.style.transform = `translate3d(${-Math.round(progress) * width}px, 0, 0)`;
-        } else {
-          track.style.transform = `translate3d(${-progress * width}px, 0, 0)`;
-        }
+        const x = reduced ? -Math.round(progress) * 100 : -progress * 100;
+        track.style.transform = `translate3d(${x}%, 0, 0)`;
       }
+      pageRefs.current.forEach((page, i) => {
+        if (!page) return;
+        if (reduced) {
+          page.style.transform = "none";
+          page.style.opacity =
+            Math.abs(i - Math.round(progress)) < 0.5 ? "1" : "0";
+          return;
+        }
+        const delta = i - progress;
+        const abs = Math.abs(delta);
+        const clamped = Math.max(-1, Math.min(1, delta));
+        page.style.transform = `rotateY(${clamped * -12}deg) scale(${1 - Math.min(abs, 1) * 0.05})`;
+        page.style.opacity = String(1 - Math.min(abs, 1) * 0.32);
+      });
       let maxH = 0;
       for (const h of heights.current) {
         if (h > maxH) maxH = h;
@@ -112,9 +122,11 @@ export function LoadInstrument({
       if (dragging) suppressClick.current = true;
       draggingRef.current = dragging;
       const field = (fieldRef ?? rootRef).current;
-      field?.classList.toggle("is-paging", dragging);
+      const inMotion =
+        dragging || Math.abs(progress - Math.round(progress)) > 0.001;
+      field?.classList.toggle("is-paging", inMotion);
     },
-    [fieldRef, visible.length],
+    [fieldRef],
   );
 
   const measure = useCallback(() => {
@@ -213,7 +225,7 @@ export function LoadInstrument({
                 }}
                 className="load-pager-page"
                 aria-hidden={!active}
-                {...(!active ? { inert: true } : {})}
+                {...(!active ? { inert: "" } : {})}
               >
                 <div aria-live={active ? "polite" : undefined}>{body(page)}</div>
               </div>
