@@ -1,6 +1,7 @@
 import {
   lazy,
   Suspense,
+  useEffect,
   useRef,
   type KeyboardEvent,
   type PointerEvent,
@@ -25,6 +26,7 @@ interface DumbbellPickerProps {
   laterality: Laterality;
   onChange: (value: number) => void;
   onToggleLaterality: () => void;
+  live?: boolean;
   onSwipe?: (direction: -1 | 1) => void;
 }
 
@@ -144,6 +146,20 @@ function SvgRack({
     last: number;
   } | null>(null);
 
+  useEffect(() => {
+    const clear = (event: globalThis.PointerEvent) => {
+      const start = drag.current;
+      if (!start || start.pointerId !== event.pointerId || start.captured) return;
+      drag.current = null;
+    };
+    window.addEventListener("pointerup", clear);
+    window.addEventListener("pointercancel", clear);
+    return () => {
+      window.removeEventListener("pointerup", clear);
+      window.removeEventListener("pointercancel", clear);
+    };
+  }, []);
+
   const onPointerDown = (e: PointerEvent) => {
     drag.current = {
       x: e.clientX,
@@ -225,16 +241,20 @@ function SvgRack({
   );
 }
 
-function DumbbellIcon(props: {
+function DumbbellIcon({
+  live = true,
+  ...props
+}: {
   unit: Unit;
   value: number;
   pair: boolean;
+  live?: boolean;
   onChange: (value: number) => void;
   onToggleLaterality: () => void;
   onSwipe?: (direction: -1 | 1) => void;
 }) {
   const fallback = <SvgRack {...props} />;
-  if (!hasWebGL()) return fallback;
+  if (!live || !hasWebGL()) return fallback;
   return (
     <ChunkErrorBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
@@ -257,6 +277,7 @@ export function DumbbellPicker({
   laterality,
   onChange,
   onToggleLaterality,
+  live = true,
   onSwipe,
 }: DumbbellPickerProps) {
   const sizes = DUMBBELL_SIZES[unit];
@@ -299,6 +320,7 @@ export function DumbbellPicker({
         unit={unit}
         value={value}
         pair={pair}
+        live={live}
         onChange={onChange}
         onToggleLaterality={onToggleLaterality}
         onSwipe={onSwipe}

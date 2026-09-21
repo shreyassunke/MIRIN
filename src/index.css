@@ -497,6 +497,84 @@ textarea {
   animation: mirin-fade-in 160ms var(--ease-out-expo) both;
 }
 
+/* Load instrument pager — iOS page-turn, glass waypoint capsule */
+.load-pager-root {
+  touch-action: pan-y;
+}
+
+.load-pager-root.is-paging {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grabbing;
+}
+
+.load-pager {
+  overflow: hidden;
+  perspective: 900px;
+  perspective-origin: 50% 38%;
+}
+
+.load-pager-track {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.load-pager-page {
+  flex: 0 0 100%;
+  width: 100%;
+  transform-origin: 50% 38%;
+  backface-visibility: hidden;
+}
+
+.load-pager-root.is-paging .load-pager-track,
+.load-pager-root.is-paging .load-pager-page,
+.load-pager-root.is-paging .load-pager-thumb {
+  will-change: transform, opacity;
+}
+
+.load-pager-dots {
+  position: relative;
+  display: flex;
+  width: fit-content;
+  height: 44px;
+  margin: 12px auto 0;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+}
+
+.load-pager-dot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 26px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+}
+
+.load-pager-mark {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-muted);
+  opacity: 0.7;
+}
+
+.load-pager-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 0;
+  height: 6px;
+  width: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+  pointer-events: none;
+}
+
 .mirin-splash-exit {
   animation: mirin-splash-out 220ms var(--ease-out-expo) both;
   pointer-events: none;
@@ -582,5 +660,9 @@ html.reorder-active [data-reorder-index] {
   .nav-glyph-on .nav-glyph-fill {
     clip-path: none;
     transform: none;
+  }
+
+  .load-pager-page {
+    transform: none !important;
   }
 }

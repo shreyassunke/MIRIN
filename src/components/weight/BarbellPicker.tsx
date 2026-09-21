@@ -199,10 +199,14 @@ function LoadedBarSvg({
   );
 }
 
-function LoadedBar(props: {
+function LoadedBar({
+  live = true,
+  ...props
+}: {
   unit: Unit;
   plates: number[];
   onRemove: (index: number) => void;
+  live?: boolean;
   onSwipe?: (direction: -1 | 1) => void;
 }) {
   const swipe = useSwipe({
@@ -219,7 +223,7 @@ function LoadedBar(props: {
       />
     </div>
   );
-  if (!hasWebGL()) return fallback;
+  if (!live || !hasWebGL()) return fallback;
   return (
     <ChunkErrorBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
@@ -416,8 +420,10 @@ export function BarbellPicker({
   barWeight,
   plates,
   onChange,
+  live = true,
   onSwipe,
 }: BarbellPickerProps & {
+  live?: boolean;
   onSwipe?: (direction: -1 | 1) => void;
 }) {
   const removePlate = (index: number) =>
@@ -432,6 +438,7 @@ export function BarbellPicker({
         unit={unit}
         plates={plates}
         onRemove={removePlate}
+        live={live}
         onSwipe={onSwipe}
       />
     </div>

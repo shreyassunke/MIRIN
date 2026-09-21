@@ -769,18 +769,6 @@ export function Today() {
     }
   }
 
-  function cycleMode(
-    exerciseId: string,
-    dir: -1 | 1,
-    available: ReturnType<typeof inputModesForEquipment>,
-    current: InputMethod,
-  ) {
-    const i = available.findIndex((m) => m.id === current);
-    const at = i < 0 ? 0 : i;
-    const next = available[(at + dir + available.length) % available.length];
-    if (next && next.id !== current) setMode(next.id, exerciseId);
-  }
-
   async function undoLastLog(exerciseId: string) {
     const logged = logsByExercise.get(exerciseId) ?? [];
     const last = logged[logged.length - 1];
@@ -1134,99 +1122,97 @@ export function Today() {
               {isActive && (
                 <div className="border-t border-hairline py-4">
                   <LoadInstrument
-                    weight={totalDisplay}
                     unit={unit}
                     ghost={ghostWeight}
                     modes={modes}
                     mode={activeMode}
                     onModeChange={(next) => setMode(next, exercise.id)}
-                    weightDisplay={
-                      activeMode === "barbell" ? (
-                        <BarWeightControl
-                          unit={unit}
-                          barWeight={barWeight}
-                          plates={plates}
-                          onChange={(bar, next) => {
-                            setBarWeight(bar);
-                            setPlates(next);
-                          }}
-                        />
-                      ) : undefined
-                    }
-                    stage={
-                      activeMode === "barbell" ? (
-                        <BarbellPicker
-                          key={`${exercise.id}:${unit}`}
-                          unit={unit}
-                          barWeight={barWeight}
-                          plates={plates}
-                          onChange={(bar, next) => {
-                            setBarWeight(bar);
-                            setPlates(next);
-                          }}
-                          onSwipe={
-                            modes.length > 1
-                              ? (dir) =>
-                                  cycleMode(
-                                    exercise.id,
-                                    dir,
-                                    modes,
-                                    activeMode,
-                                  )
-                              : undefined
-                          }
-                        />
-                      ) : activeMode === "dumbbell" ? (
-                        <DumbbellPicker
-                          unit={unit}
-                          value={dumbbell}
-                          laterality={laterality}
-                          onChange={setDumbbell}
-                          onToggleLaterality={() =>
-                            setLateralityFor(
-                              laterality === "bilateral"
-                                ? "unilateral"
-                                : "bilateral",
-                              exercise.id,
-                            )
-                          }
-                          onSwipe={
-                            modes.length > 1
-                              ? (dir) =>
-                                  cycleMode(
-                                    exercise.id,
-                                    dir,
-                                    modes,
-                                    activeMode,
-                                  )
-                              : undefined
-                          }
-                        />
-                      ) : undefined
-                    }
-                  >
-                    {activeMode === "barbell" && (
-                      <BarbellRack
-                        unit={unit}
-                        barWeight={barWeight}
-                        plates={plates}
-                        onChange={(bar, next) => {
-                          setBarWeight(bar);
-                          setPlates(next);
-                        }}
-                      />
-                    )}
-                    {activeMode === "manual" && (
-                      <div className="flex flex-col items-center">
-                        <Stepper
-                          label={`Weight (${unit})`}
-                          value={manualWeight}
-                          step={MANUAL_STEP[unit]}
-                          onChange={setManualWeight}
-                        />
-                      </div>
-                    )}
-                  </LoadInstrument>
+                    pages={modes.map((m) => {
+                      if (m.id === "barbell") {
+                        return {
+                          id: m.id,
+                          label: m.label,
+                          weight: round2(
+                            barWeight + 2 * plates.reduce((a, b) => a + b, 0),
+                          ),
+                          weightDisplay: (
+                            <BarWeightControl
+                              unit={unit}
+                              barWeight={barWeight}
+                              plates={plates}
+                              onChange={(bar, next) => {
+                                setBarWeight(bar);
+                                setPlates(next);
+                              }}
+                            />
+                          ),
+                          stage: (
+                            <BarbellPicker
+                              key={`${exercise.id}:${unit}`}
+                              unit={unit}
+                              barWeight={barWeight}
+                              plates={plates}
+                              live={activeMode === "barbell"}
+                              onChange={(bar, next) => {
+                                setBarWeight(bar);
+                                setPlates(next);
+                              }}
+                            />
+                          ),
+                          extras: (
+                            <BarbellRack
+                              unit={unit}
+                              barWeight={barWeight}
+                              plates={plates}
+                              onChange={(bar, next) => {
+                                setBarWeight(bar);
+                                setPlates(next);
+                              }}
+                            />
+                          ),
+                        };
+                      }
+                      if (m.id === "dumbbell") {
+                        return {
+                          id: m.id,
+                          label: m.label,
+                          weight: dumbbell,
+                          stage: (
+                            <DumbbellPicker
+                              unit={unit}
+                              value={dumbbell}
+                              laterality={laterality}
+                              live={activeMode === "dumbbell"}
+                              onChange={setDumbbell}
+                              onToggleLaterality={() =>
+                                setLateralityFor(
+                                  laterality === "bilateral"
+                                    ? "unilateral"
+                                    : "bilateral",
+                                  exercise.id,
+                                )
+                              }
+                            />
+                          ),
+                        };
+                      }
+                      return {
+                        id: m.id,
+                        label: m.label,
+                        weight: manualWeight,
+                        extras: (
+                          <div className="flex flex-col items-center">
+                            <Stepper
+                              label={`Weight (${unit})`}
+                              value={manualWeight}
+                              step={MANUAL_STEP[unit]}
+                              onChange={setManualWeight}
+                            />
+                          </div>
+                        ),
+                      };
+                    })}
+                  />
 
                   {showLaterality && activeMode !== "dumbbell" && (
                     <div className="mt-3 flex justify-center">

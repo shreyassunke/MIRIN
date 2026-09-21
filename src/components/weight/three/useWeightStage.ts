@@ -238,6 +238,21 @@ export function useWeightStage(opts: {
     kick();
   };
 
+  useEffect(() => {
+    const clear = (event: globalThis.PointerEvent) => {
+      const start = drag.current;
+      if (!start || start.pointerId !== event.pointerId || start.captured) return;
+      drag.current = null;
+      if (mode === "fixed") releaseParallax();
+    };
+    window.addEventListener("pointerup", clear);
+    window.addEventListener("pointercancel", clear);
+    return () => {
+      window.removeEventListener("pointerup", clear);
+      window.removeEventListener("pointercancel", clear);
+    };
+  }, [mode]);
+
   const onPointerDown = (e: PointerEvent) => {
     drag.current = {
       x: e.clientX,
