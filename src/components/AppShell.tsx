@@ -58,11 +58,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       setIndicator((s) => ({ ...s, ready: false }));
       return;
     }
-    const trackRect = track.getBoundingClientRect();
-    const itemRect = item.getBoundingClientRect();
     setIndicator({
-      x: itemRect.left - trackRect.left,
-      width: itemRect.width,
+      x: item.offsetLeft,
+      width: item.offsetWidth,
       ready: true,
     });
   }, [activeIndex]);
@@ -158,7 +156,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div
           ref={trackRef}
-          className="nav-pill-track pointer-events-auto relative flex w-full items-stretch rounded-pill glass p-2 shadow-glass"
+          className="nav-pill-track pointer-events-auto relative flex w-full items-stretch rounded-pill glass"
         >
           <span
             aria-hidden="true"
