@@ -12,8 +12,6 @@ import {
 import { createPortal } from "react-dom";
 import {
   BAR_OPTIONS,
-  PLATE_SIZES,
-  plateColor,
   round2,
   type Unit,
 } from "../../lib/units";
@@ -21,11 +19,11 @@ import { formatWeight } from "../../lib/workout";
 import { Stepper } from "../Stepper";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
 import { PlateRack } from "./PlateRack";
-import { useSwipe } from "../../hooks/useSwipe";
 
-const LoadedBar3D = lazy(() =>
-  import("./three/LoadedBar3D").then((m) => ({ default: m.LoadedBar3D })),
-);
+const loadBar3D = () =>
+  import("./three/LoadedBar3D").then((m) => ({ default: m.LoadedBar3D }));
+const LoadedBar3D = lazy(loadBar3D);
+void loadBar3D();
 
 interface BarbellPickerProps {
   unit: Unit;
@@ -34,170 +32,10 @@ interface BarbellPickerProps {
   onChange: (barWeight: number, plates: number[]) => void;
 }
 
-/** SVG plate proportions: taller and slightly thicker for bigger plates. */
-function plateDims(value: number, max: number) {
-  return {
-    h: Math.round(18 + 44 * Math.pow(value / max, 0.75)),
-    w: Math.round(10 + 8 * (value / max)),
-  };
-}
-
-const SVG_W = 320;
-const SVG_H = 92;
-const MID = SVG_H / 2;
 const BAR_STAGE_H = 104;
-const PLATE_HIT = 44;
-const COLLAR_L = 96;
-const COLLAR_R = SVG_W - COLLAR_L;
 
-function LoadedBarSvg({
-  unit,
-  plates,
-  onRemove,
-}: {
-  unit: Unit;
-  plates: number[];
-  onRemove: (index: number) => void;
-}) {
-  const max = PLATE_SIZES[unit][0];
-  const barMaskId = `bar-mask${useId().replaceAll(":", "")}`;
-  // Innermost plate sits against the collar; stacks grow outward.
-  let cursor = 0;
-  const placed = plates.map((value, index) => {
-    const { h, w } = plateDims(value, max);
-    const offset = cursor;
-    cursor += w + 3;
-    return { value, index, h, w, offset };
-  });
-
-  return (
-    <svg
-      viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-      className="w-full"
-      style={{ height: BAR_STAGE_H }}
-      role="img"
-      aria-label={
-        plates.length
-          ? `Bar loaded with ${plates.map((p) => formatWeight(p)).join(", ")} per side`
-          : "Empty bar"
-      }
-    >
-      <defs>
-        {/* Punch the plate interiors out of the bar so the sleeve never
-            draws through a plate — the outline is the plate, not a tint
-            sitting on top of the shaft. */}
-        <mask
-          id={barMaskId}
-          maskUnits="userSpaceOnUse"
-          x="0"
-          y="0"
-          width={SVG_W}
-          height={SVG_H}
-        >
-          <rect width={SVG_W} height={SVG_H} fill="white" />
-          {placed.map(({ index, h, w, offset }) => {
-            const xLeft = COLLAR_L - 4 - offset - w;
-            const xRight = COLLAR_R + 4 + offset;
-            return (
-              <g key={index}>
-                <rect
-                  x={xLeft}
-                  y={MID - h / 2}
-                  width={w}
-                  height={h}
-                  rx="2"
-                  fill="black"
-                />
-                <rect
-                  x={xRight}
-                  y={MID - h / 2}
-                  width={w}
-                  height={h}
-                  rx="2"
-                  fill="black"
-                />
-              </g>
-            );
-          })}
-        </mask>
-      </defs>
-      {/* bar */}
-      <line
-        x1="6"
-        y1={MID}
-        x2={SVG_W - 6}
-        y2={MID}
-        stroke="#d4d4d4"
-        strokeWidth="2"
-        strokeLinecap="round"
-        mask={`url(#${barMaskId})`}
-      />
-      {/* collars */}
-      <line
-        x1={COLLAR_L}
-        y1={MID - 9}
-        x2={COLLAR_L}
-        y2={MID + 9}
-        stroke="#d4d4d4"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <line
-        x1={COLLAR_R}
-        y1={MID - 9}
-        x2={COLLAR_R}
-        y2={MID + 9}
-        stroke="#d4d4d4"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      {placed.map(({ value, index, h, w, offset }) => {
-        const color = plateColor(unit, value);
-        const xLeft = COLLAR_L - 4 - offset - w;
-        const xRight = COLLAR_R + 4 + offset;
-        const hitW = Math.max(w, PLATE_HIT);
-        const hitH = Math.max(h, PLATE_HIT);
-        const hit = (x: number, labelled: boolean) => (
-          <>
-            <rect
-              x={x + w / 2 - hitW / 2}
-              y={MID - hitH / 2}
-              width={hitW}
-              height={hitH}
-              fill="transparent"
-              className="cursor-pointer"
-              role={labelled ? "button" : undefined}
-              aria-label={
-                labelled
-                  ? `Remove ${formatWeight(value)} ${unit} plate`
-                  : undefined
-              }
-              aria-hidden={labelled ? undefined : true}
-              onClick={() => onRemove(index)}
-            />
-            <rect
-              x={x}
-              y={MID - h / 2}
-              width={w}
-              height={h}
-              rx="2"
-              fill={color}
-              fillOpacity="0.2"
-              stroke={color}
-              strokeWidth="1.5"
-              pointerEvents="none"
-            />
-          </>
-        );
-        return (
-          <g key={index}>
-            {hit(xLeft, true)}
-            {hit(xRight, false)}
-          </g>
-        );
-      })}
-    </svg>
-  );
+function BarStageFallback() {
+  return <div className="w-full" style={{ height: BAR_STAGE_H }} />;
 }
 
 function LoadedBar({
@@ -210,25 +48,12 @@ function LoadedBar({
   live?: boolean;
   onSwipe?: (direction: -1 | 1) => void;
 }) {
-  const swipe = useSwipe({
-    onPrev: () => props.onSwipe?.(-1),
-    onNext: () => props.onSwipe?.(1),
-    enabled: Boolean(props.onSwipe),
-  });
-  const fallback = (
-    <div {...(props.onSwipe ? swipe : {})}>
-      <LoadedBarSvg
-        unit={props.unit}
-        plates={props.plates}
-        onRemove={props.onRemove}
-      />
-    </div>
-  );
-  if (!live || !hasWebGL()) return fallback;
+  const fallback = <BarStageFallback />;
+  if (!hasWebGL()) return fallback;
   return (
     <ChunkErrorBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
-        <LoadedBar3D {...props} />
+        <LoadedBar3D {...props} live={live} />
       </Suspense>
     </ChunkErrorBoundary>
   );

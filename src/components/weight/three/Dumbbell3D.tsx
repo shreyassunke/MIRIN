@@ -23,6 +23,7 @@ interface Dumbbell3DProps {
   onChange?: (value: number) => void;
   onTap?: () => void;
   onSwipe?: (direction: -1 | 1) => void;
+  live?: boolean;
 }
 
 type PairRuntime = {
@@ -52,6 +53,7 @@ export function Dumbbell3D({
   onChange,
   onTap,
   onSwipe,
+  live = true,
 }: Dumbbell3DProps) {
   const runtimeRef = useRef<PairRuntime | null>(null);
   const valueRef = useRef(value);
@@ -129,6 +131,7 @@ export function Dumbbell3D({
     onStep: onChange ? stepBy : undefined,
     stepAxis: "y",
     onSwipe,
+    live,
     onTap: onTap
       ? () => {
           onTapRef.current?.();

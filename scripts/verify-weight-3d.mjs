@@ -257,8 +257,8 @@ await run("no-webgl", mobile, {}, async (page) => {
     };
   });
   await waitBarbell(page);
-  await expect("svg fallback present", () =>
-    page.locator("svg[role='img']").first().isVisible(),
+  await expect("no line-art svg", async () =>
+    (await page.locator("svg[role='img']").count()) === 0,
   );
   await page.screenshot({
     path: `${OUT}/weight-3d-no-webgl-mobile.png`,

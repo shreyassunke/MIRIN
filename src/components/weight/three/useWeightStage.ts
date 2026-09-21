@@ -1,13 +1,22 @@
-import { useCallback, useEffect, useRef, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type PointerEvent,
+} from "react";
 import * as THREE from "three";
 import {
-  acquireCanvas,
+  attachCanvas,
+  bakeSceneToCanvas,
   cancelFrames,
   configureSize,
   createInstrumentScene,
-  releaseCanvas,
+  detachCanvas,
+  releaseRenderer,
   renderNow,
   requestFrames,
+  retainRenderer,
   type FrameFn,
 } from "./stage";
 import {
@@ -76,9 +85,18 @@ export function useWeightStage(opts: {
   pose?: FixedCamPose;
   /** Symmetric light rig. Required whenever the pose must mirror exactly. */
   symmetricLights?: boolean;
+  /**
+   * The shared WebGL canvas can only sit on one host. Inactive pager pages
+   * keep the same 3D scene and show a still of it instead of the old SVG.
+   */
+  live?: boolean;
 }) {
+  const live = opts.live ?? true;
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stillRef = useRef<HTMLCanvasElement | null>(null);
+  const liveRef = useRef(live);
+  liveRef.current = live;
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const pivotRef = useRef<THREE.Group | null>(null);
@@ -107,12 +125,35 @@ export function useWeightStage(opts: {
   stepRef.current = opts.onStep;
   swipeRef.current = opts.onSwipe;
 
+  const bakeStill = useCallback(() => {
+    const dest = stillRef.current;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    const host = hostRef.current;
+    if (!dest || !scene || !camera || !host) return;
+    const w = host.clientWidth;
+    const h = host.clientHeight;
+    if (w < 2 || h < 2) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const pxW = Math.max(1, Math.round(w * dpr));
+    const pxH = Math.max(1, Math.round(h * dpr));
+    if (dest.width !== pxW || dest.height !== pxH) {
+      dest.width = pxW;
+      dest.height = pxH;
+    }
+    bakeSceneToCanvas(scene, camera, dest);
+  }, []);
+
   const requestRender = useCallback(() => {
+    if (!liveRef.current) {
+      bakeStill();
+      return;
+    }
     const scene = sceneRef.current;
     const camera = cameraRef.current;
     if (!scene || !camera) return;
     renderNow(scene, camera);
-  }, []);
+  }, [bakeStill]);
 
   const fit = useCallback(() => {
     const camera = cameraRef.current;
@@ -122,7 +163,7 @@ export function useWeightStage(opts: {
     const w = host.clientWidth;
     const h = host.clientHeight;
     if (w < 2 || h < 2) return;
-    configureSize(w, h);
+    if (liveRef.current) configureSize(w, h);
     if (camera instanceof THREE.PerspectiveCamera) {
       fitFixedCamera(camera, pivot, w, h, pose);
       aimFixedCamera(camera, parallax.current, pose);
@@ -183,14 +224,26 @@ export function useWeightStage(opts: {
   );
 
   const kick = useCallback(() => {
+    if (!liveRef.current) {
+      bakeStill();
+      return;
+    }
     requestFrames(spring);
-  }, [spring]);
+  }, [bakeStill, spring]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const canvas = acquireCanvas(host);
-    canvasRef.current = canvas;
+    retainRenderer();
+
+    const dest = document.createElement("canvas");
+    dest.dataset.weightStage = "still";
+    dest.setAttribute("aria-hidden", "true");
+    dest.style.display = "block";
+    dest.style.width = "100%";
+    dest.style.height = "100%";
+    dest.style.pointerEvents = "none";
+    stillRef.current = dest;
 
     const scene = createInstrumentScene({ symmetric: symmetricLights });
     const camera =
@@ -209,20 +262,45 @@ export function useWeightStage(opts: {
 
     const ro = new ResizeObserver(fit);
     ro.observe(host);
-    kick();
 
     return () => {
       cancelFrames(spring);
       ro.disconnect();
       detach();
-      releaseCanvas(host);
+      dest.remove();
+      stillRef.current = null;
+      releaseRenderer();
       scene.clear();
       sceneRef.current = null;
       cameraRef.current = null;
       pivotRef.current = null;
       canvasRef.current = null;
     };
-  }, [fit, kick, mode, spring, symmetricLights]);
+  }, [fit, mode, spring, symmetricLights]);
+
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    const dest = stillRef.current;
+    if (!host) return;
+    if (live) {
+      if (dest?.parentElement === host) dest.remove();
+      const canvas = attachCanvas(host);
+      canvasRef.current = canvas;
+      fit();
+      kick();
+      return () => {
+        bakeStill();
+        detachCanvas(host);
+        canvasRef.current = null;
+      };
+    }
+    cancelFrames(spring);
+    bakeStill();
+    if (dest && dest.parentElement !== host) host.appendChild(dest);
+    return () => {
+      if (dest?.parentElement === host) dest.remove();
+    };
+  }, [bakeStill, fit, kick, live, spring]);
 
   const setParallaxFromEvent = (e: PointerEvent) => {
     const host = hostRef.current;

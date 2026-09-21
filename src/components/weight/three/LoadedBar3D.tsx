@@ -13,9 +13,10 @@ interface LoadedBar3DProps {
   plates: number[];
   onRemove: (index: number) => void;
   onSwipe?: (direction: -1 | 1) => void;
+  live?: boolean;
 }
 
-/** Matches the SVG fallback's 44px plate hit so edge-on taps still land. */
+/** 44px plate hit so edge-on taps still land. */
 const PLATE_HIT_PX = 44;
 const _hitBox = new THREE.Box3();
 const _hitCorner = new THREE.Vector3();
@@ -84,6 +85,7 @@ export function LoadedBar3D({
   plates,
   onRemove,
   onSwipe,
+  live = true,
 }: LoadedBar3DProps) {
   const runtimeRef = useRef<BarbellRuntime | null>(null);
   const platesRef = useRef(plates);
@@ -132,12 +134,17 @@ export function LoadedBar3D({
     onTap,
     onSwipe,
     mode: "fixed",
+    live,
   });
 
   useEffect(() => {
-    runtimeRef.current?.setPlates(plates, unit, !prefersReducedMotion());
+    runtimeRef.current?.setPlates(
+      plates,
+      unit,
+      live && !prefersReducedMotion(),
+    );
     requestRender();
-  }, [plates, unit, requestRender]);
+  }, [plates, unit, live, requestRender]);
 
   const label = plates.length
     ? `Bar loaded with ${plates.map((p) => formatWeight(p)).join(", ")} per side`

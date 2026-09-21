@@ -34,6 +34,7 @@ function ensureRenderer(): THREE.WebGLRenderer {
   el.style.touchAction = "pan-y";
   el.tabIndex = -1;
   el.setAttribute("aria-hidden", "true");
+  el.dataset.weightStage = "live";
   const equirect = createEnvironment();
   const pmrem = new THREE.PMREMGenerator(renderer);
   envRT = pmrem.fromEquirectangular(equirect);
@@ -48,13 +49,24 @@ export function getEnvironment(): THREE.Texture | null {
   return env;
 }
 
-export function acquireCanvas(host: HTMLElement): HTMLCanvasElement {
-  const r = ensureRenderer();
+export function retainRenderer() {
+  ensureRenderer();
   refs += 1;
   if (disposeTimer) {
     window.clearTimeout(disposeTimer);
     disposeTimer = 0;
   }
+}
+
+export function releaseRenderer() {
+  refs = Math.max(0, refs - 1);
+  if (refs === 0) {
+    disposeTimer = window.setTimeout(disposeRenderer, DISPOSE_MS);
+  }
+}
+
+export function attachCanvas(host: HTMLElement): HTMLCanvasElement {
+  const r = ensureRenderer();
   if (r.domElement.parentElement !== host) {
     host.appendChild(r.domElement);
   }
@@ -62,14 +74,20 @@ export function acquireCanvas(host: HTMLElement): HTMLCanvasElement {
   return r.domElement;
 }
 
-export function releaseCanvas(host: HTMLElement) {
+export function detachCanvas(host: HTMLElement) {
   if (renderer && renderer.domElement.parentElement === host) {
     host.removeChild(renderer.domElement);
   }
-  refs = Math.max(0, refs - 1);
-  if (refs === 0) {
-    disposeTimer = window.setTimeout(disposeRenderer, DISPOSE_MS);
-  }
+}
+
+export function acquireCanvas(host: HTMLElement): HTMLCanvasElement {
+  retainRenderer();
+  return attachCanvas(host);
+}
+
+export function releaseCanvas(host: HTMLElement) {
+  detachCanvas(host);
+  releaseRenderer();
 }
 
 function disposeRenderer() {

@@ -188,7 +188,7 @@ The barbell and dumbbell in the weight picker are procedural Three.js models, no
 - **Lighting:** grayscale key / fill / rim plus a PMREM-filtered studio environment (overhead softbox). No HDRI file, no hue in the lights.
 - **Materials:** mirror chrome shaft and handle; diamond knurl (albedo + bump); matte urethane heads with the selected weight stamped on the outer faces; bumper plates pull hue only from the Plate Exception swatches. Plate faces share the chip drawing — raised outer lip, hub flange, Olympic chrome insert, and 3/9 weight numerals — so the loaded bar and the plate controls are the same bumper. Code-only — no `.glb`. Canvas numerals are generated at runtime from the selected weight.
 - **Motion:** plates settle onto the sleeve in 160ms ease-out-expo. Equipment pages track the finger as a translation-only slide, then settle in ~380ms ease-out-expo; reverse, cancel, and a lost pointer snap from the visual page. Reduced motion skips the slide. Under `prefers-reduced-motion`, plates appear in place and tilt is off.
-- **Fallback:** the original SVG line-art renders when WebGL is missing or the 3D chunk fails to load. Layout does not shift. Pair vs single is the same object count.
+- **Fallback:** reserved stage height when WebGL is missing or the 3D chunk fails. Inactive pager pages keep the 3D scene and show a still of it — never the retired SVG line-art. Pair vs single is the same object count.
 - **Role:** a mid-workout control. The dumbbell *is* the weight input. Barbell load stays chip-driven; custom / cable / machine keep the stepper. Scroll still owns the page outside the dumbbell frame.
 
 ## 6. Do's and Don'ts
