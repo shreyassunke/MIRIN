@@ -1,14 +1,20 @@
 /**
  * Phosphor Icons (MIT) — https://phosphoricons.com
  * Regular + fill path pairs, stacked so selection can bloom from outline to solid.
+ * History uses the cropped reference raster instead of a drawn glyph.
  */
 
-export type NavGlyphSpec = {
-  outline: string;
-  fill: string;
-  outlineEvenodd?: boolean;
-  fillEvenodd?: boolean;
-};
+export type NavGlyphSpec =
+  | {
+      outline: string;
+      fill: string;
+      outlineEvenodd?: boolean;
+      fillEvenodd?: boolean;
+    }
+  | {
+      outlineImage: string;
+      fillImage: string;
+    };
 
 export const NAV_GLYPHS = {
   today: {
@@ -18,11 +24,8 @@ export const NAV_GLYPHS = {
     fill: "M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,48H48V48H72v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24Z",
   },
   history: {
-    outlineEvenodd: true,
-    fillEvenodd: true,
-    outline:
-      "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z",
-    fill: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm56,112H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48a8,8,0,0,1,0,16Z",
+    outlineImage: "/icons/history-clock-outline.png",
+    fillImage: "/icons/history-clock.png",
   },
   log: {
     outlineEvenodd: true,
@@ -67,20 +70,39 @@ export function NavGlyph({
         .join(" ")}
       aria-hidden="true"
     >
-      <svg viewBox="0 0 256 256" className="nav-glyph-layer nav-glyph-outline">
-        <path
-          d={glyph.outline}
-          fill="currentColor"
-          fillRule={glyph.outlineEvenodd ? "evenodd" : "nonzero"}
-        />
-      </svg>
-      <svg viewBox="0 0 256 256" className="nav-glyph-layer nav-glyph-fill">
-        <path
-          d={glyph.fill}
-          fill="currentColor"
-          fillRule={glyph.fillEvenodd ? "evenodd" : "nonzero"}
-        />
-      </svg>
+      {"outlineImage" in glyph ? (
+        <>
+          <img
+            src={glyph.outlineImage}
+            alt=""
+            draggable={false}
+            className="nav-glyph-layer nav-glyph-outline nav-glyph-raster"
+          />
+          <img
+            src={glyph.fillImage}
+            alt=""
+            draggable={false}
+            className="nav-glyph-layer nav-glyph-fill nav-glyph-raster"
+          />
+        </>
+      ) : (
+        <>
+          <svg viewBox="0 0 256 256" className="nav-glyph-layer nav-glyph-outline">
+            <path
+              d={glyph.outline}
+              fill="currentColor"
+              fillRule={glyph.outlineEvenodd ? "evenodd" : "nonzero"}
+            />
+          </svg>
+          <svg viewBox="0 0 256 256" className="nav-glyph-layer nav-glyph-fill">
+            <path
+              d={glyph.fill}
+              fill="currentColor"
+              fillRule={glyph.fillEvenodd ? "evenodd" : "nonzero"}
+            />
+          </svg>
+        </>
+      )}
     </span>
   );
 }

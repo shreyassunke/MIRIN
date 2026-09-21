@@ -314,6 +314,14 @@ textarea {
   height: 1.25rem;
 }
 
+.nav-glyph-raster {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
 .nav-glyph-on {
   opacity: 1;
 }
