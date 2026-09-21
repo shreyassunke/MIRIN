@@ -39,19 +39,37 @@ function prefersReducedMotion() {
   );
 }
 
+function PageChevron({ direction }: { direction: "prev" | "next" }) {
+  return (
+    <svg viewBox="0 0 16 16" className="h-5 w-5" aria-hidden="true">
+      <path
+        d={direction === "prev" ? "M10 4 6 8l4 4" : "M6 4l4 4-4 4"}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function WeightHeader({
   unit,
   weight,
   weightDisplay,
   qualifier,
+  gutter,
 }: {
   unit: Unit;
   weight: number;
   weightDisplay?: ReactNode;
   qualifier?: string;
+  /** Clear the side buttons so the live weight never sits under them. */
+  gutter?: boolean;
 }) {
   return (
-    <div className="mb-3 text-center">
+    <div className={gutter ? "mb-3 px-12 text-center" : "mb-3 text-center"}>
       {weightDisplay ?? (
         <p className="flex min-h-11 items-center justify-center whitespace-nowrap">
           <span className="tnum text-3xl font-semibold tracking-tight">
@@ -137,7 +155,7 @@ export function LoadInstrument({
     paint(progressRef.current, draggingRef.current);
   }, [paint]);
 
-  usePagerGesture({
+  const { goTo } = usePagerGesture({
     count: visible.length,
     index,
     enabled: paging,
@@ -149,6 +167,19 @@ export function LoadInstrument({
     },
     getWidth: () => viewportRef.current?.clientWidth ?? 1,
   });
+
+  const aim = useRef(index);
+  useEffect(() => {
+    aim.current = index;
+  }, [index]);
+
+  const stepPage = (delta: -1 | 1) => {
+    const max = Math.max(0, visible.length - 1);
+    const next = Math.max(0, Math.min(max, aim.current + delta));
+    if (next === aim.current) return;
+    aim.current = next;
+    goTo(next);
+  };
 
   useLayoutEffect(() => {
     measure();
@@ -183,7 +214,7 @@ export function LoadInstrument({
     field.setAttribute("role", "region");
     field.setAttribute(
       "aria-label",
-      `Weight input, ${methodLabel}. Swipe or use arrow keys to change.`,
+      `Weight input, ${methodLabel}. Swipe, use the side buttons, or use arrow keys to change.`,
     );
     return () => {
       field.removeAttribute("role");
@@ -192,18 +223,42 @@ export function LoadInstrument({
     };
   }, [fieldRef, methodLabel, paging]);
 
-  const body = (page: LoadInstrumentPage) => (
+  const body = (page: LoadInstrumentPage, gutter = false) => (
     <>
       <WeightHeader
         unit={unit}
         weight={page.weight}
         weightDisplay={page.weightDisplay}
         qualifier={page.qualifier}
+        gutter={gutter}
       />
       {page.stage}
       {page.extras}
     </>
   );
+
+  const pageButton = (direction: "prev" | "next") => {
+    const delta: -1 | 1 = direction === "prev" ? -1 : 1;
+    const target = visible[index + delta];
+    const atBound = !target;
+    return (
+      <button
+        type="button"
+        className="glass-btn pointer-events-auto flex h-11 w-11 items-center justify-center rounded-pill text-ink disabled:pointer-events-none"
+        aria-label={
+          target
+            ? `${direction === "prev" ? "Previous" : "Next"}, ${target.label}`
+            : direction === "prev"
+              ? "Previous"
+              : "Next"
+        }
+        disabled={atBound}
+        onClick={() => stepPage(delta)}
+      >
+        <PageChevron direction={direction} />
+      </button>
+    );
+  };
 
   if (!paging) {
     const page = visible[0];
@@ -213,6 +268,13 @@ export function LoadInstrument({
 
   return (
     <div ref={rootRef} className="load-pager-root">
+      <div
+        data-no-pager=""
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-11 items-center justify-between"
+      >
+        {pageButton("prev")}
+        {pageButton("next")}
+      </div>
       <div ref={viewportRef} className="load-pager">
         <div ref={trackRef} className="load-pager-track">
           {visible.map((page, i) => {
@@ -227,7 +289,9 @@ export function LoadInstrument({
                 aria-hidden={!active}
                 {...(!active ? { inert: "" } : {})}
               >
-                <div aria-live={active ? "polite" : undefined}>{body(page)}</div>
+                <div aria-live={active ? "polite" : undefined}>
+                  {body(page, true)}
+                </div>
               </div>
             );
           })}
