@@ -905,7 +905,6 @@ export function Today() {
           const logged = logsByExercise.get(exercise.id) ?? [];
           const isActive = exercise.id === activeId;
           const finished = finishedIds.has(exercise.id);
-          const prior = data.prefills[exercise.id] ?? [];
           const dragProps = getItemProps(index);
           const equipment = equipmentForExercise(exercise);
           const modes = inputModesForEquipment(equipment);
@@ -913,12 +912,6 @@ export function Today() {
             ? mode
             : modes[0]?.id ?? "manual";
           const showLaterality = supportsLaterality(activeMode, equipment);
-          const ghostSource = prior.length
-            ? (prior[activeWorkingCount] ?? prior[prior.length - 1])
-            : undefined;
-          const ghostWeight = ghostSource
-            ? toDisplay(ghostSource.weight, unit)
-            : null;
           const grouped = inSuperset(data.supersets, exercise.id);
           const sessionNote = data.exerciseNotes[exercise.id];
           const stickyNote = data.stickyNotes[exercise.id];
@@ -1127,7 +1120,6 @@ export function Today() {
                 <div className="border-t border-hairline py-4">
                   <LoadInstrument
                     unit={unit}
-                    ghost={ghostWeight}
                     modes={modes}
                     mode={activeMode}
                     onModeChange={(next) => setMode(next, exercise.id)}

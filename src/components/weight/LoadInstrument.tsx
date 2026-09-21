@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   type ReactNode,
@@ -21,8 +22,6 @@ export interface LoadInstrumentPage {
 
 interface LoadInstrumentProps {
   unit: Unit;
-  /** Last session's matching set, already in the display unit. */
-  ghost?: number | null;
   modes: InputModeOption[];
   mode: InputMethod;
   onModeChange: (mode: InputMethod) => void;
@@ -41,12 +40,10 @@ function prefersReducedMotion() {
 function WeightHeader({
   unit,
   weight,
-  ghost,
   weightDisplay,
 }: {
   unit: Unit;
   weight: number;
-  ghost?: number | null;
   weightDisplay?: ReactNode;
 }) {
   return (
@@ -59,16 +56,12 @@ function WeightHeader({
           <span className="ml-1.5 text-sm text-muted">{unit}</span>
         </p>
       )}
-      {ghost != null && (
-        <p className="tnum mt-0.5 text-sm text-muted">{formatWeight(ghost)}</p>
-      )}
     </div>
   );
 }
 
 export function LoadInstrument({
   unit,
-  ghost,
   modes,
   mode,
   onModeChange,
@@ -86,42 +79,9 @@ export function LoadInstrument({
   const trackRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const heights = useRef<number[]>([]);
-  const thumbRef = useRef<HTMLSpanElement>(null);
-  const dotRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const suppressClick = useRef(false);
   const progressRef = useRef(index);
   const draggingRef = useRef(false);
-
-  const paintThumb = useCallback((progress: number) => {
-    const thumb = thumbRef.current;
-    const parent = thumb?.parentElement;
-    if (!thumb || !parent) return;
-    const count = visible.length;
-    const left = Math.max(0, Math.min(count - 1, Math.floor(progress)));
-    const right = Math.max(0, Math.min(count - 1, Math.ceil(progress)));
-    const a = dotRefs.current[left];
-    const b = dotRefs.current[right];
-    if (!a || !b) return;
-    const box = parent.getBoundingClientRect();
-    const ra = a.getBoundingClientRect();
-    const rb = b.getBoundingClientRect();
-    const t = progress - left;
-    const cx =
-      ra.left +
-      ra.width / 2 +
-      (rb.left + rb.width / 2 - (ra.left + ra.width / 2)) * t -
-      box.left;
-    const stretch = left === right ? 0 : 10 * Math.sin(t * Math.PI);
-    const width = 14 + stretch;
-    thumb.style.width = `${width}px`;
-    thumb.style.transform = `translate3d(${cx - width / 2}px, -50%, 0)`;
-    dotRefs.current.forEach((dot, i) => {
-      const mark = dot?.firstElementChild as HTMLElement | null;
-      if (!mark) return;
-      const dist = Math.abs(i - progress);
-      mark.style.opacity = dist < 0.45 ? "0" : dist < 1 ? "0.45" : "0.7";
-    });
-  }, [visible.length]);
 
   const paint = useCallback(
     (progress: number, dragging: boolean) => {
@@ -129,39 +89,30 @@ export function LoadInstrument({
       const track = trackRef.current;
       const viewport = viewportRef.current;
       const reduced = prefersReducedMotion();
+      const width = viewport?.clientWidth ?? 0;
       if (track) {
-        const x = reduced ? -Math.round(progress) * 100 : -progress * 100;
-        track.style.transform = `translate3d(${x}%, 0, 0)`;
-      }
-      pageRefs.current.forEach((page, i) => {
-        if (!page) return;
         if (reduced) {
-          page.style.transform = "none";
-          page.style.opacity = Math.abs(i - Math.round(progress)) < 0.5 ? "1" : "0";
-          return;
+          track.style.transform = `translate3d(${-Math.round(progress) * width}px, 0, 0)`;
+        } else {
+          track.style.transform = `translate3d(${-progress * width}px, 0, 0)`;
         }
-        const delta = i - progress;
-        const abs = Math.abs(delta);
-        const clamped = Math.max(-1, Math.min(1, delta));
-        page.style.transform = `rotateY(${clamped * -12}deg) scale(${1 - Math.min(abs, 1) * 0.05})`;
-        page.style.opacity = String(1 - Math.min(abs, 1) * 0.32);
-      });
+      }
       const count = visible.length;
       const left = Math.max(0, Math.min(count - 1, Math.floor(progress)));
       const right = Math.max(0, Math.min(count - 1, Math.ceil(progress)));
-      const t = progress - left;
+      const settled = !dragging && Math.abs(progress - Math.round(progress)) < 0.001;
       const h0 = heights.current[left] ?? 0;
       const h1 = heights.current[right] ?? h0;
-      if (viewport && h0 > 0) {
-        viewport.style.height = `${h0 + (h1 - h0) * t}px`;
-      }
+      const h = settled
+        ? (heights.current[Math.round(progress)] ?? h0)
+        : Math.max(h0, h1);
+      if (viewport && h > 0) viewport.style.height = `${h}px`;
       if (dragging) suppressClick.current = true;
       draggingRef.current = dragging;
       const field = (fieldRef ?? rootRef).current;
       field?.classList.toggle("is-paging", dragging);
-      paintThumb(progress);
     },
-    [fieldRef, paintThumb, visible.length],
+    [fieldRef, visible.length],
   );
 
   const measure = useCallback(() => {
@@ -172,7 +123,7 @@ export function LoadInstrument({
     paint(progressRef.current, draggingRef.current);
   }, [paint]);
 
-  const pager = usePagerGesture({
+  usePagerGesture({
     count: visible.length,
     index,
     enabled: paging,
@@ -182,6 +133,7 @@ export function LoadInstrument({
       const page = visible[next];
       if (page && page.id !== mode) onModeChange(page.id);
     },
+    getWidth: () => viewportRef.current?.clientWidth ?? 1,
   });
 
   useLayoutEffect(() => {
@@ -208,12 +160,29 @@ export function LoadInstrument({
     return () => field.removeEventListener("click", onClick, true);
   }, [fieldRef]);
 
+  const methodLabel = visible[index]?.label ?? "weight";
+
+  useEffect(() => {
+    const field = (fieldRef ?? rootRef).current;
+    if (!field || !paging) return;
+    field.tabIndex = 0;
+    field.setAttribute("role", "region");
+    field.setAttribute(
+      "aria-label",
+      `Weight input, ${methodLabel}. Swipe or use arrow keys to change.`,
+    );
+    return () => {
+      field.removeAttribute("role");
+      field.removeAttribute("aria-label");
+      field.removeAttribute("tabindex");
+    };
+  }, [fieldRef, methodLabel, paging]);
+
   const body = (page: LoadInstrumentPage) => (
     <>
       <WeightHeader
         unit={unit}
         weight={page.weight}
-        ghost={ghost}
         weightDisplay={page.weightDisplay}
       />
       {page.stage}
@@ -248,40 +217,6 @@ export function LoadInstrument({
             );
           })}
         </div>
-      </div>
-      <div
-        role="group"
-        aria-label="Weight input method"
-        className="load-pager-dots glass"
-        onKeyDown={(event) => {
-          if (event.key === "ArrowRight") {
-            event.preventDefault();
-            pager.goTo(Math.min(visible.length - 1, index + 1));
-          } else if (event.key === "ArrowLeft") {
-            event.preventDefault();
-            pager.goTo(Math.max(0, index - 1));
-          }
-        }}
-      >
-        <span ref={thumbRef} className="load-pager-thumb" aria-hidden="true" />
-        {visible.map((page, i) => {
-          const active = page.id === mode;
-          return (
-            <button
-              key={page.id}
-              ref={(el) => {
-                dotRefs.current[i] = el;
-              }}
-              type="button"
-              aria-label={page.label}
-              aria-pressed={active}
-              onClick={() => pager.goTo(i)}
-              className="load-pager-dot"
-            >
-              <span className="load-pager-mark" />
-            </button>
-          );
-        })}
       </div>
     </div>
   );

@@ -95,6 +95,7 @@ export function usePagerGesture({
   rootRef,
   onProgress,
   onIndexChange,
+  getWidth,
 }: {
   count: number;
   index: number;
@@ -102,6 +103,7 @@ export function usePagerGesture({
   rootRef: RefObject<HTMLElement | null>;
   onProgress: (progress: number, dragging: boolean) => void;
   onIndexChange: (index: number) => void;
+  getWidth?: () => number;
 }): { goTo: (index: number, animate?: boolean) => void } {
   const progress = useRef(index);
   const dragging = useRef(false);
@@ -111,10 +113,12 @@ export function usePagerGesture({
   const countRef = useRef(count);
   const onProgressRef = useRef(onProgress);
   const onIndexRef = useRef(onIndexChange);
+  const getWidthRef = useRef(getWidth);
   indexRef.current = index;
   countRef.current = count;
   onProgressRef.current = onProgress;
   onIndexRef.current = onIndexChange;
+  getWidthRef.current = getWidth;
 
   const paint = useCallback((value: number, isDragging: boolean) => {
     progress.current = value;
@@ -275,7 +279,8 @@ export function usePagerGesture({
       if (event.pointerType === "mouse" && event.button !== 0) return;
       if (isTypingTarget(event.target)) return;
       stopSettle();
-      const width = root.getBoundingClientRect().width;
+      const width =
+        getWidthRef.current?.() ?? root.getBoundingClientRect().width;
       track.current = {
         id: event.pointerId,
         x: event.clientX,
@@ -296,12 +301,24 @@ export function usePagerGesture({
     };
 
     root.addEventListener("pointerdown", onDown, { capture: true });
+    const onKey = (event: KeyboardEvent) => {
+      if (event.target !== root) return;
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goTo(indexRef.current + 1);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goTo(indexRef.current - 1);
+      }
+    };
+    root.addEventListener("keydown", onKey);
     return () => {
       root.removeEventListener("pointerdown", onDown, { capture: true });
+      root.removeEventListener("keydown", onKey);
       dropWindow();
       stopSettle();
     };
-  }, [count, enabled, paint, rootRef, settleTo, stopSettle]);
+  }, [count, enabled, goTo, paint, rootRef, settleTo, stopSettle]);
 
   useEffect(() => () => stopSettle(), [stopSettle]);
 

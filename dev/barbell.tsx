@@ -40,7 +40,6 @@ function PagerHarness({ unit }: { unit: Unit }) {
       </p>
       <LoadInstrument
         unit={unit}
-        ghost={45}
         modes={modes}
         mode={mode}
         onModeChange={setMode}
