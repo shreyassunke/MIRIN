@@ -32,6 +32,7 @@ import {
   attachmentForEquipment,
   ensureExerciseRow,
   equipmentForExercise,
+  exerciseLabelForMethod,
   inputModesForEquipment,
   resolveInputMethod,
   type ExerciseLibraryEntry,
@@ -912,7 +913,14 @@ export function Today() {
           const activeMode = modes.some((m) => m.id === mode)
             ? mode
             : modes[0]?.id ?? "manual";
-          const showLaterality = supportsLaterality(activeMode, equipment);
+          const displayName = exerciseLabelForMethod(
+            exercise.name,
+            isActive
+              ? activeMode
+              : (data.modePrefs[exercise.id] ??
+                exercise.inputMethodHint ??
+                "manual"),
+          );
           const grouped = inSuperset(data.supersets, exercise.id);
           const sessionNote = data.exerciseNotes[exercise.id];
           const stickyNote = data.stickyNotes[exercise.id];
@@ -937,9 +945,10 @@ export function Today() {
               dragStyle={dragProps.style}
               groupPos={groupPosFor(data.exerciseIds, data.supersets, exercise.id)}
               inSuperset={grouped}
+              title={displayName}
               overflow={
                 <ItemOverflow
-                  label={`${exercise.name} options`}
+                  label={`${displayName} options`}
                   items={[
                     {
                       id: "note",
@@ -1118,13 +1127,25 @@ export function Today() {
                 />
               )}
               {isActive && (
-                <div className="py-4">
+                <div className="flex flex-col gap-4 pt-4 pb-2">
                   <LoadInstrument
                     unit={unit}
                     modes={modes}
                     mode={activeMode}
                     onModeChange={(next) => setMode(next, exercise.id)}
                     fieldRef={modes.length > 1 ? swipeFieldRef : undefined}
+                    footer={
+                      <Stepper
+                        label="Reps"
+                        value={reps}
+                        step={1}
+                        min={1}
+                        layout="inline"
+                        inlineSuffix="reps"
+                        size="compact"
+                        onChange={setReps}
+                      />
+                    }
                     pages={modes.map((m) => {
                       if (m.id === "barbell") {
                         return {
@@ -1202,66 +1223,54 @@ export function Today() {
                         id: m.id,
                         label: m.label,
                         weight: manualWeight,
-                        extras: (
-                          <div className="flex flex-col items-center">
-                            <Stepper
-                              label={`Weight (${unit})`}
-                              value={manualWeight}
-                              step={MANUAL_STEP[unit]}
-                              onChange={setManualWeight}
-                            />
-                          </div>
+                        weightDisplay: (
+                          <Stepper
+                            label={`Weight (${unit})`}
+                            value={manualWeight}
+                            step={MANUAL_STEP[unit]}
+                            min={0}
+                            layout="stacked"
+                            inlineSuffix={unit}
+                            size="lead"
+                            onChange={setManualWeight}
+                          />
                         ),
+                        extras:
+                          supportsLaterality("manual", equipment) ? (
+                            <div className="flex justify-center">
+                              <LateralityToggle
+                                value={laterality}
+                                onChange={(next) =>
+                                  setLateralityFor(next, exercise.id)
+                                }
+                                variant="arms"
+                              />
+                            </div>
+                          ) : undefined,
                       };
                     })}
                   />
 
-                  <div data-no-pager="">
-                    {showLaterality && activeMode !== "dumbbell" && (
-                      <div className="mt-3 flex justify-center">
-                        <LateralityToggle
-                          value={laterality}
-                          onChange={(next) =>
-                            setLateralityFor(next, exercise.id)
-                          }
-                          variant="arms"
-                        />
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex justify-center">
-                      <Stepper
-                        label="Reps"
-                        value={reps}
-                        step={1}
-                        min={1}
-                        onChange={setReps}
-                      />
-                    </div>
-
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        onClick={() => logCurrent(exercise.id)}
-                        className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
-                      >
-                        {loggingWarmup
-                          ? `Log warm-up ${formatWeight(totalDisplay)}×${reps}`
-                          : `Log ${formatWeight(totalDisplay)}×${reps}`}
-                      </button>
-                    </div>
+                  <div data-no-pager="" className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => logCurrent(exercise.id)}
+                      className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
+                    >
+                      {loggingWarmup
+                        ? `Log warm-up ${formatWeight(totalDisplay)}×${reps}`
+                        : `Log ${formatWeight(totalDisplay)}×${reps}`}
+                    </button>
 
                     {logged.length > 0 && (
-                      <div className="mt-2">
-                        <button
-                          type="button"
-                          onClick={() => void logDrop(exercise.id)}
-                          aria-label={`Add a drop to set ${logged.length} of ${exercise.name}`}
-                          className="glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
-                        >
-                          Add drop to set {logged.length}
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void logDrop(exercise.id)}
+                        aria-label={`Add a drop to set ${logged.length} of ${exercise.name}`}
+                        className="glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
+                      >
+                        Add drop to set {logged.length}
+                      </button>
                     )}
                   </div>
                 </div>

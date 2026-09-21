@@ -163,6 +163,23 @@ export const equipmentLabel = (equipment: string) =>
   EQUIPMENT_LABELS[equipment] ??
   equipment.charAt(0).toUpperCase() + equipment.slice(1);
 
+/**
+ * The visible lift name follows the implement the lifter is actually holding.
+ * "Incline Barbell Press" on the dumbbell page reads "Incline Dumbbell Press".
+ * Manual entry keeps the stored name. History stays on the original exercise.
+ */
+export function exerciseLabelForMethod(
+  name: string,
+  method: InputMethod,
+): string {
+  if (method !== "barbell" && method !== "dumbbell") return name;
+  if (!/\b(barbells?|dumbbells?|dbs?)\b/i.test(name)) return name;
+  const next = method === "barbell" ? "Barbell" : "Dumbbell";
+  return name.replace(/\b(barbells?|dumbbells?|dbs?)\b/gi, (token) =>
+    token[0] === token[0].toUpperCase() ? next : next.toLowerCase(),
+  );
+}
+
 /** Equipment options for the create-custom form. */
 export const EQUIPMENT_OPTIONS = [
   "barbell",

@@ -30,6 +30,21 @@ interface LoadInstrumentProps {
   pages: LoadInstrumentPage[];
   /** Larger hit target than the cluster — typically the open exercise card. */
   fieldRef?: RefObject<HTMLElement | null>;
+  /** Sits on every equipment page, so Log stays one gap below the instrument. */
+  footer?: ReactNode;
+}
+
+/** Active page height, blended while a swipe is between pages. */
+function heightAt(progress: number, heights: number[], reduced: boolean) {
+  const n = heights.length;
+  if (n === 0) return 0;
+  const clamped = Math.max(0, Math.min(n - 1, progress));
+  if (reduced) return heights[Math.round(clamped)] ?? 0;
+  const i = Math.floor(clamped);
+  const t = clamped - i;
+  const a = heights[i] ?? 0;
+  const b = heights[Math.min(n - 1, i + 1)] ?? a;
+  return a + (b - a) * t;
 }
 
 function prefersReducedMotion() {
@@ -69,8 +84,10 @@ function WeightHeader({
   gutter?: boolean;
 }) {
   return (
-    <div className={gutter ? "mb-3 px-12 text-center" : "mb-3 text-center"}>
-      {weightDisplay ?? (
+    <div className={gutter ? "px-12 text-center" : "text-center"}>
+      {weightDisplay ? (
+        <div className="flex justify-center">{weightDisplay}</div>
+      ) : (
         <p className="flex min-h-11 items-center justify-center whitespace-nowrap">
           <span className="tnum text-3xl font-semibold tracking-tight">
             {formatWeight(weight)}
@@ -92,6 +109,7 @@ export function LoadInstrument({
   onModeChange,
   pages,
   fieldRef,
+  footer,
 }: LoadInstrumentProps) {
   const visible = pages.filter((page) => modes.some((m) => m.id === page.id));
   const index = Math.max(
@@ -132,11 +150,8 @@ export function LoadInstrument({
         page.style.transform = `rotateY(${clamped * -12}deg) scale(${1 - Math.min(abs, 1) * 0.05})`;
         page.style.opacity = String(1 - Math.min(abs, 1) * 0.32);
       });
-      let maxH = 0;
-      for (const h of heights.current) {
-        if (h > maxH) maxH = h;
-      }
-      if (viewport && maxH > 0) viewport.style.height = `${maxH}px`;
+      const h = heightAt(progress, heights.current, reduced);
+      if (viewport && h > 0) viewport.style.height = `${Math.round(h)}px`;
       if (dragging) suppressClick.current = true;
       draggingRef.current = dragging;
       const field = (fieldRef ?? rootRef).current;
@@ -148,10 +163,12 @@ export function LoadInstrument({
   );
 
   const measure = useCallback(() => {
+    const next: number[] = [];
     pageRefs.current.forEach((page, i) => {
       if (!page) return;
-      heights.current[i] = page.scrollHeight;
+      next[i] = page.scrollHeight;
     });
+    heights.current = next;
     paint(progressRef.current, draggingRef.current);
   }, [paint]);
 
@@ -223,8 +240,11 @@ export function LoadInstrument({
     };
   }, [fieldRef, methodLabel, paging]);
 
-  const body = (page: LoadInstrumentPage, gutter = false) => (
-    <>
+  const body = (page: LoadInstrumentPage, gutter = false, live = false) => (
+    <div
+      className="flex flex-col gap-2"
+      aria-live={live ? "polite" : undefined}
+    >
       <WeightHeader
         unit={unit}
         weight={page.weight}
@@ -234,8 +254,14 @@ export function LoadInstrument({
       />
       {page.stage}
       {page.extras}
-    </>
+    </div>
   );
+
+  const reps = footer ? (
+    <div data-no-pager="" className="flex justify-center">
+      {footer}
+    </div>
+  ) : null;
 
   const pageButton = (direction: "prev" | "next") => {
     const delta: -1 | 1 = direction === "prev" ? -1 : 1;
@@ -263,40 +289,48 @@ export function LoadInstrument({
   if (!paging) {
     const page = visible[0];
     if (!page) return null;
-    return <div>{body(page)}</div>;
+    return (
+      <div className="flex flex-col gap-4">
+        {body(page, false, true)}
+        {reps}
+      </div>
+    );
   }
 
   return (
-    <div ref={rootRef} className="load-pager-root">
-      <div
-        data-no-pager=""
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-11 items-center justify-between"
-      >
-        {pageButton("prev")}
-        {pageButton("next")}
-      </div>
-      <div ref={viewportRef} className="load-pager">
-        <div ref={trackRef} className="load-pager-track">
-          {visible.map((page, i) => {
-            const active = page.id === mode;
-            return (
-              <div
-                key={page.id}
-                ref={(el) => {
-                  pageRefs.current[i] = el;
-                }}
-                className="load-pager-page"
-                aria-hidden={!active}
-                {...(!active ? { inert: "" } : {})}
-              >
-                <div aria-live={active ? "polite" : undefined}>
-                  {body(page, true)}
+    <div className="flex flex-col gap-4">
+      <div ref={rootRef} className="load-pager-root">
+        <div
+          data-no-pager=""
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-11 items-center justify-center"
+        >
+          <div className="pointer-events-none flex w-full max-w-md items-center justify-between">
+            {pageButton("prev")}
+            {pageButton("next")}
+          </div>
+        </div>
+        <div ref={viewportRef} className="load-pager">
+          <div ref={trackRef} className="load-pager-track">
+            {visible.map((page, i) => {
+              const active = page.id === mode;
+              return (
+                <div
+                  key={page.id}
+                  ref={(el) => {
+                    pageRefs.current[i] = el;
+                  }}
+                  className="load-pager-page"
+                  aria-hidden={!active}
+                  {...(!active ? { inert: "" } : {})}
+                >
+                  {body(page, true, active)}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
+      {reps}
     </div>
   );
 }

@@ -33,6 +33,8 @@ interface TodayExerciseTileProps {
   children?: ReactNode;
   /** Horizontal pager field for equipment modes. */
   swipeFieldRef?: Ref<HTMLDivElement>;
+  /** Shown in place of the stored name while an implement is selected. */
+  title?: string;
 }
 
 function rowSpacing(reorderIndex: number, groupPos: GroupPos): string {
@@ -68,7 +70,9 @@ export function TodayExerciseTile({
   undoLastHasDrop = false,
   children,
   swipeFieldRef,
+  title,
 }: TodayExerciseTileProps) {
+  const name = title ?? exercise.name;
   return (
     <li
       data-reorder-index={reorderIndex}
@@ -112,11 +116,7 @@ export function TodayExerciseTile({
           }}
           className="exercise-row-hit flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 py-1.5 text-left select-none"
           aria-expanded={isActive}
-          aria-label={
-            isActive
-              ? `Collapse ${exercise.name}`
-              : `Expand ${exercise.name}`
-          }
+          aria-label={isActive ? `Collapse ${name}` : `Expand ${name}`}
         >
           <span className="min-w-0">
             <span className="flex min-w-0 items-center gap-1.5">
@@ -143,7 +143,7 @@ export function TodayExerciseTile({
                 </span>
               )}
               <span className="block truncate text-lg font-semibold tracking-tight">
-                {exercise.name}
+                {name}
               </span>
             </span>
           </span>

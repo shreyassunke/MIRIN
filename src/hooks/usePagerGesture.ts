@@ -100,8 +100,8 @@ type Track = {
 /**
  * Finger-tracked horizontal paging. Document capture after pointerdown so a
  * swipe starting on a child (canvas, stepper) still tracks 1:1. Vertical
- * intent is left to scroll / the dumbbell rack. Log/reps sit behind
- * `[data-no-pager]` and never start a drag.
+ * intent is left to scroll / the dumbbell rack. The reps control, Log, and
+ * drop sit behind `[data-no-pager]` and never start a drag.
  */
 export function usePagerGesture({
   count,

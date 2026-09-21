@@ -10,11 +10,12 @@ interface StepperProps {
   onChange: (value: number) => void;
   /** Custom value rendering (feet and inches, units, and so on). */
   format?: (value: number) => string;
-  /** Inline row: value and suffix sit between the buttons, no label above. */
-  layout?: "default" | "inline";
+  /** `inline` puts the value between the buttons. `stacked` keeps the value on its own row so it can sit between mode arrows. */
+  layout?: "default" | "inline" | "stacked";
   /** Unit or suffix shown beside the value in inline layout. */
   inlineSuffix?: string;
-  size?: "default" | "compact";
+  /** `lead` matches the live weight numeral. `compact` is the reps companion. */
+  size?: "default" | "compact" | "lead";
 }
 
 function parseDraft(text: string): number | null {
@@ -47,13 +48,20 @@ export function Stepper({
 
   const display = format ? format(value) : formatWeight(value);
   const btn =
-    size === "compact"
-      ? "glass-btn flex h-11 w-11 items-center justify-center rounded-pill text-lg leading-none text-ink"
-      : "glass-btn flex h-12 w-12 items-center justify-center rounded-pill text-xl leading-none text-ink";
-  const valueClass =
-    size === "compact"
-      ? "tnum h-11 min-w-14 rounded-md border border-transparent bg-transparent px-1 text-center text-base font-semibold tracking-tight text-ink focus:border-hairline focus:bg-bg"
-      : "tnum h-12 min-w-[4.75rem] rounded-md border border-transparent bg-transparent px-1 text-center text-xl font-semibold tracking-tight text-ink focus:border-hairline focus:bg-bg";
+    size === "default"
+      ? "glass-btn flex h-12 w-12 items-center justify-center rounded-pill text-xl leading-none text-ink"
+      : "glass-btn flex h-11 w-11 items-center justify-center rounded-pill text-lg leading-none text-ink";
+  const valueSize =
+    size === "lead"
+      ? "h-11 min-w-[5.5rem] text-3xl leading-none"
+      : size === "compact"
+        ? "h-11 min-w-14 text-base"
+        : "h-12 min-w-[4.75rem] text-xl";
+  const valueClass = `tnum ${valueSize} rounded-md border border-transparent bg-transparent px-1 text-center font-semibold tracking-tight text-ink focus:border-hairline focus:bg-bg`;
+  const suffixClass =
+    size === "lead"
+      ? "ml-1.5 text-sm font-medium text-muted"
+      : "ml-1 text-[13px] font-medium text-muted";
 
   const beginEdit = () => {
     setDraft(String(value));
@@ -107,39 +115,54 @@ export function Stepper({
       onClick={beginEdit}
       className={[
         valueClass,
-        "cursor-text transition-colors duration-150 hover:border-hairline hover:bg-bg",
+        "inline-flex cursor-text items-center justify-center transition-colors duration-150 hover:border-hairline hover:bg-bg",
       ].join(" ")}
     >
       {display}
-      {layout === "inline" && inlineSuffix ? (
-        <span className="ml-1 text-[13px] font-medium text-muted">
-          {inlineSuffix}
-        </span>
+      {(layout === "inline" || layout === "stacked") && inlineSuffix ? (
+        <span className={suffixClass}>{inlineSuffix}</span>
       ) : null}
     </button>
   );
 
+  const decrease = (
+    <button
+      type="button"
+      className={btn}
+      aria-label={`Decrease ${label}`}
+      onClick={() => onChange(clamp(value - step, min, max))}
+    >
+      &minus;
+    </button>
+  );
+  const increase = (
+    <button
+      type="button"
+      className={btn}
+      aria-label={`Increase ${label}`}
+      onClick={() => onChange(clamp(value + step, min, max))}
+    >
+      +
+    </button>
+  );
+
+  if (layout === "stacked") {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        {valueControl}
+        <div className="flex w-44 items-center justify-between">
+          {decrease}
+          {increase}
+        </div>
+      </div>
+    );
+  }
+
   const controls = (
     <div className="flex items-center gap-1.5">
-      <button
-        type="button"
-        className={btn}
-        aria-label={`Decrease ${label}`}
-        onClick={() => onChange(clamp(value - step, min, max))}
-      >
-        &minus;
-      </button>
+      {decrease}
       {valueControl}
-      <button
-        type="button"
-        className={btn}
-        aria-label={`Increase ${label}`}
-        onClick={() =>
-          onChange(clamp(value + step, min, max))
-        }
-      >
-        +
-      </button>
+      {increase}
     </div>
   );
 

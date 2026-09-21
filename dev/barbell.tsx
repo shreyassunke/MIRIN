@@ -20,6 +20,7 @@ import { DumbbellPicker } from "../src/components/weight/DumbbellPicker";
 import { LoadInstrument } from "../src/components/weight/LoadInstrument";
 import { Stepper } from "../src/components/Stepper";
 import type { InputMethod, Unit } from "../src/lib/units";
+import { exerciseLabelForMethod } from "../src/lib/library";
 import {
   lateralityCaption,
   type Laterality,
@@ -46,17 +47,31 @@ function PagerHarness({
     { id: "dumbbell" as const, label: "Dumbbell" },
     { id: "manual" as const, label: "Type weight" },
   ];
+  const [reps, setReps] = useState(8);
   return (
     <div ref={fieldRef} className="load-swipe-field bg-bg px-4 py-6 text-ink">
-      <p className="mb-8 text-center text-lg font-semibold tracking-tight">
-        Incline Press
+      <p className="mb-4 text-lg font-semibold tracking-tight">
+        {exerciseLabelForMethod("Incline Barbell Press", mode)}
       </p>
+      <div className="flex flex-col gap-4">
       <LoadInstrument
         unit={unit}
         modes={modes}
         mode={mode}
         onModeChange={setMode}
         fieldRef={fieldRef}
+        footer={
+          <Stepper
+            label="Reps"
+            value={reps}
+            step={1}
+            min={1}
+            layout="inline"
+            inlineSuffix="reps"
+            size="compact"
+            onChange={setReps}
+          />
+        }
         pages={modes.map((m) => {
           if (m.id === "barbell") {
             return {
@@ -128,31 +143,29 @@ function PagerHarness({
             id: m.id,
             label: m.label,
             weight: manual,
-            extras: (
-              <div className="flex flex-col items-center">
-                <Stepper
-                  label={`Weight (${unit})`}
-                  value={manual}
-                  step={5}
-                  onChange={setManual}
-                />
-              </div>
+            weightDisplay: (
+              <Stepper
+                label={`Weight (${unit})`}
+                value={manual}
+                step={5}
+                min={0}
+                layout="stacked"
+                inlineSuffix={unit}
+                size="lead"
+                onChange={setManual}
+              />
             ),
           };
         })}
       />
-      <div data-no-pager="" className="mt-8">
-        <p className="mb-4 text-center text-sm text-muted">Reps</p>
-        <button
-          type="button"
-          className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg"
-        >
-          Log set
-        </button>
+      <button
+        type="button"
+        data-no-pager=""
+        className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg"
+      >
+        Log set
+      </button>
       </div>
-      <p className="mt-10 text-center text-[13px] text-muted">
-        Swipe the weight to change equipment
-      </p>
     </div>
   );
 }

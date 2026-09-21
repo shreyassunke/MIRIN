@@ -336,7 +336,7 @@ export function BarbellRack({
   for (const p of plates) counts.set(p, (counts.get(p) ?? 0) + 1);
 
   return (
-    <div className="mt-1">
+    <div>
       <p className="mb-1 text-center text-[13px] text-muted">
         {plates.length
           ? "Tap a plate to remove it"
