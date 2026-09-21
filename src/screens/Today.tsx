@@ -39,6 +39,7 @@ import {
 import {
   convertLoadForLaterality,
   defaultLaterality,
+  lateralityCaption,
   loadSharing,
   supportsLaterality,
   type Laterality,
@@ -1174,6 +1175,10 @@ export function Today() {
                           id: m.id,
                           label: m.label,
                           weight: dumbbell,
+                          qualifier:
+                            laterality === "bilateral"
+                              ? lateralityCaption(laterality, "independent")
+                              : undefined,
                           stage: (
                             <DumbbellPicker
                               unit={unit}
@@ -1211,52 +1216,54 @@ export function Today() {
                     })}
                   />
 
-                  {showLaterality && activeMode !== "dumbbell" && (
-                    <div className="mt-3 flex justify-center">
-                      <LateralityToggle
-                        value={laterality}
-                        onChange={(next) =>
-                          setLateralityFor(next, exercise.id)
-                        }
-                        variant="arms"
+                  <div data-no-pager="">
+                    {showLaterality && activeMode !== "dumbbell" && (
+                      <div className="mt-3 flex justify-center">
+                        <LateralityToggle
+                          value={laterality}
+                          onChange={(next) =>
+                            setLateralityFor(next, exercise.id)
+                          }
+                          variant="arms"
+                        />
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex justify-center">
+                      <Stepper
+                        label="Reps"
+                        value={reps}
+                        step={1}
+                        min={1}
+                        onChange={setReps}
                       />
                     </div>
-                  )}
 
-                  <div className="mt-4 flex justify-center">
-                    <Stepper
-                      label="Reps"
-                      value={reps}
-                      step={1}
-                      min={1}
-                      onChange={setReps}
-                    />
-                  </div>
-
-                  <div className="mt-4">
-                    <button
-                      type="button"
-                      onClick={() => logCurrent(exercise.id)}
-                      className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
-                    >
-                      {loggingWarmup
-                        ? `Log warm-up ${formatWeight(totalDisplay)}×${reps}`
-                        : `Log ${formatWeight(totalDisplay)}×${reps}`}
-                    </button>
-                  </div>
-
-                  {logged.length > 0 && (
-                    <div className="mt-2">
+                    <div className="mt-4">
                       <button
                         type="button"
-                        onClick={() => void logDrop(exercise.id)}
-                        aria-label={`Add a drop to set ${logged.length} of ${exercise.name}`}
-                        className="glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
+                        onClick={() => logCurrent(exercise.id)}
+                        className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
                       >
-                        Add drop to set {logged.length}
+                        {loggingWarmup
+                          ? `Log warm-up ${formatWeight(totalDisplay)}×${reps}`
+                          : `Log ${formatWeight(totalDisplay)}×${reps}`}
                       </button>
                     </div>
-                  )}
+
+                    {logged.length > 0 && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => void logDrop(exercise.id)}
+                          aria-label={`Add a drop to set ${logged.length} of ${exercise.name}`}
+                          className="glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
+                        >
+                          Add drop to set {logged.length}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </TodayExerciseTile>

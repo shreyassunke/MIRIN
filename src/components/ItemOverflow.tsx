@@ -175,7 +175,7 @@ export function ItemOverflow({ label, items }: ItemOverflowProps) {
   }
 
   return (
-    <div data-no-drag="" className="relative shrink-0 self-center">
+    <div data-no-drag="" data-no-pager="" className="relative shrink-0 self-center">
       <button
         ref={triggerRef}
         type="button"

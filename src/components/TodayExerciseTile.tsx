@@ -179,6 +179,7 @@ export function TodayExerciseTile({
       {logged.length > 0 && (
         <div
           data-no-drag=""
+          data-no-pager=""
           className="tnum flex flex-wrap items-center gap-x-4 gap-y-1 py-1.5 text-sm text-muted"
         >
           {logged.map((s, i) => {

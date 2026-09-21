@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, type RefObject } from "react";
 const LOCK_PX = 12;
 const SETTLE_MS = 380;
 const FLICK_PX_MS = 0.42;
-const COMMIT_RATIO = 0.28;
+const STALE_VX_MS = 80;
 
 function prefersReducedMotion() {
   return (
@@ -63,11 +63,26 @@ function canScrollNestedX(
   return false;
 }
 
-function isTypingTarget(target: EventTarget | null) {
+function isExemptTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   return Boolean(
-    target.closest("input, textarea, select, [contenteditable='true']"),
+    target.closest(
+      "input, textarea, select, [contenteditable='true'], [data-no-pager]",
+    ),
   );
+}
+
+/** Snap from the finger's current page, not the down-point. Flick wins. */
+export function commitIndex(progress: number, vx: number, count: number) {
+  const max = Math.max(0, count - 1);
+  if (count < 2) return 0;
+  if (vx < -FLICK_PX_MS) {
+    return Math.min(max, Math.floor(progress + 1e-3) + 1);
+  }
+  if (vx > FLICK_PX_MS) {
+    return Math.max(0, Math.ceil(progress - 1e-3) - 1);
+  }
+  return Math.max(0, Math.min(max, Math.round(progress)));
 }
 
 type Track = {
@@ -83,10 +98,10 @@ type Track = {
 };
 
 /**
- * Finger-tracked horizontal paging. Listens in capture phase on the field and
- * on window after pointerdown so a swipe starting on a child (canvas, button,
- * stepper) still drives the page 1:1. Vertical intent is left to scroll / the
- * dumbbell rack.
+ * Finger-tracked horizontal paging. Document capture after pointerdown so a
+ * swipe starting on a child (canvas, stepper) still tracks 1:1. Vertical
+ * intent is left to scroll / the dumbbell rack. Log/reps sit behind
+ * `[data-no-pager]` and never start a drag.
  */
 export function usePagerGesture({
   count,
@@ -108,7 +123,9 @@ export function usePagerGesture({
   const progress = useRef(index);
   const dragging = useRef(false);
   const settle = useRef<number | null>(null);
+  const paintRaf = useRef<number | null>(null);
   const track = useRef<Track | null>(null);
+  const releasing = useRef(false);
   const indexRef = useRef(index);
   const countRef = useRef(count);
   const onProgressRef = useRef(onProgress);
@@ -132,9 +149,17 @@ export function usePagerGesture({
     }
   }, []);
 
+  const stopPaintRaf = useCallback(() => {
+    if (paintRaf.current != null) {
+      cancelAnimationFrame(paintRaf.current);
+      paintRaf.current = null;
+    }
+  }, []);
+
   const settleTo = useCallback(
     (target: number, animate: boolean) => {
       stopSettle();
+      stopPaintRaf();
       const max = Math.max(0, countRef.current - 1);
       const next = Math.max(0, Math.min(max, target));
       const from = progress.current;
@@ -153,11 +178,12 @@ export function usePagerGesture({
           return;
         }
         settle.current = null;
+        paint(next, false);
         if (next !== indexRef.current) onIndexRef.current(next);
       };
       settle.current = requestAnimationFrame(tick);
     },
-    [paint, stopSettle],
+    [paint, stopPaintRaf, stopSettle],
   );
 
   const goTo = useCallback(
@@ -180,6 +206,7 @@ export function usePagerGesture({
     if (!root || !enabled || count < 2) return;
 
     const releaseCapture = (pointerId: number) => {
+      releasing.current = true;
       if (root.hasPointerCapture(pointerId)) {
         try {
           root.releasePointerCapture(pointerId);
@@ -187,12 +214,27 @@ export function usePagerGesture({
           /* already released */
         }
       }
+      releasing.current = false;
     };
 
     const dropWindow = () => {
-      window.removeEventListener("pointermove", onMove, { capture: true });
-      window.removeEventListener("pointerup", onUp, { capture: true });
-      window.removeEventListener("pointercancel", onCancel, { capture: true });
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onUp, true);
+      document.removeEventListener("pointercancel", onCancel, true);
+    };
+
+    const clampedFromFinger = (current: Track, clientX: number) => {
+      const dx = clientX - current.x;
+      const max = Math.max(0, countRef.current - 1);
+      const unclamped = current.origin - dx / current.width;
+      if (unclamped < 0) {
+        return rubberband(unclamped * current.width, current.width) / current.width;
+      }
+      if (unclamped > max) {
+        const over = (unclamped - max) * current.width;
+        return max + rubberband(over, current.width) / current.width;
+      }
+      return unclamped;
     };
 
     const finish = (event: PointerEvent, commit: boolean) => {
@@ -202,21 +244,19 @@ export function usePagerGesture({
       dropWindow();
       releaseCapture(event.pointerId);
       dragging.current = false;
+      stopPaintRaf();
+
       if (!commit || !current.locked) {
-        settleTo(indexRef.current, true);
+        settleTo(Math.round(progress.current), true);
         return;
       }
-      const raw = event.clientX - current.x;
-      const atStart = indexRef.current <= 0 && raw > 0;
-      const atEnd = indexRef.current >= countRef.current - 1 && raw < 0;
-      const travel = atStart || atEnd ? rubberband(raw, current.width) : raw;
-      const flick = current.vx;
-      let target = indexRef.current;
-      if (flick < -FLICK_PX_MS && raw < 0) target += 1;
-      else if (flick > FLICK_PX_MS && raw > 0) target -= 1;
-      else if (travel <= -current.width * COMMIT_RATIO) target += 1;
-      else if (travel >= current.width * COMMIT_RATIO) target -= 1;
-      settleTo(target, true);
+
+      const vx =
+        event.timeStamp - current.lastT > STALE_VX_MS ? 0 : current.vx;
+      const next = prefersReducedMotion()
+        ? commitIndex(current.origin, 0, countRef.current)
+        : commitIndex(progress.current, vx, countRef.current);
+      settleTo(next, true);
     };
 
     const onMove = (event: PointerEvent) => {
@@ -242,45 +282,71 @@ export function usePagerGesture({
         try {
           root.setPointerCapture(event.pointerId);
         } catch {
-          /* capture is best-effort; window listeners still drive the drag */
+          /* document listeners still drive the drag */
         }
         if (event.cancelable) event.preventDefault();
       }
 
       if (event.cancelable) event.preventDefault();
       const dt = event.timeStamp - current.lastT;
-      if (dt > 0) {
+      if (dt > 0 && dt < 100) {
         current.vx = (event.clientX - current.lastX) / dt;
         current.lastX = event.clientX;
         current.lastT = event.timeStamp;
+      } else if (dt >= 100) {
+        current.vx = 0;
+        current.lastX = event.clientX;
+        current.lastT = event.timeStamp;
       }
-      const max = Math.max(0, countRef.current - 1);
-      const unclamped = current.origin - dx / current.width;
-      let next = unclamped;
-      if (unclamped < 0) {
-        next =
-          rubberband(unclamped * current.width, current.width) / current.width;
-      } else if (unclamped > max) {
-        const over = (unclamped - max) * current.width;
-        next = max + rubberband(over, current.width) / current.width;
+
+      const next = prefersReducedMotion()
+        ? current.origin
+        : clampedFromFinger(current, event.clientX);
+      progress.current = next;
+      if (paintRaf.current == null) {
+        paintRaf.current = requestAnimationFrame(() => {
+          paintRaf.current = null;
+          if (!track.current) return;
+          paint(progress.current, true);
+        });
       }
-      if (prefersReducedMotion()) {
-        paint(current.origin, true);
-        return;
-      }
-      paint(next, true);
     };
 
     const onUp = (event: PointerEvent) => finish(event, true);
     const onCancel = (event: PointerEvent) => finish(event, false);
 
+    const onLostCapture = (event: PointerEvent) => {
+      if (releasing.current) return;
+      finish(event, false);
+    };
+
+    const abort = () => {
+      const current = track.current;
+      if (!current) {
+        if (dragging.current) {
+          dragging.current = false;
+          settleTo(Math.round(progress.current), true);
+        }
+        return;
+      }
+      const pointerId = current.id;
+      track.current = null;
+      dropWindow();
+      releaseCapture(pointerId);
+      dragging.current = false;
+      stopPaintRaf();
+      settleTo(Math.round(progress.current), true);
+    };
+
     const onDown = (event: PointerEvent) => {
       if (!event.isPrimary) return;
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      if (isTypingTarget(event.target)) return;
+      if (isExemptTarget(event.target)) return;
       stopSettle();
+      stopPaintRaf();
       const width =
         getWidthRef.current?.() ?? root.getBoundingClientRect().width;
+      if (width < 8) return;
       track.current = {
         id: event.pointerId,
         x: event.clientX,
@@ -292,15 +358,14 @@ export function usePagerGesture({
         locked: false,
         width: Math.max(width, 1),
       };
-      window.addEventListener("pointermove", onMove, {
+      document.addEventListener("pointermove", onMove, {
         capture: true,
         passive: false,
       });
-      window.addEventListener("pointerup", onUp, { capture: true });
-      window.addEventListener("pointercancel", onCancel, { capture: true });
+      document.addEventListener("pointerup", onUp, { capture: true });
+      document.addEventListener("pointercancel", onCancel, { capture: true });
     };
 
-    root.addEventListener("pointerdown", onDown, { capture: true });
     const onKey = (event: KeyboardEvent) => {
       if (event.target !== root) return;
       if (event.key === "ArrowRight") {
@@ -311,14 +376,28 @@ export function usePagerGesture({
         goTo(indexRef.current - 1);
       }
     };
+
+    root.addEventListener("pointerdown", onDown, { capture: true });
+    root.addEventListener("lostpointercapture", onLostCapture);
     root.addEventListener("keydown", onKey);
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") abort();
+    };
+    window.addEventListener("blur", abort);
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("pagehide", abort);
     return () => {
       root.removeEventListener("pointerdown", onDown, { capture: true });
+      root.removeEventListener("lostpointercapture", onLostCapture);
       root.removeEventListener("keydown", onKey);
+      window.removeEventListener("blur", abort);
+      document.removeEventListener("visibilitychange", onHidden);
+      window.removeEventListener("pagehide", abort);
       dropWindow();
+      stopPaintRaf();
       stopSettle();
     };
-  }, [count, enabled, goTo, paint, rootRef, settleTo, stopSettle]);
+  }, [count, enabled, goTo, paint, rootRef, settleTo, stopPaintRaf, stopSettle]);
 
   useEffect(() => () => stopSettle(), [stopSettle]);
 

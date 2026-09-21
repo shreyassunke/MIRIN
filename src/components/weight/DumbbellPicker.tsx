@@ -7,7 +7,7 @@ import {
   type PointerEvent,
 } from "react";
 import { DUMBBELL_SIZES, type Unit } from "../../lib/units";
-import type { Laterality } from "../../lib/laterality";
+import { lateralityCaption, type Laterality } from "../../lib/laterality";
 import { formatWeight } from "../../lib/workout";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
 
@@ -282,6 +282,9 @@ export function DumbbellPicker({
 }: DumbbellPickerProps) {
   const sizes = DUMBBELL_SIZES[unit];
   const pair = laterality === "bilateral";
+  const loadCaption = pair
+    ? lateralityCaption("bilateral", "independent")
+    : null;
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "ArrowUp" || event.key === "ArrowRight") {
@@ -307,7 +310,7 @@ export function DumbbellPicker({
       aria-valuemin={sizes[0]}
       aria-valuemax={sizes[sizes.length - 1]}
       aria-valuenow={value}
-      aria-valuetext={`${formatWeight(value)} ${unit}, ${pair ? "pair" : "single"}`}
+      aria-valuetext={`${formatWeight(value)} ${unit}${loadCaption ? ` ${loadCaption}` : ""}, ${pair ? "pair" : "single"}`}
       onKeyDown={onKeyDown}
       className="outline-none"
     >

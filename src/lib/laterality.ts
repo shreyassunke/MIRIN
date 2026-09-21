@@ -85,5 +85,5 @@ export function lateralityCaption(
   sharing: LoadSharing,
 ): string {
   if (laterality === "unilateral") return "per side";
-  return sharing === "independent" ? "each" : "both arms";
+  return sharing === "independent" ? "per hand" : "both arms";
 }

@@ -497,12 +497,16 @@ textarea {
   animation: mirin-fade-in 160ms var(--ease-out-expo) both;
 }
 
-/* Load instrument pager — iOS page-turn, glass waypoint capsule */
+/* Load instrument pager — finger-tracked equipment pages */
 .load-swipe-field {
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+.load-swipe-field [data-no-pager] {
+  touch-action: manipulation;
 }
 
 .load-pager-root {

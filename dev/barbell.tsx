@@ -20,13 +20,26 @@ import { DumbbellPicker } from "../src/components/weight/DumbbellPicker";
 import { LoadInstrument } from "../src/components/weight/LoadInstrument";
 import { Stepper } from "../src/components/Stepper";
 import type { InputMethod, Unit } from "../src/lib/units";
+import {
+  lateralityCaption,
+  type Laterality,
+} from "../src/lib/laterality";
 
-function PagerHarness({ unit }: { unit: Unit }) {
+function PagerHarness({
+  unit,
+  startMode = "barbell",
+  startLaterality = "bilateral",
+}: {
+  unit: Unit;
+  startMode?: InputMethod;
+  startLaterality?: Laterality;
+}) {
   const fieldRef = useRef<HTMLDivElement>(null);
-  const [mode, setMode] = useState<InputMethod>("barbell");
+  const [mode, setMode] = useState<InputMethod>(startMode);
   const [plates, setPlates] = useState<number[]>([]);
   const [barWeight, setBarWeight] = useState(unit === "lb" ? 45 : 20);
   const [dumbbell, setDumbbell] = useState(30);
+  const [laterality, setLaterality] = useState<Laterality>(startLaterality);
   const [manual, setManual] = useState(unit === "lb" ? 45 : 20);
   const modes = [
     { id: "barbell" as const, label: "Barbell" },
@@ -91,14 +104,22 @@ function PagerHarness({ unit }: { unit: Unit }) {
               id: m.id,
               label: m.label,
               weight: dumbbell,
+              qualifier:
+                laterality === "bilateral"
+                  ? lateralityCaption(laterality, "independent")
+                  : undefined,
               stage: (
                 <DumbbellPicker
                   unit={unit}
                   value={dumbbell}
-                  laterality="bilateral"
+                  laterality={laterality}
                   live={mode === "dumbbell"}
                   onChange={setDumbbell}
-                  onToggleLaterality={() => {}}
+                  onToggleLaterality={() =>
+                    setLaterality((current) =>
+                      current === "bilateral" ? "unilateral" : "bilateral",
+                    )
+                  }
                 />
               ),
             };
@@ -120,9 +141,17 @@ function PagerHarness({ unit }: { unit: Unit }) {
           };
         })}
       />
-      <div className="mt-8 text-center text-sm text-muted">Reps</div>
+      <div data-no-pager="" className="mt-8">
+        <p className="mb-4 text-center text-sm text-muted">Reps</p>
+        <button
+          type="button"
+          className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg"
+        >
+          Log set
+        </button>
+      </div>
       <p className="mt-10 text-center text-[13px] text-muted">
-        Swipe anywhere on this card
+        Swipe the weight to change equipment
       </p>
     </div>
   );
@@ -163,7 +192,15 @@ function Harness() {
           onRemove={(i) => setPlates((p) => p.filter((_, j) => j !== i))}
         />
       )}
-      {what === "pager" && <PagerHarness unit={unit} />}
+      {what === "pager" && (
+        <PagerHarness
+          unit={unit}
+          startMode={(params.get("mode") as InputMethod | null) ?? undefined}
+          startLaterality={
+            params.get("pair") === "0" ? "unilateral" : "bilateral"
+          }
+        />
+      )}
     </div>
   );
 }

@@ -16,6 +16,8 @@ export interface LoadInstrumentPage {
   label: string;
   weight: number;
   weightDisplay?: ReactNode;
+  /** Quiet gloss after the unit — e.g. "per hand" for a pair of bells. */
+  qualifier?: string;
   stage?: ReactNode;
   extras?: ReactNode;
 }
@@ -41,19 +43,24 @@ function WeightHeader({
   unit,
   weight,
   weightDisplay,
+  qualifier,
 }: {
   unit: Unit;
   weight: number;
   weightDisplay?: ReactNode;
+  qualifier?: string;
 }) {
   return (
     <div className="mb-3 text-center">
       {weightDisplay ?? (
-        <p className="flex min-h-11 items-center justify-center">
+        <p className="flex min-h-11 items-center justify-center whitespace-nowrap">
           <span className="tnum text-3xl font-semibold tracking-tight">
             {formatWeight(weight)}
           </span>
           <span className="ml-1.5 text-sm text-muted">{unit}</span>
+          {qualifier ? (
+            <span className="ml-2 text-[13px] text-muted">{qualifier}</span>
+          ) : null}
         </p>
       )}
     </div>
@@ -97,16 +104,11 @@ export function LoadInstrument({
           track.style.transform = `translate3d(${-progress * width}px, 0, 0)`;
         }
       }
-      const count = visible.length;
-      const left = Math.max(0, Math.min(count - 1, Math.floor(progress)));
-      const right = Math.max(0, Math.min(count - 1, Math.ceil(progress)));
-      const settled = !dragging && Math.abs(progress - Math.round(progress)) < 0.001;
-      const h0 = heights.current[left] ?? 0;
-      const h1 = heights.current[right] ?? h0;
-      const h = settled
-        ? (heights.current[Math.round(progress)] ?? h0)
-        : Math.max(h0, h1);
-      if (viewport && h > 0) viewport.style.height = `${h}px`;
+      let maxH = 0;
+      for (const h of heights.current) {
+        if (h > maxH) maxH = h;
+      }
+      if (viewport && maxH > 0) viewport.style.height = `${maxH}px`;
       if (dragging) suppressClick.current = true;
       draggingRef.current = dragging;
       const field = (fieldRef ?? rootRef).current;
@@ -184,6 +186,7 @@ export function LoadInstrument({
         unit={unit}
         weight={page.weight}
         weightDisplay={page.weightDisplay}
+        qualifier={page.qualifier}
       />
       {page.stage}
       {page.extras}
