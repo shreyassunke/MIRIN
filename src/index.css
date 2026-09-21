@@ -498,14 +498,23 @@ textarea {
 }
 
 /* Load instrument pager — iOS page-turn, glass waypoint capsule */
+.load-swipe-field {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .load-pager-root {
   touch-action: pan-y;
 }
 
+.load-swipe-field.is-paging,
 .load-pager-root.is-paging {
   user-select: none;
   -webkit-user-select: none;
   cursor: grabbing;
+  touch-action: none;
 }
 
 .load-pager {
@@ -527,6 +536,9 @@ textarea {
   backface-visibility: hidden;
 }
 
+.load-swipe-field.is-paging .load-pager-track,
+.load-swipe-field.is-paging .load-pager-page,
+.load-swipe-field.is-paging .load-pager-thumb,
 .load-pager-root.is-paging .load-pager-track,
 .load-pager-root.is-paging .load-pager-page,
 .load-pager-root.is-paging .load-pager-thumb {

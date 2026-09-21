@@ -1,4 +1,4 @@
-import { type CSSProperties, type PointerEvent, type ReactNode } from "react";
+import { type CSSProperties, type PointerEvent, type ReactNode, type Ref } from "react";
 import type { Exercise, SetLog } from "../db/db";
 import type { ExerciseLibraryEntry } from "../lib/library";
 import type { GroupPos } from "../lib/exerciseMeta";
@@ -31,6 +31,8 @@ interface TodayExerciseTileProps {
   onUndoLast?: () => void;
   undoLastHasDrop?: boolean;
   children?: ReactNode;
+  /** Horizontal pager field for equipment modes. */
+  swipeFieldRef?: Ref<HTMLDivElement>;
 }
 
 function rowSpacing(reorderIndex: number, groupPos: GroupPos): string {
@@ -65,6 +67,7 @@ export function TodayExerciseTile({
   onUndoLast,
   undoLastHasDrop = false,
   children,
+  swipeFieldRef,
 }: TodayExerciseTileProps) {
   return (
     <li
@@ -83,6 +86,10 @@ export function TodayExerciseTile({
         .filter(Boolean)
         .join(" ")}
     >
+      <div
+        ref={swipeFieldRef}
+        className={swipeFieldRef ? "load-swipe-field" : undefined}
+      >
       <div className="flex items-stretch gap-2">
         <button
           type="button"
@@ -207,6 +214,7 @@ export function TodayExerciseTile({
       )}
 
       {children ? <div data-no-drag="">{children}</div> : null}
+      </div>
     </li>
   );
 }

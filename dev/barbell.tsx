@@ -5,7 +5,7 @@
  *
  *   /dev/barbell.html?w=380&plates=45,45,25,10&unit=lb
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "../src/index.css";
 import { LoadedBar3D } from "../src/components/weight/three/LoadedBar3D";
@@ -22,6 +22,7 @@ import { Stepper } from "../src/components/Stepper";
 import type { InputMethod, Unit } from "../src/lib/units";
 
 function PagerHarness({ unit }: { unit: Unit }) {
+  const fieldRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<InputMethod>("barbell");
   const [plates, setPlates] = useState<number[]>([]);
   const [barWeight, setBarWeight] = useState(unit === "lb" ? 45 : 20);
@@ -33,13 +34,17 @@ function PagerHarness({ unit }: { unit: Unit }) {
     { id: "manual" as const, label: "Type weight" },
   ];
   return (
-    <div className="bg-bg px-4 py-6 text-ink">
+    <div ref={fieldRef} className="load-swipe-field bg-bg px-4 py-6 text-ink">
+      <p className="mb-8 text-center text-lg font-semibold tracking-tight">
+        Incline Press
+      </p>
       <LoadInstrument
         unit={unit}
         ghost={45}
         modes={modes}
         mode={mode}
         onModeChange={setMode}
+        fieldRef={fieldRef}
         pages={modes.map((m) => {
           if (m.id === "barbell") {
             return {
@@ -116,6 +121,10 @@ function PagerHarness({ unit }: { unit: Unit }) {
           };
         })}
       />
+      <div className="mt-8 text-center text-sm text-muted">Reps</div>
+      <p className="mt-10 text-center text-[13px] text-muted">
+        Swipe anywhere on this card
+      </p>
     </div>
   );
 }

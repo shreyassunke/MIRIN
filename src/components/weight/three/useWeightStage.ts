@@ -273,7 +273,9 @@ export function useWeightStage(opts: {
         const dx = e.clientX - start.x;
         const dy = e.clientY - start.y;
         if (!start.captured) {
-          if (Math.hypot(dx, dy) > TAP_PX) {
+          if (e.defaultPrevented) {
+            start.discarded = true;
+          } else if (Math.hypot(dx, dy) > TAP_PX) {
             const vertical = Math.abs(dy) >= Math.abs(dx);
             if (vertical) {
               if (stepAxis === "y" && stepRef.current) {

@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useRef,
   type ReactNode,
+  type RefObject,
 } from "react";
 import type { InputModeOption } from "../../lib/library";
 import type { InputMethod, Unit } from "../../lib/units";
@@ -26,6 +27,8 @@ interface LoadInstrumentProps {
   mode: InputMethod;
   onModeChange: (mode: InputMethod) => void;
   pages: LoadInstrumentPage[];
+  /** Larger hit target than the cluster — typically the open exercise card. */
+  fieldRef?: RefObject<HTMLElement | null>;
 }
 
 function prefersReducedMotion() {
@@ -70,6 +73,7 @@ export function LoadInstrument({
   mode,
   onModeChange,
   pages,
+  fieldRef,
 }: LoadInstrumentProps) {
   const visible = pages.filter((page) => modes.some((m) => m.id === page.id));
   const index = Math.max(
@@ -153,11 +157,11 @@ export function LoadInstrument({
       }
       if (dragging) suppressClick.current = true;
       draggingRef.current = dragging;
-      const root = rootRef.current;
-      if (root) root.classList.toggle("is-paging", dragging);
+      const field = (fieldRef ?? rootRef).current;
+      field?.classList.toggle("is-paging", dragging);
       paintThumb(progress);
     },
-    [paintThumb, visible.length],
+    [fieldRef, paintThumb, visible.length],
   );
 
   const measure = useCallback(() => {
@@ -172,7 +176,7 @@ export function LoadInstrument({
     count: visible.length,
     index,
     enabled: paging,
-    rootRef,
+    rootRef: fieldRef ?? rootRef,
     onProgress: paint,
     onIndexChange: (next) => {
       const page = visible[next];
@@ -192,17 +196,17 @@ export function LoadInstrument({
   }, [measure, visible.map((page) => page.id).join(":")]);
 
   useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
+    const field = (fieldRef ?? rootRef).current;
+    if (!field) return;
     const onClick = (event: MouseEvent) => {
       if (!suppressClick.current) return;
       event.preventDefault();
       event.stopPropagation();
       suppressClick.current = false;
     };
-    root.addEventListener("click", onClick, true);
-    return () => root.removeEventListener("click", onClick, true);
-  }, []);
+    field.addEventListener("click", onClick, true);
+    return () => field.removeEventListener("click", onClick, true);
+  }, [fieldRef]);
 
   const body = (page: LoadInstrumentPage) => (
     <>
@@ -224,14 +228,7 @@ export function LoadInstrument({
   }
 
   return (
-    <div
-      ref={rootRef}
-      className="load-pager-root"
-      onPointerDown={pager.onPointerDown}
-      onPointerMove={pager.onPointerMove}
-      onPointerUp={pager.onPointerUp}
-      onPointerCancel={pager.onPointerCancel}
-    >
+    <div ref={rootRef} className="load-pager-root">
       <div ref={viewportRef} className="load-pager">
         <div ref={trackRef} className="load-pager-track">
           {visible.map((page, i) => {

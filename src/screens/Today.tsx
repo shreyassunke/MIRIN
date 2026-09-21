@@ -338,6 +338,7 @@ export function Today() {
   const lateralityRef = useRef<Laterality>("bilateral");
   const [manualWeight, setManualWeight] = useState(45);
   const [reps, setReps] = useState(8);
+  const swipeFieldRef = useRef<HTMLDivElement>(null);
 
   const logsByExercise = useMemo(() => {
     const map = new Map<string, SetLog[]>();
@@ -1111,6 +1112,9 @@ export function Today() {
               undoLastHasDrop={
                 (logged[logged.length - 1]?.drops?.length ?? 0) > 0
               }
+              swipeFieldRef={
+                isActive && modes.length > 1 ? swipeFieldRef : undefined
+              }
             >
               {showingVideo && (
                 <FormVideoPanel
@@ -1127,6 +1131,7 @@ export function Today() {
                     modes={modes}
                     mode={activeMode}
                     onModeChange={(next) => setMode(next, exercise.id)}
+                    fieldRef={modes.length > 1 ? swipeFieldRef : undefined}
                     pages={modes.map((m) => {
                       if (m.id === "barbell") {
                         return {

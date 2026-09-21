@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 
 const LOCK_PX = 12;
 const SETTLE_MS = 380;
@@ -27,9 +27,7 @@ function easeOutExpo(x: number) {
     if (Math.abs(xEst - x) < 1e-4 || Math.abs(dx) < 1e-6) break;
     t = Math.max(0, Math.min(1, t - (xEst - x) / dx));
   }
-  return (
-    3 * (1 - t) * (1 - t) * t * 1 + 3 * (1 - t) * t * t * 1 + t * t * t
-  );
+  return 3 * (1 - t) * (1 - t) * t * 1 + 3 * (1 - t) * t * t * 1 + t * t * t;
 }
 
 function rubberband(offset: number, dim: number) {
@@ -39,17 +37,11 @@ function rubberband(offset: number, dim: number) {
   return Math.sign(offset) * (1 - 1 / (x / limit + 1)) * limit;
 }
 
-function pointerCapturedByChild(root: HTMLElement, event: PointerEvent) {
-  for (const node of event.composedPath()) {
-    if (node === root) break;
-    if (node instanceof HTMLElement && node.hasPointerCapture(event.pointerId)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function canScrollNestedX(root: HTMLElement, start: EventTarget | null, dx: number) {
+function canScrollNestedX(
+  root: HTMLElement,
+  start: EventTarget | null,
+  dx: number,
+) {
   let node = start instanceof HTMLElement ? start : null;
   while (node && node !== root) {
     const style = window.getComputedStyle(node);
@@ -59,7 +51,10 @@ function canScrollNestedX(root: HTMLElement, start: EventTarget | null, dx: numb
       node.scrollWidth > node.clientWidth + 1
     ) {
       const max = node.scrollWidth - node.clientWidth;
-      if ((dx < 0 && node.scrollLeft < max - 1) || (dx > 0 && node.scrollLeft > 1)) {
+      if (
+        (dx < 0 && node.scrollLeft < max - 1) ||
+        (dx > 0 && node.scrollLeft > 1)
+      ) {
         return true;
       }
     }
@@ -69,22 +64,29 @@ function canScrollNestedX(root: HTMLElement, start: EventTarget | null, dx: numb
 }
 
 function isTypingTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest("input, textarea, select, [contenteditable='true']"),
+  );
 }
 
-export interface PagerGesture {
-  onPointerDown: (event: ReactPointerEvent) => void;
-  onPointerMove: (event: ReactPointerEvent) => void;
-  onPointerUp: (event: ReactPointerEvent) => void;
-  onPointerCancel: (event: ReactPointerEvent) => void;
-  goTo: (index: number, animate?: boolean) => void;
-}
+type Track = {
+  id: number;
+  x: number;
+  y: number;
+  origin: number;
+  lastX: number;
+  lastT: number;
+  vx: number;
+  locked: boolean;
+  width: number;
+};
 
 /**
- * Finger-tracked horizontal paging. 1:1 while the pointer is down, rubber-band
- * at the ends, velocity snap on release. Paints through `onProgress` so the
- * track can move without a React render on every frame.
+ * Finger-tracked horizontal paging. Listens in capture phase on the field and
+ * on window after pointerdown so a swipe starting on a child (canvas, button,
+ * stepper) still drives the page 1:1. Vertical intent is left to scroll / the
+ * dumbbell rack.
  */
 export function usePagerGesture({
   count,
@@ -100,10 +102,11 @@ export function usePagerGesture({
   rootRef: RefObject<HTMLElement | null>;
   onProgress: (progress: number, dragging: boolean) => void;
   onIndexChange: (index: number) => void;
-}): PagerGesture {
+}): { goTo: (index: number, animate?: boolean) => void } {
   const progress = useRef(index);
   const dragging = useRef(false);
   const settle = useRef<number | null>(null);
+  const track = useRef<Track | null>(null);
   const indexRef = useRef(index);
   const countRef = useRef(count);
   const onProgressRef = useRef(onProgress);
@@ -112,18 +115,6 @@ export function usePagerGesture({
   countRef.current = count;
   onProgressRef.current = onProgress;
   onIndexRef.current = onIndexChange;
-
-  const track = useRef<{
-    id: number;
-    x: number;
-    y: number;
-    origin: number;
-    lastX: number;
-    lastT: number;
-    vx: number;
-    locked: boolean;
-    width: number;
-  } | null>(null);
 
   const paint = useCallback((value: number, isDragging: boolean) => {
     progress.current = value;
@@ -180,41 +171,111 @@ export function usePagerGesture({
     paint(index, false);
   }, [index, paint]);
 
-  useEffect(() => () => stopSettle(), [stopSettle]);
-
-  const end = (event: ReactPointerEvent, commit: boolean) => {
-    const current = track.current;
-    if (!current || current.id !== event.pointerId) return;
-    track.current = null;
+  useEffect(() => {
     const root = rootRef.current;
-    if (root?.hasPointerCapture(event.pointerId)) {
-      root.releasePointerCapture(event.pointerId);
-    }
-    dragging.current = false;
-    if (!commit || !current.locked) {
-      settleTo(indexRef.current, true);
-      return;
-    }
-    const raw = event.clientX - current.x;
-    const atStart = indexRef.current <= 0 && raw > 0;
-    const atEnd = indexRef.current >= countRef.current - 1 && raw < 0;
-    const travel = atStart || atEnd ? rubberband(raw, current.width) : raw;
-    const flick = current.vx;
-    let target = indexRef.current;
-    if (flick < -FLICK_PX_MS && raw < 0) target += 1;
-    else if (flick > FLICK_PX_MS && raw > 0) target -= 1;
-    else if (travel <= -current.width * COMMIT_RATIO) target += 1;
-    else if (travel >= current.width * COMMIT_RATIO) target -= 1;
-    settleTo(target, true);
-  };
+    if (!root || !enabled || count < 2) return;
 
-  return {
-    onPointerDown: (event) => {
-      if (!enabled || count < 2 || event.button !== 0) return;
+    const releaseCapture = (pointerId: number) => {
+      if (root.hasPointerCapture(pointerId)) {
+        try {
+          root.releasePointerCapture(pointerId);
+        } catch {
+          /* already released */
+        }
+      }
+    };
+
+    const dropWindow = () => {
+      window.removeEventListener("pointermove", onMove, { capture: true });
+      window.removeEventListener("pointerup", onUp, { capture: true });
+      window.removeEventListener("pointercancel", onCancel, { capture: true });
+    };
+
+    const finish = (event: PointerEvent, commit: boolean) => {
+      const current = track.current;
+      if (!current || current.id !== event.pointerId) return;
+      track.current = null;
+      dropWindow();
+      releaseCapture(event.pointerId);
+      dragging.current = false;
+      if (!commit || !current.locked) {
+        settleTo(indexRef.current, true);
+        return;
+      }
+      const raw = event.clientX - current.x;
+      const atStart = indexRef.current <= 0 && raw > 0;
+      const atEnd = indexRef.current >= countRef.current - 1 && raw < 0;
+      const travel = atStart || atEnd ? rubberband(raw, current.width) : raw;
+      const flick = current.vx;
+      let target = indexRef.current;
+      if (flick < -FLICK_PX_MS && raw < 0) target += 1;
+      else if (flick > FLICK_PX_MS && raw > 0) target -= 1;
+      else if (travel <= -current.width * COMMIT_RATIO) target += 1;
+      else if (travel >= current.width * COMMIT_RATIO) target -= 1;
+      settleTo(target, true);
+    };
+
+    const onMove = (event: PointerEvent) => {
+      const current = track.current;
+      if (!current || current.id !== event.pointerId) return;
+      const dx = event.clientX - current.x;
+      const dy = event.clientY - current.y;
+
+      if (!current.locked) {
+        if (Math.hypot(dx, dy) < LOCK_PX) return;
+        if (Math.abs(dx) <= Math.abs(dy)) {
+          track.current = null;
+          dropWindow();
+          return;
+        }
+        if (canScrollNestedX(root, event.target, dx)) {
+          track.current = null;
+          dropWindow();
+          return;
+        }
+        current.locked = true;
+        dragging.current = true;
+        try {
+          root.setPointerCapture(event.pointerId);
+        } catch {
+          /* capture is best-effort; window listeners still drive the drag */
+        }
+        if (event.cancelable) event.preventDefault();
+      }
+
+      if (event.cancelable) event.preventDefault();
+      const dt = event.timeStamp - current.lastT;
+      if (dt > 0) {
+        current.vx = (event.clientX - current.lastX) / dt;
+        current.lastX = event.clientX;
+        current.lastT = event.timeStamp;
+      }
+      const max = Math.max(0, countRef.current - 1);
+      const unclamped = current.origin - dx / current.width;
+      let next = unclamped;
+      if (unclamped < 0) {
+        next =
+          rubberband(unclamped * current.width, current.width) / current.width;
+      } else if (unclamped > max) {
+        const over = (unclamped - max) * current.width;
+        next = max + rubberband(over, current.width) / current.width;
+      }
+      if (prefersReducedMotion()) {
+        paint(current.origin, true);
+        return;
+      }
+      paint(next, true);
+    };
+
+    const onUp = (event: PointerEvent) => finish(event, true);
+    const onCancel = (event: PointerEvent) => finish(event, false);
+
+    const onDown = (event: PointerEvent) => {
+      if (!event.isPrimary) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
       if (isTypingTarget(event.target)) return;
       stopSettle();
-      const root = rootRef.current;
-      const width = root?.getBoundingClientRect().width ?? 1;
+      const width = root.getBoundingClientRect().width;
       track.current = {
         id: event.pointerId,
         x: event.clientX,
@@ -226,56 +287,23 @@ export function usePagerGesture({
         locked: false,
         width: Math.max(width, 1),
       };
-    },
-    onPointerMove: (event) => {
-      const current = track.current;
-      const root = rootRef.current;
-      if (!current || !root || current.id !== event.pointerId) return;
-      if (pointerCapturedByChild(root, event.nativeEvent)) {
-        track.current = null;
-        dragging.current = false;
-        return;
-      }
-      const dx = event.clientX - current.x;
-      const dy = event.clientY - current.y;
-      if (!current.locked) {
-        if (Math.hypot(dx, dy) < LOCK_PX) return;
-        if (Math.abs(dx) <= Math.abs(dy)) {
-          track.current = null;
-          return;
-        }
-        if (canScrollNestedX(root, event.target, dx)) {
-          track.current = null;
-          return;
-        }
-        current.locked = true;
-        dragging.current = true;
-        root.setPointerCapture(event.pointerId);
-      }
-      const dt = event.timeStamp - current.lastT;
-      if (dt > 0) {
-        current.vx = (event.clientX - current.lastX) / dt;
-        current.lastX = event.clientX;
-        current.lastT = event.timeStamp;
-      }
-      const max = Math.max(0, countRef.current - 1);
-      const raw = dx;
-      const unclamped = current.origin - raw / current.width;
-      let next = unclamped;
-      if (unclamped < 0) {
-        next = rubberband(unclamped * current.width, current.width) / current.width;
-      } else if (unclamped > max) {
-        const over = (unclamped - max) * current.width;
-        next = max + rubberband(over, current.width) / current.width;
-      }
-      if (prefersReducedMotion()) {
-        paint(current.origin, true);
-        return;
-      }
-      paint(next, true);
-    },
-    onPointerUp: (event) => end(event, true),
-    onPointerCancel: (event) => end(event, false),
-    goTo,
-  };
+      window.addEventListener("pointermove", onMove, {
+        capture: true,
+        passive: false,
+      });
+      window.addEventListener("pointerup", onUp, { capture: true });
+      window.addEventListener("pointercancel", onCancel, { capture: true });
+    };
+
+    root.addEventListener("pointerdown", onDown, { capture: true });
+    return () => {
+      root.removeEventListener("pointerdown", onDown, { capture: true });
+      dropWindow();
+      stopSettle();
+    };
+  }, [count, enabled, paint, rootRef, settleTo, stopSettle]);
+
+  useEffect(() => () => stopSettle(), [stopSettle]);
+
+  return { goTo };
 }
