@@ -74,30 +74,40 @@ function WeightHeader({
   weight,
   weightDisplay,
   qualifier,
-  gutter,
+  leading,
+  trailing,
 }: {
   unit: Unit;
   weight: number;
   weightDisplay?: ReactNode;
   qualifier?: string;
-  /** Clear the side buttons so the live weight never sits under them. */
-  gutter?: boolean;
+  /** Equipment-page arrows. They hug the live weight; they do not change it. */
+  leading?: ReactNode;
+  trailing?: ReactNode;
 }) {
+  const value = weightDisplay ? (
+    <div className="flex justify-center">{weightDisplay}</div>
+  ) : (
+    <p className="flex min-h-11 items-center justify-center whitespace-nowrap">
+      <span className="tnum text-3xl font-semibold tracking-tight">
+        {formatWeight(weight)}
+      </span>
+      <span className="ml-1.5 text-sm text-muted">{unit}</span>
+      {qualifier ? (
+        <span className="ml-2 text-[13px] text-muted">{qualifier}</span>
+      ) : null}
+    </p>
+  );
+
+  if (!leading && !trailing) {
+    return <div className="text-center">{value}</div>;
+  }
+
   return (
-    <div className={gutter ? "px-12 text-center" : "text-center"}>
-      {weightDisplay ? (
-        <div className="flex justify-center">{weightDisplay}</div>
-      ) : (
-        <p className="flex min-h-11 items-center justify-center whitespace-nowrap">
-          <span className="tnum text-3xl font-semibold tracking-tight">
-            {formatWeight(weight)}
-          </span>
-          <span className="ml-1.5 text-sm text-muted">{unit}</span>
-          {qualifier ? (
-            <span className="ml-2 text-[13px] text-muted">{qualifier}</span>
-          ) : null}
-        </p>
-      )}
+    <div className="flex items-start justify-center gap-4">
+      {leading}
+      <div className="min-w-0 text-center">{value}</div>
+      {trailing}
     </div>
   );
 }
@@ -240,7 +250,7 @@ export function LoadInstrument({
     };
   }, [fieldRef, methodLabel, paging]);
 
-  const body = (page: LoadInstrumentPage, gutter = false, live = false) => (
+  const body = (page: LoadInstrumentPage, pageIndex: number, live = false) => (
     <div
       className="flex flex-col gap-2"
       aria-live={live ? "polite" : undefined}
@@ -250,7 +260,8 @@ export function LoadInstrument({
         weight={page.weight}
         weightDisplay={page.weightDisplay}
         qualifier={page.qualifier}
-        gutter={gutter}
+        leading={paging ? pageButton("prev", pageIndex) : undefined}
+        trailing={paging ? pageButton("next", pageIndex) : undefined}
       />
       {page.stage}
       {page.extras}
@@ -263,14 +274,15 @@ export function LoadInstrument({
     </div>
   ) : null;
 
-  const pageButton = (direction: "prev" | "next") => {
+  const pageButton = (direction: "prev" | "next", pageIndex: number) => {
     const delta: -1 | 1 = direction === "prev" ? -1 : 1;
-    const target = visible[index + delta];
+    const target = visible[pageIndex + delta];
     const atBound = !target;
     return (
       <button
         type="button"
-        className="glass-btn pointer-events-auto flex h-11 w-11 items-center justify-center rounded-pill text-ink disabled:pointer-events-none"
+        data-no-pager=""
+        className="glass-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-pill text-ink disabled:pointer-events-none"
         aria-label={
           target
             ? `${direction === "prev" ? "Previous" : "Next"}, ${target.label}`
@@ -291,7 +303,7 @@ export function LoadInstrument({
     if (!page) return null;
     return (
       <div className="flex flex-col gap-4">
-        {body(page, false, true)}
+        {body(page, 0, true)}
         {reps}
       </div>
     );
@@ -300,15 +312,6 @@ export function LoadInstrument({
   return (
     <div className="flex flex-col gap-4">
       <div ref={rootRef} className="load-pager-root">
-        <div
-          data-no-pager=""
-          className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-11 items-center justify-center"
-        >
-          <div className="pointer-events-none flex w-full max-w-md items-center justify-between">
-            {pageButton("prev")}
-            {pageButton("next")}
-          </div>
-        </div>
         <div ref={viewportRef} className="load-pager">
           <div ref={trackRef} className="load-pager-track">
             {visible.map((page, i) => {
@@ -323,7 +326,7 @@ export function LoadInstrument({
                   aria-hidden={!active}
                   {...(!active ? { inert: "" } : {})}
                 >
-                  {body(page, true, active)}
+                  {body(page, i, active)}
                 </div>
               );
             })}

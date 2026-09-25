@@ -115,9 +115,11 @@ A locked grayscale palette; hierarchy is carried entirely by lightness, never by
 - **Muted Ink** (#8a8a8a): Secondary text — dates, units, labels, helper copy. Passes 4.5:1 on both #0a0a0a and #141414; never use anything dimmer for readable text.
 
 ### Named Rules
-**The One Accent Rule.** #d4d4d4 appears only on the primary action of the current screen and as the chart stroke. If two elements on one screen are accent-filled, one of them is wrong.
+**The One Accent Rule.** The accent appears only on the primary action of the current screen and as the chart stroke. Chalk is #d4d4d4 in dark and #1a1a1a in light. If two elements on one screen are accent-filled, one of them is wrong.
 
-**The Locked Palette Rule.** These six values are the entire palette. No new grays, no tints, no hue anywhere. State changes (hover, press, disabled) move within this ramp — they never introduce color.
+**The Locked Palette Rule.** The default log is these values. No extra grays, tints, or hue on the logging surfaces themselves. State changes (hover, press, disabled) move within the ramp.
+
+**The Appearance Rule.** Profile sets mode inline: System, Light, or Dark. There is no appearance subpage and no palette picker. Light is the paper inverse (`#f3f2ef` ground, `#161616` ink, `#5c5c58` muted). The accent stays Chalk — off-white in dark, near-black in light. Text on that accent is `--color-on-accent`. Nothing else gains a second hue. The Plate Exception is unchanged.
 
 **The Plate Exception Rule.** The single sanctioned use of hue: plate chips and the loaded-bar instrument in the weight picker — 2D chips and the 3D plate bodies alike — carry gym plate color conventions (blue #1f4fa3, yellow #f2c500, green #1e8c4a, red #d22a2a, white #f2f2f2, black #6e6e6e, silver #98989f). These are recognition aids that mirror physical reality, never decoration, and they appear nowhere else in the interface.
 
@@ -203,7 +205,7 @@ The barbell and dumbbell in the weight picker are procedural Three.js models, no
 
 ### Don't:
 - **Don't** use purple gradients, gradient text, or hue gradients — the palette is grayscale plus the Plate Exception.
-- **Don't** use the "ai-color-palette" (indigo/violet/cyan) or introduce any hue outside the Plate Exception Rule (plate-convention tints, weight picker only).
+- **Don't** use the "ai-color-palette" (indigo/violet/cyan) or introduce any hue outside the Plate Exception. The accent stays Chalk.
 - **Don't** use side-stripe borders (`border-left` > 1px as a colored accent) on cards, rows, or callouts.
 - **Don't** build the generic shadcn dashboard look: no identical card grids, no hero-metric tiles, no ghost cards.
 - **Don't** add gridlines, area fills, or multi-color series to charts; 1.5px single-accent lines only.

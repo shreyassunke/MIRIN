@@ -10,9 +10,14 @@
   --color-ink: #fafafa;
   --color-muted: #8a8a8a;
   --color-accent: #d4d4d4;
+  --color-on-accent: #0a0a0a;
   --color-glass: rgb(20 20 20 / 0.55);
   --color-glass-border: rgb(250 250 250 / 0.12);
   --color-glass-highlight: rgb(250 250 250 / 0.14);
+  --color-wash: rgb(250 250 250 / 0.08);
+  --color-wash-strong: rgb(250 250 250 / 0.14);
+  --color-sheen: rgb(250 250 250 / 0.1);
+  --color-scrim: rgb(10 10 10 / 0.72);
 
   --font-sans: "Inter Variable", Inter, system-ui, sans-serif;
 
@@ -39,6 +44,7 @@ html {
   overflow-x: clip;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  transition: background-color 180ms var(--ease-out-expo);
 }
 
 html::-webkit-scrollbar {
@@ -129,7 +135,7 @@ a,
 
 /* The browser's own surfaces belong to the palette too. */
 ::selection {
-  background: rgb(212 212 212 / 0.24);
+  background: color-mix(in srgb, var(--color-accent) 32%, transparent);
   color: var(--color-ink);
 }
 
@@ -143,8 +149,8 @@ textarea {
   background: var(--color-glass);
   border: 1px solid var(--color-glass-border);
   box-shadow:
-    inset 0 1px 0 rgb(250 250 250 / 0.06),
-    0 8px 28px rgb(0 0 0 / 0.35);
+    inset 0 1px 0 var(--color-sheen),
+    var(--shadow-glass);
   backdrop-filter: blur(var(--blur-glass)) saturate(1.2);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.2);
 }
@@ -154,11 +160,11 @@ textarea {
   Used for steppers, secondary actions, icon buttons, segment chips.
 */
 .glass-btn {
-  background: rgb(250 250 250 / 0.08);
-  border: 1px solid rgb(250 250 250 / 0.1);
+  background: var(--color-wash);
+  border: 1px solid var(--color-glass-border);
   box-shadow:
-    inset 0 1px 0 rgb(250 250 250 / 0.08),
-    0 1px 2px rgb(0 0 0 / 0.28);
+    inset 0 1px 0 var(--color-sheen),
+    var(--shadow-float);
   backdrop-filter: blur(16px) saturate(1.15);
   -webkit-backdrop-filter: blur(16px) saturate(1.15);
   transition:
@@ -171,17 +177,17 @@ textarea {
 }
 
 .glass-btn:hover {
-  background: rgb(250 250 250 / 0.13);
-  border-color: rgb(250 250 250 / 0.16);
+  background: color-mix(in srgb, var(--color-ink) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-ink) 16%, transparent);
   box-shadow:
-    inset 0 1px 0 rgb(250 250 250 / 0.12),
-    0 2px 8px rgb(0 0 0 / 0.3);
+    inset 0 1px 0 var(--color-sheen),
+    var(--shadow-float);
 }
 
 .glass-btn:active {
-  background: rgb(250 250 250 / 0.18);
-  border-color: rgb(250 250 250 / 0.18);
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.4);
+  background: color-mix(in srgb, var(--color-ink) 18%, transparent);
+  border-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.28);
   transform: scale(0.94);
   filter: brightness(1.06);
 }
@@ -194,11 +200,11 @@ textarea {
 }
 
 .glass-btn-active {
-  background: rgb(250 250 250 / 0.16);
-  border-color: rgb(250 250 250 / 0.16);
+  background: var(--color-wash-strong);
+  border-color: var(--color-glass-border);
   box-shadow:
-    inset 0 1px 0 rgb(250 250 250 / 0.1),
-    0 1px 2px rgb(0 0 0 / 0.25);
+    inset 0 1px 0 var(--color-sheen),
+    var(--shadow-float);
 }
 
 /* Segment chips inside a glass track (unit, mode, bar, pair) */
@@ -217,8 +223,8 @@ textarea {
 .glass-chip-active {
   background: var(--color-glass-highlight);
   box-shadow:
-    inset 0 1px 0 rgb(250 250 250 / 0.14),
-    0 1px 2px rgb(0 0 0 / 0.2);
+    inset 0 1px 0 var(--color-sheen),
+    var(--shadow-float);
 }
 
 /* Today list hit: no chrome; press dims text along the locked ramp. */
@@ -242,10 +248,10 @@ textarea {
   --nav-pill-inset: 0.25rem;
   isolation: isolate;
   padding: var(--nav-pill-inset);
-  border-color: rgb(250 250 250 / 0.1);
+  border-color: var(--color-glass-border);
   box-shadow:
-    inset 0 1px 0 rgb(250 250 250 / 0.05),
-    0 8px 28px rgb(0 0 0 / 0.35);
+    inset 0 1px 0 var(--color-sheen),
+    var(--shadow-glass);
 }
 
 .nav-pill-indicator {
@@ -255,7 +261,7 @@ textarea {
   left: 0;
   z-index: 0;
   border-radius: var(--radius-pill);
-  background: rgb(250 250 250 / 0.14);
+  background: var(--color-wash-strong);
   border: 0;
   box-shadow: none;
   opacity: 0;
@@ -278,7 +284,7 @@ textarea {
 }
 
 .nav-pill-indicator-settle {
-  background: rgb(250 250 250 / 0.2);
+  background: color-mix(in srgb, var(--color-ink) 20%, transparent);
   filter: brightness(1.06);
 }
 
@@ -357,6 +363,95 @@ textarea {
   transform: scale(0.96);
 }
 
+/* Profile tab uses the photo itself, with a ring while that tab is selected. */
+.nav-avatar {
+  display: block;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-ink) 22%, transparent);
+}
+
+.nav-avatar-on {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-ink) 22%, transparent),
+    0 0 0 1.5px var(--color-ink);
+}
+
+.nav-avatar-animate {
+  transition: box-shadow 220ms var(--ease-out-expo);
+}
+
+.avatar-dialog {
+  max-width: 24rem;
+  padding: 0;
+}
+
+.avatar-crop {
+  position: relative;
+  display: flex;
+  width: min(13.75rem, 100%);
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-bg);
+  box-shadow: inset 0 0 0 1px var(--color-glass-border);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.avatar-crop:active {
+  cursor: grabbing;
+}
+
+.avatar-size {
+  width: 100%;
+  height: 2.75rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.avatar-size::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-hairline);
+}
+
+.avatar-size::-webkit-slider-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: -0.5625rem;
+  appearance: none;
+  border: 2px solid var(--color-bg);
+  border-radius: 999px;
+  background: var(--color-ink);
+  box-shadow: var(--shadow-float);
+}
+
+.avatar-size::-moz-range-track {
+  height: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-hairline);
+}
+
+.avatar-size::-moz-range-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--color-bg);
+  border-radius: 999px;
+  background: var(--color-ink);
+  box-shadow: var(--shadow-float);
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .nav-pill-indicator {
     background: var(--color-surface-raised);
@@ -366,9 +461,16 @@ textarea {
 }
 
 /* Primary remains solid accent; light press feedback only */
+.btn-primary,
+.btn-primary:hover {
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
 .btn-primary {
   transition:
     background-color var(--motion-fast) var(--ease-out-expo),
+    color var(--motion-fast) var(--ease-out-expo),
     transform var(--motion-fast) var(--ease-out-expo),
     filter var(--motion-fast) var(--ease-out-expo);
 }
@@ -476,7 +578,7 @@ textarea {
 }
 
 .glass-dialog::backdrop {
-  background: rgb(10 10 10 / 0.72);
+  background: var(--color-scrim);
 }
 
 .dialog-in {
@@ -557,16 +659,16 @@ textarea {
 /* Drag-reorder: lifted card + soft slot cue */
 .reorder-dragging {
   background: var(--color-glass);
-  border: 1px solid rgb(250 250 250 / 0.22);
+  border: 1px solid var(--color-glass-border);
   border-radius: var(--radius-xl);
   box-shadow:
-    inset 0 1px 0 rgb(250 250 250 / 0.1),
-    0 18px 40px rgb(0 0 0 / 0.55) !important;
+    inset 0 1px 0 var(--color-sheen),
+    0 18px 40px rgb(0 0 0 / 0.45) !important;
   opacity: 0.98;
 }
 
 .reorder-slot {
-  border-color: rgb(250 250 250 / 0.2) !important;
+  border-color: var(--color-glass-border) !important;
 }
 
 /* Kill iOS/Android text selection while reordering */
@@ -626,6 +728,10 @@ html.reorder-active [data-reorder-index] {
     transform: none;
   }
 
+  .avatar-crop:active {
+    cursor: grab;
+  }
+
   .nav-glyph-fill {
     clip-path: none;
     transform: none;
@@ -639,4 +745,30 @@ html.reorder-active [data-reorder-index] {
   .load-pager-page {
     transform: none !important;
   }
+}
+
+/* Appearance: paper (light) is the same ramp inverted. Accents stay one color. */
+html[data-mode="light"] {
+  color-scheme: light;
+  --color-bg: #f3f2ef;
+  --color-surface: #fffcf8;
+  --color-surface-raised: #e8e6e1;
+  --color-hairline: #d9d6d0;
+  --color-ink: #161616;
+  --color-muted: #5c5c58;
+  --color-glass: rgb(255 252 248 / 0.72);
+  --color-glass-border: rgb(22 22 22 / 0.12);
+  --color-glass-highlight: rgb(22 22 22 / 0.1);
+  --color-wash: rgb(22 22 22 / 0.06);
+  --color-wash-strong: rgb(22 22 22 / 0.08);
+  --color-sheen: rgb(255 255 255 / 0.7);
+  --color-scrim: rgb(22 22 22 / 0.45);
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-glass: 0 8px 24px rgb(0 0 0 / 0.08);
+  --color-accent: #1a1a1a;
+  --color-on-accent: #f6f5f2;
+}
+
+html[data-mode="light"] .nav-glyph-raster {
+  filter: brightness(0);
 }

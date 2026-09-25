@@ -12,6 +12,39 @@
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>MIRIN</title>
+    <script>
+      (function () {
+        var mode = "dark";
+        try {
+          var raw = localStorage.getItem("mirin.appearance");
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (
+              parsed.mode === "light" ||
+              parsed.mode === "system" ||
+              parsed.mode === "dark"
+            ) {
+              mode = parsed.mode;
+            }
+          }
+        } catch (e) {}
+        var resolved =
+          mode === "system"
+            ? window.matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark"
+            : mode;
+        document.documentElement.dataset.mode = resolved;
+        document.documentElement.style.colorScheme = resolved;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+          meta.setAttribute(
+            "content",
+            resolved === "light" ? "#f3f2ef" : "#0a0a0a",
+          );
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -216,7 +216,7 @@ export function ItemOverflow({ label, items }: ItemOverflowProps) {
                 {item.separatorBefore && (
                   <div
                     role="separator"
-                    className="my-1 h-px bg-[rgb(250_250_250/0.1)]"
+                    className="my-1 h-px bg-glass-border"
                   />
                 )}
                 <button
@@ -230,11 +230,11 @@ export function ItemOverflow({ label, items }: ItemOverflowProps) {
                   className={[
                     "flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-[15px] font-medium transition-colors duration-150 motion-reduce:transition-none",
                     item.danger
-                      ? "text-muted hover:bg-[rgb(250_250_250/0.06)] hover:text-ink"
-                      : "text-ink hover:bg-[rgb(250_250_250/0.08)]",
+                      ? "text-muted hover:bg-wash hover:text-ink"
+                      : "text-ink hover:bg-wash",
                     item.disabled ? "pointer-events-none opacity-40" : "",
                     expandedId === item.id
-                      ? "bg-[rgb(250_250_250/0.08)]"
+                      ? "bg-wash"
                       : "",
                   ].join(" ")}
                 >

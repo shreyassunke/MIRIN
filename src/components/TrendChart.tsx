@@ -26,7 +26,7 @@ interface TrendChartProps {
 
 // The Ledger Rule reaches the axis too: these numerals get compared.
 const AXIS_TICK = {
-  fill: "#8a8a8a",
+  fill: "var(--color-muted)",
   fontSize: 11,
   fontVariantNumeric: "tabular-nums",
 } as const;
@@ -76,15 +76,15 @@ export function TrendChart({
             />
           )}
           <Tooltip
-            cursor={{ stroke: "#232323", strokeWidth: 1 }}
+            cursor={{ stroke: "var(--color-hairline)", strokeWidth: 1 }}
             contentStyle={{
-              background: "#141414",
-              border: "1px solid #232323",
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-hairline)",
               borderRadius: 8,
               fontSize: 13,
-              color: "#fafafa",
+              color: "var(--color-ink)",
             }}
-            labelStyle={{ color: "#8a8a8a" }}
+            labelStyle={{ color: "var(--color-muted)" }}
             formatter={(value) => [
               formatValue
                 ? formatValue(Number(value))
@@ -96,10 +96,10 @@ export function TrendChart({
           <Line
             type="monotone"
             dataKey="value"
-            stroke="#d4d4d4"
+            stroke="var(--color-accent)"
             strokeWidth={1.5}
             dot={false}
-            activeDot={{ r: 3, fill: "#d4d4d4", strokeWidth: 0 }}
+            activeDot={{ r: 3, fill: "var(--color-accent)", strokeWidth: 0 }}
             isAnimationActive={false}
           />
         </LineChart>

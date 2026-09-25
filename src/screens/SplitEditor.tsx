@@ -54,13 +54,6 @@ import { useDragReorder } from "../hooks/useDragReorder";
 const secondaryBtn =
   "glass-btn h-11 rounded-pill px-4 text-sm font-medium text-ink";
 
-function workoutDayCount(split: Split, days: Map<string, DayTemplate>) {
-  return split.dayTemplateIds.filter((id) => {
-    const day = days.get(id);
-    return day && !day.isRestDay;
-  }).length;
-}
-
 /** Two-tap destructive action: no modal, no accidental taps. */
 function ConfirmButton({
   label,
@@ -650,19 +643,6 @@ function SplitDetail({
               </h2>
             </button>
           )}
-          <p className="mt-0.5 text-[13px] text-muted">
-            {split.isDefault && split.isActive
-              ? "Current split — default"
-              : split.isDefault
-                ? "Default split"
-                : split.isActive
-                  ? "Active split"
-                  : "Custom split"}
-            {" · "}
-            {workoutDayCount(split, days)} workout{" "}
-            {workoutDayCount(split, days) === 1 ? "day" : "days"} ·{" "}
-            {split.dayTemplateIds.length}-day rotation
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {creating ? (
@@ -781,10 +761,6 @@ export function SplitEditor() {
     <div>
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Split</h1>
-        <p className="mt-1 max-w-[65ch] text-sm leading-relaxed text-muted">
-          The active split drives the Today screen. Switching splits never
-          touches logged history.
-        </p>
       </header>
 
       {data.splits.length > 1 && (

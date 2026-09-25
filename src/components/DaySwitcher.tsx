@@ -262,8 +262,8 @@ export function DaySwitcher({
                   className={[
                     "flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-[15px] font-medium transition-colors duration-150 motion-reduce:transition-none",
                     selected
-                      ? "bg-[rgb(250_250_250/0.08)] text-ink"
-                      : "text-ink hover:bg-[rgb(250_250_250/0.08)]",
+                      ? "bg-wash text-ink"
+                      : "text-ink hover:bg-wash",
                   ].join(" ")}
                 >
                   <span className="min-w-0 flex-1 truncate">{option.name}</span>

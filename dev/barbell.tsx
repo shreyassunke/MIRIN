@@ -149,7 +149,7 @@ function PagerHarness({
                 value={manual}
                 step={5}
                 min={0}
-                layout="stacked"
+                layout="readout"
                 inlineSuffix={unit}
                 size="lead"
                 onChange={setManual}

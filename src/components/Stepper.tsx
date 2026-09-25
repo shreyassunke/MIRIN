@@ -10,8 +10,8 @@ interface StepperProps {
   onChange: (value: number) => void;
   /** Custom value rendering (feet and inches, units, and so on). */
   format?: (value: number) => string;
-  /** `inline` puts the value between the buttons. `stacked` keeps the value on its own row so it can sit between mode arrows. */
-  layout?: "default" | "inline" | "stacked";
+  /** `inline` puts the value between the buttons. `stacked` keeps the value on its own row so it can sit between mode arrows. `readout` is only the live numeral — tap it to type. */
+  layout?: "default" | "inline" | "stacked" | "readout";
   /** Unit or suffix shown beside the value in inline layout. */
   inlineSuffix?: string;
   /** `lead` matches the live weight numeral. `compact` is the reps companion. */
@@ -47,20 +47,24 @@ export function Stepper({
   const [draft, setDraft] = useState("");
 
   const display = format ? format(value) : formatWeight(value);
+  const readout = layout === "readout";
   const btn =
     size === "default"
       ? "glass-btn flex h-12 w-12 items-center justify-center rounded-pill text-xl leading-none text-ink"
       : "glass-btn flex h-11 w-11 items-center justify-center rounded-pill text-lg leading-none text-ink";
-  const valueSize =
-    size === "lead"
+  const valueSize = readout
+    ? "text-3xl leading-none"
+    : size === "lead"
       ? "h-11 min-w-[5.5rem] text-3xl leading-none"
       : size === "compact"
         ? "h-11 min-w-14 text-base"
         : "h-12 min-w-[4.75rem] text-xl";
-  const valueClass = `tnum ${valueSize} rounded-md border border-transparent bg-transparent px-1 text-center font-semibold tracking-tight text-ink focus:border-hairline focus:bg-bg`;
+  const valueClass = readout
+    ? "tnum w-full border-0 bg-transparent p-0 text-center text-3xl font-semibold leading-none tracking-tight text-ink outline-none"
+    : `tnum ${valueSize} rounded-md border border-transparent bg-transparent px-1 text-center font-semibold tracking-tight text-ink focus:border-hairline focus:bg-bg`;
   const suffixClass =
-    size === "lead"
-      ? "ml-1.5 text-sm font-medium text-muted"
+    size === "lead" || readout
+      ? "ml-1.5 text-sm text-muted"
       : "ml-1 text-[13px] font-medium text-muted";
 
   const beginEdit = () => {
@@ -85,7 +89,55 @@ export function Stepper({
     inputRef.current?.select();
   }, [editing]);
 
-  const valueControl = editing ? (
+  const suffix =
+    !readout && (layout === "inline" || layout === "stacked") && inlineSuffix ? (
+      <span className={suffixClass}>{inlineSuffix}</span>
+    ) : null;
+
+  const valueControl = readout ? (
+    <span className="inline-grid items-center">
+      <span
+        aria-hidden="true"
+        className={`invisible col-start-1 row-start-1 tnum px-0.5 ${valueSize} font-semibold tracking-tight`}
+      >
+        {editing ? draft || "0" : display}
+      </span>
+      {editing ? (
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="text"
+          inputMode="decimal"
+          enterKeyHint="done"
+          aria-label={label || "Value"}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              cancel();
+            }
+          }}
+          className={`col-start-1 row-start-1 ${valueClass}`}
+        />
+      ) : (
+        <button
+          type="button"
+          id={inputId}
+          aria-label={`${label || "Value"}, ${display}. Tap to type.`}
+          onClick={beginEdit}
+          className={`col-start-1 row-start-1 cursor-text ${valueClass}`}
+        >
+          {display}
+        </button>
+      )}
+    </span>
+  ) : editing ? (
     <input
       ref={inputRef}
       id={inputId}
@@ -119,9 +171,7 @@ export function Stepper({
       ].join(" ")}
     >
       {display}
-      {(layout === "inline" || layout === "stacked") && inlineSuffix ? (
-        <span className={suffixClass}>{inlineSuffix}</span>
-      ) : null}
+      {suffix}
     </button>
   );
 
@@ -145,6 +195,20 @@ export function Stepper({
       +
     </button>
   );
+
+  if (layout === "readout") {
+    return (
+      <div
+        data-no-pager=""
+        className="inline-flex min-h-11 items-center justify-center whitespace-nowrap"
+      >
+        {valueControl}
+        {inlineSuffix ? (
+          <span className={suffixClass}>{inlineSuffix}</span>
+        ) : null}
+      </div>
+    );
+  }
 
   if (layout === "stacked") {
     return (

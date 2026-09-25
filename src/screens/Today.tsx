@@ -1229,7 +1229,7 @@ export function Today() {
                             value={manualWeight}
                             step={MANUAL_STEP[unit]}
                             min={0}
-                            layout="stacked"
+                            layout="readout"
                             inlineSuffix={unit}
                             size="lead"
                             onChange={setManualWeight}

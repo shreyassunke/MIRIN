@@ -75,7 +75,7 @@ export function RestTimer({
             cy={RING_SIZE / 2}
             r={RING_RADIUS}
             fill="none"
-            stroke="#232323"
+            stroke="var(--color-hairline)"
             strokeWidth="1.5"
           />
           <circle
@@ -83,7 +83,7 @@ export function RestTimer({
             cy={RING_SIZE / 2}
             r={RING_RADIUS}
             fill="none"
-            stroke="#d4d4d4"
+            stroke="var(--color-accent)"
             strokeWidth="1.5"
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={CIRCUMFERENCE * (1 - progress)}

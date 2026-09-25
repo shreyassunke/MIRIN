@@ -8,7 +8,9 @@ import {
 } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import { AVATAR_KEY, useSettingValue } from "../lib/profile";
 import { getContactLine, getDisplayName } from "../lib/user";
+import { Avatar } from "./Avatar";
 import { NAV_GLYPHS, NavGlyph } from "./NavGlyph";
 
 const NAV_ITEMS = [
@@ -26,6 +28,39 @@ function activeNavIndex(pathname: string): number {
   return NAV_ITEMS.findIndex((item) => pathname.startsWith(`${item.to}/`));
 }
 
+function ProfileIcon({
+  active,
+  animate,
+  src,
+}: {
+  active: boolean;
+  animate: boolean;
+  src: string | null;
+}) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        decoding="async"
+        className={[
+          "nav-avatar",
+          active ? "nav-avatar-on" : "",
+          animate ? "nav-avatar-animate" : "",
+        ].join(" ")}
+      />
+    );
+  }
+  return (
+    <NavGlyph
+      glyph={NAV_GLYPHS.profile}
+      active={active}
+      animate={animate}
+    />
+  );
+}
+
 function navClass({ isActive }: { isActive: boolean }) {
   return [
     "flex items-center gap-2.5 rounded-md px-3 py-3 text-sm font-medium transition-colors duration-150",
@@ -38,6 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const displayName = getDisplayName(user);
   const contact = getContactLine(user);
+  const avatar = useSettingValue(AVATAR_KEY);
   const activeIndex = activeNavIndex(location.pathname);
 
   const trackRef = useRef<HTMLDivElement>(null);
@@ -122,10 +158,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </NavLink>
           ))}
-          <div className="mt-auto border-t border-hairline pt-4">
+          <div className="mt-auto flex items-center gap-2.5 border-t border-hairline pt-4">
+            <Avatar
+              src={avatar || null}
+              name={displayName}
+              email={contact}
+              size={32}
+            />
             <NavLink
               to="/profile"
-              className="block rounded-md px-3 py-2 transition-colors duration-150 hover:bg-surface"
+              className="block min-w-0 flex-1 rounded-md px-1 py-2 transition-colors duration-150 hover:bg-wash"
             >
               {displayName ? (
                 <p className="truncate text-[13px] font-medium text-ink">
@@ -183,11 +225,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               {({ isActive }) => (
                 <span className="nav-pill-label flex h-12 w-full items-center justify-center rounded-pill">
-                  <NavGlyph
-                    glyph={glyph}
-                    active={isActive}
-                    animate={canAnimate}
-                  />
+                  {to === "/profile" ? (
+                    <ProfileIcon
+                      active={isActive}
+                      animate={canAnimate}
+                      src={avatar || null}
+                    />
+                  ) : (
+                    <NavGlyph
+                      glyph={glyph}
+                      active={isActive}
+                      animate={canAnimate}
+                    />
+                  )}
                 </span>
               )}
             </NavLink>

@@ -22,6 +22,11 @@ const SplitEditor = lazy(() =>
 const Profile = lazy(() =>
   import("./screens/Profile").then((m) => ({ default: m.Profile })),
 );
+const ProfileDetails = lazy(() =>
+  import("./screens/ProfileDetails").then((m) => ({
+    default: m.ProfileDetails,
+  })),
+);
 const History = lazy(() =>
   import("./screens/History").then((m) => ({ default: m.History })),
 );
@@ -77,6 +82,11 @@ export default function App() {
         </Route>
         <Route path="/split" element={<SplitEditor />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/details" element={<ProfileDetails />} />
+        <Route
+          path="/profile/appearance"
+          element={<Navigate to="/profile" replace />}
+        />
         <Route
           path="/profile/measurements"
           element={<Navigate to="/log/body" replace />}
