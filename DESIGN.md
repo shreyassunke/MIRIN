@@ -119,7 +119,7 @@ A locked grayscale palette; hierarchy is carried entirely by lightness, never by
 
 **The Locked Palette Rule.** The default log is these values. No extra grays, tints, or hue on the logging surfaces themselves. State changes (hover, press, disabled) move within the ramp.
 
-**The Appearance Rule.** Profile sets mode inline: System, Light, or Dark. There is no appearance subpage and no palette picker. Light is the paper inverse (`#f3f2ef` ground, `#161616` ink, `#5c5c58` muted). The accent stays Chalk — off-white in dark, near-black in light. Text on that accent is `--color-on-accent`. Nothing else gains a second hue. The Plate Exception is unchanged.
+**The Appearance Rule.** Profile sets mode inline: the word System, and Light and Dark as sun and moon glyphs. The selected glyph fills from its outline with the same center bloom as the tab bar; a press starts that fill immediately. There is no appearance subpage and no palette picker. Light is the paper inverse (`#f3f2ef` ground, `#161616` ink, `#5c5c58` muted). The accent stays Chalk — off-white in dark, near-black in light. Text on that accent is `--color-on-accent`. Nothing else gains a second hue. The Plate Exception is unchanged.
 
 **The Plate Exception Rule.** The single sanctioned use of hue: plate chips and the loaded-bar instrument in the weight picker — 2D chips and the 3D plate bodies alike — carry gym plate color conventions (blue #1f4fa3, yellow #f2c500, green #1e8c4a, red #d22a2a, white #f2f2f2, black #6e6e6e, silver #98989f). These are recognition aids that mirror physical reality, never decoration, and they appear nowhere else in the interface.
 

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Avatar } from "../components/Avatar";
 import { AvatarEditor } from "../components/AvatarEditor";
 import { chipClass } from "../components/chip";
+import { MODE_GLYPHS, NavGlyph } from "../components/NavGlyph";
 import { useAuth } from "../auth/AuthProvider";
 import {
   APPEARANCE_MODES,
@@ -23,8 +24,14 @@ export function Profile() {
   const avatar = useSettingValue(AVATAR_KEY);
   const [editorOpen, setEditorOpen] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [glyphsReady, setGlyphsReady] = useState(false);
   const displayName = getDisplayName(user);
   const contact = getContactLine(user);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setGlyphsReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   return (
     <div>
@@ -83,10 +90,20 @@ export function Profile() {
             key={option}
             type="button"
             aria-pressed={mode === option}
+            aria-label={MODE_LABEL[option]}
             onClick={() => void saveAppearance(option)}
-            className={`${chipClass(mode === option)} h-11 flex-1 px-3 text-sm`}
+            className={`${chipClass(mode === option)} appearance-choice h-11 flex-1 px-3 text-sm`}
           >
-            {MODE_LABEL[option]}
+            {option === "system" ? (
+              MODE_LABEL.system
+            ) : (
+              <NavGlyph
+                glyph={MODE_GLYPHS[option]}
+                active={mode === option}
+                animate={glyphsReady}
+                className="nav-glyph-sm nav-glyph-tone"
+              />
+            )}
           </button>
         ))}
       </div>

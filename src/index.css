@@ -317,6 +317,12 @@ textarea {
   height: 1.25rem;
 }
 
+/* Inherit the chip's muted/ink ramp instead of the tab's always-ink glyph. */
+.nav-glyph.nav-glyph-tone {
+  color: inherit;
+  opacity: 1;
+}
+
 .nav-glyph-raster {
   display: block;
   width: 100%;
@@ -357,6 +363,21 @@ textarea {
     opacity 200ms var(--ease-out-expo),
     transform 220ms var(--ease-out-expo),
     clip-path 220ms var(--ease-out-expo);
+}
+
+/* Finger-down starts the same center bloom the selected tab uses. */
+.appearance-choice {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.appearance-choice:active .nav-glyph-outline {
+  opacity: 0;
+}
+
+.appearance-choice:active .nav-glyph-fill {
+  opacity: 1;
+  clip-path: circle(78% at 50% 50%);
+  transform: scale(1);
 }
 
 .nav-pill-item:active .nav-pill-label {
