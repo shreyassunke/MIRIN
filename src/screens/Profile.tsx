@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useNavigate, useOutlet } from "react-router-dom";
 import { Avatar } from "../components/Avatar";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { AvatarEditor } from "../components/AvatarEditor";
 import { chipClass } from "../components/chip";
 import { MODE_GLYPHS, NavGlyph } from "../components/NavGlyph";
@@ -18,7 +19,120 @@ import { Chevron } from "./profile/chrome";
 const secondaryBtn =
   "glass-btn h-12 rounded-pill px-5 text-sm font-medium text-ink";
 
+// Start the chart chunk while the account view is on screen, so the
+// page-turn does not wait on a network fetch.
+void import("./Trends");
+
 export function Profile() {
+  const outlet = useOutlet();
+  const navigate = useNavigate();
+  const pending = useRef<(() => void) | null>(null);
+  const activeTransition = useRef<ViewTransition | null>(null);
+
+  const settle = useCallback(() => {
+    pending.current?.();
+    pending.current = null;
+  }, []);
+
+  const switchPane = useCallback(
+    (to: string, direction: "forward" | "back") => {
+      const go = () => navigate(to);
+      if (typeof document.startViewTransition !== "function") {
+        go();
+        return;
+      }
+
+      document.documentElement.dataset.paneSlide = direction;
+      try {
+        activeTransition.current?.skipTransition();
+      } catch {
+        // The previous turn already finished.
+      }
+      const transition = document.startViewTransition(
+        () =>
+          new Promise<void>((resolve) => {
+            const timer = window.setTimeout(resolve, 800);
+            pending.current = () => {
+              window.clearTimeout(timer);
+              resolve();
+            };
+            go();
+          }),
+      );
+      activeTransition.current = transition;
+      void transition.ready.catch(() => {});
+      const clearSlide = () => {
+        if (activeTransition.current !== transition) return;
+        delete document.documentElement.dataset.paneSlide;
+        activeTransition.current = null;
+      };
+      void transition.finished.then(clearSlide, clearSlide);
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    return () => {
+      delete document.documentElement.dataset.paneSlide;
+      pending.current?.();
+      pending.current = null;
+    };
+  }, []);
+
+  return (
+    <div>
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+      </header>
+
+      <div className="mb-6">
+        <SegmentedTabs
+          ariaLabel="Profile views"
+          onPaneSwitch={switchPane}
+          items={[
+            { to: "/profile", label: "Account", end: true },
+            { to: "/profile/progress", label: "Progress" },
+          ]}
+        />
+      </div>
+
+      <div className="profile-pane">
+        <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
+          <SettledPane settle={settle}>
+            {outlet ?? <ProfileAccount />}
+          </SettledPane>
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+/** Resolves the in-flight page-turn once this body has committed and laid out. */
+function SettledPane({
+  settle,
+  children,
+}: {
+  settle: () => void;
+  children: ReactNode;
+}) {
+  useLayoutEffect(() => {
+    let cancelled = false;
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        if (!cancelled) settle();
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  });
+  return children;
+}
+
+export function ProfileAccount() {
   const { user, signOut } = useAuth();
   const { mode } = useAppearanceChoice();
   const avatar = useSettingValue(AVATAR_KEY);
@@ -35,10 +149,6 @@ export function Profile() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-      </header>
-
       <section className="glass flex items-center gap-4 rounded-xl p-4">
         <button
           type="button"

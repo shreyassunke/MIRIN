@@ -130,9 +130,12 @@ await page
 await page.waitForTimeout(400);
 
 // Lazy routes still render.
-await page.goto(`${BASE}/history/progress`, { waitUntil: "networkidle" });
+await page.goto(`${BASE}/profile/progress`, { waitUntil: "networkidle" });
 await page.waitForTimeout(800);
-await expect("progress renders under history", () =>
+await expect("progress renders under profile", () =>
+  page.getByRole("heading", { name: "Profile", exact: true }).isVisible(),
+);
+await expect("progress tab is the active profile view", () =>
   page.getByRole("link", { name: "Progress", exact: true }).isVisible(),
 );
 await page.goto(`${BASE}/log`, { waitUntil: "networkidle" });
@@ -147,8 +150,12 @@ await expect("split renders (lazy)", () =>
 );
 await page.goto(`${BASE}/history`, { waitUntil: "networkidle" });
 await page.waitForTimeout(600);
-await expect("history sessions tab renders", () =>
-  page.getByRole("link", { name: "Sessions", exact: true }).isVisible(),
+await expect("history renders", () =>
+  page.getByRole("heading", { name: "History", exact: true }).isVisible(),
+);
+await expect("progress no longer lives on history", async () =>
+  (await page.getByRole("link", { name: "Progress", exact: true }).count()) ===
+  0,
 );
 await page.goto(`${BASE}/log/body`, { waitUntil: "networkidle" });
 await page.waitForTimeout(800);

@@ -4,7 +4,6 @@ import { db, type SetLog, type WorkoutSession } from "../db/db";
 import { formatDate, setVolume } from "../lib/workout";
 import { toDisplay, type Unit } from "../lib/units";
 import { useUnit } from "../lib/settings";
-import { HistoryNav } from "../components/HistoryNav";
 import { TrendChart, type TrendPoint } from "../components/TrendChart";
 
 /** The priority lifts to watch separately (shoulder/lat width levers). */
@@ -52,12 +51,7 @@ export function Trends() {
   }, []);
 
   if (!data) {
-    return (
-      <div>
-        <HistoryNav />
-        <p className="text-sm text-muted">Loading…</p>
-      </div>
-    );
+    return <p className="text-sm text-muted">Loading…</p>;
   }
 
   const overall = volumeTrend(data.sessions, data.logs, unit);
@@ -65,7 +59,6 @@ export function Trends() {
 
   return (
     <div>
-      <HistoryNav />
       <p className="mb-6 text-sm text-muted">
         Volume per completed session, in{" "}
         {unit === "lb" ? "pounds" : "kilograms"} lifted

@@ -18,7 +18,6 @@ import { useUnit } from "../lib/settings";
 import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
-import { HistoryNav } from "../components/HistoryNav";
 import { Stepper } from "../components/Stepper";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -114,7 +113,9 @@ export function History() {
 
   return (
     <div>
-      <HistoryNav />
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">History</h1>
+      </header>
 
       <section className="mb-8" aria-label="Training calendar">
         <div className="mb-3 flex items-center justify-between gap-3">

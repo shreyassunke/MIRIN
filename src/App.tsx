@@ -69,10 +69,13 @@ export default function App() {
         <Route path="/exercise/:id" element={<ExerciseDetail />} />
         <Route
           path="/progress"
-          element={<Navigate to="/history/progress" replace />}
+          element={<Navigate to="/profile/progress" replace />}
+        />
+        <Route
+          path="/history/progress"
+          element={<Navigate to="/profile/progress" replace />}
         />
         <Route path="/history" element={<History />} />
-        <Route path="/history/progress" element={<Trends />} />
         <Route path="/history/session/:sessionId" element={<SessionDetail />} />
         <Route path="/nutrition" element={<Navigate to="/log" replace />} />
         <Route path="/macros" element={<Navigate to="/log" replace />} />
@@ -81,7 +84,9 @@ export default function App() {
           <Route path="body" element={<LogBody />} />
         </Route>
         <Route path="/split" element={<SplitEditor />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile" element={<Profile />}>
+          <Route path="progress" element={<Trends />} />
+        </Route>
         <Route path="/profile/details" element={<ProfileDetails />} />
         <Route
           path="/profile/appearance"

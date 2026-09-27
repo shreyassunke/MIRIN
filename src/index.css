@@ -620,6 +620,90 @@ textarea {
   animation: mirin-fade-in 160ms var(--ease-out-expo) both;
 }
 
+/* Profile Account ↔ Progress. The title and segment stay; the body turns. */
+.profile-pane {
+  view-transition-name: profile-pane;
+}
+
+html[data-pane-slide]::view-transition-old(root),
+html[data-pane-slide]::view-transition-new(root) {
+  animation: none;
+}
+
+html[data-pane-slide]::view-transition-group(profile-pane) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ease-out-expo);
+}
+
+html[data-pane-slide]::view-transition-old(profile-pane),
+html[data-pane-slide]::view-transition-new(profile-pane) {
+  mix-blend-mode: normal;
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+  overflow: clip;
+}
+
+html[data-pane-slide="forward"]::view-transition-old(profile-pane) {
+  animation: profile-pane-leave-back 180ms var(--ease-out-expo) both;
+}
+
+html[data-pane-slide="forward"]::view-transition-new(profile-pane) {
+  animation: profile-pane-enter-forward 320ms var(--ease-out-expo) both;
+}
+
+html[data-pane-slide="back"]::view-transition-old(profile-pane) {
+  animation: profile-pane-leave-forward 180ms var(--ease-out-expo) both;
+}
+
+html[data-pane-slide="back"]::view-transition-new(profile-pane) {
+  animation: profile-pane-enter-back 320ms var(--ease-out-expo) both;
+}
+
+@keyframes profile-pane-leave-back {
+  to {
+    opacity: 0;
+    transform: translateX(-12px);
+    filter: blur(2px);
+  }
+}
+
+@keyframes profile-pane-enter-forward {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+    filter: blur(2px);
+  }
+}
+
+@keyframes profile-pane-leave-forward {
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+    filter: blur(2px);
+  }
+}
+
+@keyframes profile-pane-enter-back {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+    filter: blur(2px);
+  }
+}
+
+@keyframes profile-pane-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes profile-pane-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Load instrument pager — finger-tracked equipment pages */
 .load-swipe-field {
   touch-action: pan-y;
@@ -765,6 +849,18 @@ html.reorder-active [data-reorder-index] {
 
   .load-pager-page {
     transform: none !important;
+  }
+
+  html[data-pane-slide]::view-transition-group(profile-pane) {
+    animation: none;
+  }
+
+  html[data-pane-slide]::view-transition-old(profile-pane) {
+    animation: profile-pane-fade-out 140ms linear both;
+  }
+
+  html[data-pane-slide]::view-transition-new(profile-pane) {
+    animation: profile-pane-fade-in 140ms linear both;
   }
 }
 

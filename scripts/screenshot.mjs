@@ -62,7 +62,7 @@ await run("history", mobile, async (page) => {
 });
 
 await run("trends", mobile, async (page) => {
-  await page.goto(`${BASE}/history/progress`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/profile/progress`, { waitUntil: "networkidle" });
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/trends-mobile.png`, fullPage: true });
 });
