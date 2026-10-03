@@ -86,7 +86,7 @@ On iPhone Safari: `http://<your-computer-ip>:5174/today` (your PC must stay on; 
 - `/history` — session calendar and PR targets.
 - `/log` — daily body weight and macros (protein + calories), with a two-line trend of weight and calories. Last log is the default. `/macros` and `/nutrition` redirect here.
 - `/split` — reorder exercises within each day; order is enforced on the logging screen.
-- `/profile` — account (name, appearance, sign out) and the **Progress** view (`/profile/progress`): overall volume per completed session, plus a 3D physique that selects a muscle region's volume trend. `/history/progress` and `/progress` redirect there.
+- `/profile` — account (name, appearance, sign out) and the **Progress** view (`/profile/progress`): overall volume per completed session, plus a 3D physique that selects a muscle region's volume trend. The figure follows the gender saved on the profile. `/history/progress` and `/progress` redirect there.
 - `/auth` — email or Google sign-in.
 
 ## Design

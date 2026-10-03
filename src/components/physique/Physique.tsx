@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useState } from "react";
 import { ChunkErrorBoundary, hasWebGL } from "../weight/three/fallback";
+import type { Gender } from "../../lib/body";
+import { GENDER_KEY, useSettingValue } from "../../lib/profile";
 import type { RegionId } from "../../lib/muscleRegions";
 import { PHYSIQUE_STAGE_CLASS } from "./constants";
 import { PhysiqueFallback } from "./PhysiqueFallback";
@@ -30,6 +32,12 @@ export function Physique({
 }) {
   const [failed, setFailed] = useState(false);
   const onError = useCallback(() => setFailed(true), []);
+  const genderRaw = useSettingValue(GENDER_KEY);
+  const gender: Gender = genderRaw === "female" ? "female" : "male";
+
+  if (genderRaw === null) {
+    return <StagePlaceholder />;
+  }
 
   if (!hasWebGL() || failed) {
     return (
@@ -53,6 +61,8 @@ export function Physique({
     >
       <Suspense fallback={<StagePlaceholder />}>
         <PhysiqueCanvas
+          key={gender}
+          gender={gender}
           intensities={intensities}
           selected={selected}
           onSelect={onSelect}

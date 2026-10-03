@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import type { Gender } from "../../lib/body";
 import { REGION_LABEL, type RegionId } from "../../lib/muscleRegions";
 import { PHYSIQUE_STAGE_CLASS } from "./constants";
 import {
@@ -47,11 +48,13 @@ function pinchDistance(points: Map<number, { x: number; y: number }>) {
 }
 
 export function PhysiqueCanvas({
+  gender,
   intensities,
   selected,
   onSelect,
   onError,
 }: {
+  gender: Gender;
   intensities: Record<RegionId, number>;
   selected: RegionId | null;
   onSelect: (id: RegionId) => void;
@@ -321,7 +324,7 @@ export function PhysiqueCanvas({
     void loadPhysiqueSource()
       .then((source) => {
         if (cancelled) return;
-        const prepared = preparePhysique(source);
+        const prepared = preparePhysique(source, gender);
         for (const entry of prepared.muscles) {
           const mat = new THREE.MeshStandardMaterial({
             color: BASE.clone(),
@@ -368,7 +371,7 @@ export function PhysiqueCanvas({
       renderer.dispose();
       canvas.remove();
     };
-  }, [onError]);
+  }, [gender, onError]);
 
   useEffect(() => {
     for (const entry of musclesRef.current) {
@@ -384,10 +387,11 @@ export function PhysiqueCanvas({
       role="img"
       aria-label={
         selected
-          ? `Physique, ${REGION_LABEL[selected]} selected. Drag to spin, pinch to zoom.`
-          : "Physique. Drag to spin, pinch to zoom, tap a muscle for its volume."
+          ? `${gender === "female" ? "Female physique" : "Physique"}, ${REGION_LABEL[selected]} selected. Drag to spin, pinch to zoom.`
+          : `${gender === "female" ? "Female physique" : "Physique"}. Drag to spin, pinch to zoom, tap a muscle for its volume.`
       }
       data-physique-status={status}
+      data-physique-gender={gender}
     >
       <div
         ref={hostRef}

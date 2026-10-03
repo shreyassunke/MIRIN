@@ -8,4 +8,6 @@
 - Full text: [LICENSE-body.txt](./LICENSE-body.txt)
 
 The mesh is shown in grayscale and used as a training-volume selector.
-No changes were made to the geometry.
+The male figure uses the source geometry. The female figure is a
+proportioned derivative of the same mesh (narrower shoulders, wider
+hips) so muscle names and picking stay aligned.
