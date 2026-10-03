@@ -57,9 +57,117 @@ export function visibleEnvelope(root: THREE.Object3D): PhysiqueEnvelope {
 /**
  * Park the camera so the standing figure clears the frame on any aspect.
  * Height is the usual limiter; radius covers a side view after orbit.
+ * 1 is the fitted full-body framing. Below that pulls back; above it moves in.
  */
-export const PHYSIQUE_ZOOM_MIN = 1;
-export const PHYSIQUE_ZOOM_MAX = 2.8;
+export const PHYSIQUE_ZOOM_MIN = 0.64;
+export const PHYSIQUE_ZOOM_MAX = 4;
+const FRAME_PAD = 1.18;
+
+export interface PhysiquePan {
+  x: number;
+  y: number;
+}
+
+export function clampPhysiqueZoom(zoom: number) {
+  return THREE.MathUtils.clamp(zoom, PHYSIQUE_ZOOM_MIN, PHYSIQUE_ZOOM_MAX);
+}
+
+/**
+ * How far the look target may slide, in world units, on both axes.
+ * The fitted framing can still move; zooming in extends the range until
+ * an edge of the figure can reach the middle of the frame.
+ */
+export function physiquePanLimit(
+  envelope: PhysiqueEnvelope,
+  zoom: number,
+): PhysiquePan {
+  const z = clampPhysiqueZoom(zoom);
+  const t = THREE.MathUtils.clamp((Math.max(z, 1) - 1) / 2.4, 0, 1);
+  const fitted = Math.min(z, 1);
+  const yReach = THREE.MathUtils.lerp(0.58, 1.02, t) * fitted;
+  const xReach = THREE.MathUtils.lerp(0.8, 1.15, t) * fitted;
+  return {
+    x: Math.max(envelope.halfR * 1.35, envelope.halfH * 0.42) * xReach,
+    y: envelope.halfH * yReach,
+  };
+}
+
+export function clampPhysiquePan(
+  pan: PhysiquePan,
+  envelope: PhysiqueEnvelope,
+  zoom: number,
+): PhysiquePan {
+  const lim = physiquePanLimit(envelope, zoom);
+  return {
+    x: THREE.MathUtils.clamp(pan.x, -lim.x, lim.x),
+    y: THREE.MathUtils.clamp(pan.y, -lim.y, lim.y),
+  };
+}
+
+function frameMetrics(
+  envelope: PhysiqueEnvelope,
+  aspect: number,
+  fovDeg: number,
+  zoom: number,
+  pad = FRAME_PAD,
+) {
+  const tan = Math.tan(THREE.MathUtils.degToRad(fovDeg) / 2);
+  const z = clampPhysiqueZoom(zoom);
+  const safeAspect = Math.max(aspect, 0.2);
+  const dist =
+    Math.max(
+      (envelope.halfH * pad) / tan,
+      (envelope.halfR * pad) / (tan * safeAspect),
+    ) / z;
+  return { tan, dist };
+}
+
+/** World units covered by one screen pixel at this framing. */
+export function physiqueWorldPerPixel(
+  envelope: PhysiqueEnvelope,
+  width: number,
+  height: number,
+  zoom: number,
+  fovDeg: number,
+): PhysiquePan {
+  const aspect = Math.max(width / Math.max(height, 1), 0.2);
+  const { tan, dist } = frameMetrics(envelope, aspect, fovDeg, zoom);
+  const worldH = 2 * dist * tan;
+  const worldW = worldH * aspect;
+  return {
+    x: worldW / Math.max(width, 1),
+    y: worldH / Math.max(height, 1),
+  };
+}
+
+/**
+ * Keep the world point under a pinch in place as the zoom changes.
+ * nx/ny are -1..1 from the view center, with +y toward the top of the screen.
+ */
+export function panToHoldZoomAnchor(
+  pan: PhysiquePan,
+  fromZoom: number,
+  toZoom: number,
+  nx: number,
+  ny: number,
+  width: number,
+  height: number,
+  envelope: PhysiqueEnvelope,
+  fovDeg: number,
+): PhysiquePan {
+  const from = physiqueWorldPerPixel(
+    envelope,
+    width,
+    height,
+    fromZoom,
+    fovDeg,
+  );
+  const to = physiqueWorldPerPixel(envelope, width, height, toZoom, fovDeg);
+  return {
+    x: pan.x + nx * (from.x - to.x) * width * 0.5,
+    y: pan.y + ny * (from.y - to.y) * height * 0.5,
+  };
+}
 
 export function fitPhysiqueCamera(
   camera: THREE.PerspectiveCamera,
@@ -67,20 +175,18 @@ export function fitPhysiqueCamera(
   width: number,
   height: number,
   zoom = 1,
-  pad = 1.18,
+  pan: PhysiquePan = { x: 0, y: 0 },
+  pad = FRAME_PAD,
 ) {
-  camera.aspect = Math.max(width / Math.max(height, 1), 0.2);
-  const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-  const z = THREE.MathUtils.clamp(zoom, PHYSIQUE_ZOOM_MIN, PHYSIQUE_ZOOM_MAX);
-  const dist =
-    Math.max(
-      (envelope.halfH * pad) / tan,
-      (envelope.halfR * pad) / (tan * camera.aspect),
-    ) / z;
-  camera.position.set(0, envelope.cy, dist);
-  camera.lookAt(0, envelope.cy, 0);
+  const aspect = Math.max(width / Math.max(height, 1), 0.2);
+  camera.aspect = aspect;
+  const { dist } = frameMetrics(envelope, aspect, camera.fov, zoom, pad);
+  const x = pan.x;
+  const y = envelope.cy + pan.y;
+  camera.position.set(x, y, dist);
+  camera.lookAt(x, y, 0);
   camera.near = Math.max(dist * 0.05, 0.05);
-  camera.far = dist * 6;
+  camera.far = Math.max(dist * 6, 12);
   camera.updateProjectionMatrix();
 }
 
