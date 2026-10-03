@@ -11,6 +11,7 @@ import {
   removeDaySlot,
   renameDay,
   reorderRotation,
+  saveDayStructure,
   setRotationToday,
   toggleDaySuperset,
   toggleDayWarmup,
@@ -320,7 +321,7 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
 
   const reorder = (from: number, to: number) => {
     if (from === to || to < 0 || to >= day.exerciseIds.length) return;
-    void db.dayTemplates.update(day.id, {
+    void saveDayStructure(day.id, {
       exerciseIds: move(day.exerciseIds, from, to),
     });
   };
@@ -332,7 +333,7 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
   });
 
   const removeExercise = (exerciseId: string) => {
-    void db.dayTemplates.update(day.id, {
+    void saveDayStructure(day.id, {
       exerciseIds: day.exerciseIds.filter((id) => id !== exerciseId),
       supersets: breakGroup(day.supersets, exerciseId),
       warmupTargets: omitRecordKey(day.warmupTargets, exerciseId),
@@ -350,7 +351,7 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
     const outgoingId = current.exerciseIds[index];
     const next = [...current.exerciseIds];
     next[index] = newId;
-    await db.dayTemplates.update(day.id, {
+    await saveDayStructure(day.id, {
       exerciseIds: next,
       supersets: remapGroupIds(current.supersets, outgoingId, newId),
       warmupTargets: remapRecordKey(current.warmupTargets, outgoingId, newId),
@@ -555,7 +556,7 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
               const id = await ensureExerciseRow(entry);
               const current = await db.dayTemplates.get(day.id);
               if (!current || current.exerciseIds.includes(id)) return;
-              await db.dayTemplates.update(day.id, {
+              await saveDayStructure(day.id, {
                 exerciseIds: [...current.exerciseIds, id],
               });
             }}

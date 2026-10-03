@@ -23,6 +23,7 @@ import { dayTemplateIdForDate, nextWorkout, toLocalISODate } from "../lib/rotati
 import { REST_DAY_TEMPLATE } from "../db/seed";
 import {
   applyTodaySwitch,
+  persistSplitExerciseSelections,
   resolvedTodayTemplateId,
   uniqueDayOptions,
   type DaySwitchOption,
@@ -530,7 +531,11 @@ export function Today() {
   const handleDaySwitch = useCallback(
     (id: string, mode: TodaySwitchMode) => {
       if (!data) return;
-      void applyTodaySwitch(data.splitId, id, mode);
+      const splitId = data.splitId;
+      void (async () => {
+        await persistSplitExerciseSelections(splitId);
+        await applyTodaySwitch(splitId, id, mode);
+      })();
       setFollowDerived(true);
       setSelectedId(null);
       setFinishArmed(false);

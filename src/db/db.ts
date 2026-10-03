@@ -26,6 +26,11 @@ export interface DayTemplate {
   supersets?: string[][];
   /** Planned warm-up set counts keyed by exercise id. */
   warmupTargets?: Record<string, number>;
+  /**
+   * When `exerciseIds` was last saved. Newer than a session's start time
+   * means a split edit wins over that session's exercise list.
+   */
+  exerciseIdsUpdatedAt?: string;
 }
 
 export interface Split {
@@ -53,9 +58,12 @@ export interface WorkoutSession {
   date: string; // ISO datetime
   dayTemplateId: string;
   completed: boolean;
-  /** Exercises added mid-workout; not written back to the day template. */
+  /** Exercises added mid-workout. Mirrored onto the day template. */
   extraExerciseIds?: string[];
-  /** Session-only ordered exercise list. Set on first swap/reorder; never writes to DayTemplate. */
+  /**
+   * Ordered exercise list after a swap, reorder, add, or remove.
+   * Mirrored onto the day template so the split keeps the selection.
+   */
   sessionExerciseIds?: string[];
   /** Maps replacement exerciseId → outgoing exerciseId at swap time (for SetLog audit). */
   exerciseSwapOrigins?: Record<string, string>;

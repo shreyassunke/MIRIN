@@ -1,4 +1,4 @@
-import { db, type DayTemplate, type Split } from "../db/db";
+import { db, type DayTemplate, type Split, type WorkoutSession } from "../db/db";
 import { REST_DAY_TEMPLATE } from "../db/seed";
 import {
   dayTemplateIdForDate,
@@ -23,6 +23,11 @@ export { REST_DAY_TEMPLATE };
  * keeps its Monday anchor, preserving the original weekday alignment.
  */
 export async function activateSplit(id: string) {
+  const all = await db.splits.toArray();
+  for (const split of all) {
+    await persistSplitExerciseSelections(split.id);
+  }
+
   await db.transaction("rw", db.splits, async () => {
     const target = await db.splits.get(id);
     if (!target) return;
@@ -278,6 +283,78 @@ export async function reorderRotation(split: Split, from: number, to: number) {
   const [moved] = next.splice(from, 1);
   next.splice(to, 0, moved);
   await db.splits.update(split.id, { dayTemplateIds: next });
+}
+
+function sameIds(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
+/** Exercise list a session customized, if it diverged from the template. */
+function overriddenExerciseIds(
+  session: WorkoutSession,
+  day: DayTemplate,
+): string[] | null {
+  if (Array.isArray(session.sessionExerciseIds)) {
+    return [...session.sessionExerciseIds];
+  }
+  const extras = (session.extraExerciseIds ?? []).filter(
+    (id) => !day.exerciseIds.includes(id),
+  );
+  if (extras.length === 0) return null;
+  return [...day.exerciseIds, ...extras];
+}
+
+/**
+ * Writes the latest customized exercise list for each workout day onto the
+ * split. Session swaps, reorders, adds, and removals are the selection the
+ * user expects to keep; without this, leaving the split shows the seeded
+ * defaults again. A split edit newer than that session is left alone.
+ */
+export async function persistSplitExerciseSelections(splitId: string) {
+  const split = await db.splits.get(splitId);
+  if (!split) return;
+  const sessions = await db.sessions.toArray();
+
+  for (const dayId of new Set(split.dayTemplateIds)) {
+    if (dayId === REST_DAY_TEMPLATE.id) continue;
+    const day = await db.dayTemplates.get(dayId);
+    if (!day || day.isRestDay) continue;
+
+    const customized = sessions
+      .filter((session) => session.dayTemplateId === dayId)
+      .flatMap((session) => {
+        const exerciseIds = overriddenExerciseIds(session, day);
+        return exerciseIds ? [{ session, exerciseIds }] : [];
+      })
+      .filter((row) => !sameIds(row.exerciseIds, day.exerciseIds))
+      .sort((a, b) => b.session.date.localeCompare(a.session.date))[0];
+    if (!customized) continue;
+    if (
+      day.exerciseIdsUpdatedAt &&
+      day.exerciseIdsUpdatedAt > customized.session.date
+    ) {
+      continue;
+    }
+    await saveDayStructure(dayId, { exerciseIds: customized.exerciseIds });
+  }
+}
+
+/** Saves a day's exercise structure and stamps the list when it changes. */
+export async function saveDayStructure(
+  dayId: string,
+  patch: Partial<
+    Pick<DayTemplate, "exerciseIds" | "supersets" | "warmupTargets">
+  >,
+) {
+  if (dayId === REST_DAY_TEMPLATE.id) return;
+  const day = await db.dayTemplates.get(dayId);
+  if (!day || day.isRestDay) return;
+  await db.dayTemplates.update(dayId, {
+    ...patch,
+    ...(Object.prototype.hasOwnProperty.call(patch, "exerciseIds")
+      ? { exerciseIdsUpdatedAt: new Date().toISOString() }
+      : {}),
+  });
 }
 
 export async function renameDay(day: DayTemplate, name: string) {

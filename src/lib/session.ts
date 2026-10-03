@@ -8,13 +8,14 @@ import {
   remapRecordKey,
   setRecordValue,
 } from "./exerciseMeta";
+import { saveDayStructure } from "./splits";
 
 /** Resolve today's exercise id list (template + extras, or session override). */
 export function resolveSessionExerciseIds(
   day: DayTemplate | undefined | null,
   session: WorkoutSession | undefined | null,
 ): string[] {
-  if (session?.sessionExerciseIds?.length) {
+  if (Array.isArray(session?.sessionExerciseIds)) {
     return session.sessionExerciseIds;
   }
   if (day && !day.isRestDay) {
@@ -32,7 +33,7 @@ export async function ensureSessionExerciseIds(
 ): Promise<string[]> {
   const session = await db.sessions.get(sessionId);
   if (!session) throw new Error("Session not found");
-  if (session.sessionExerciseIds?.length) {
+  if (Array.isArray(session.sessionExerciseIds)) {
     return session.sessionExerciseIds;
   }
   const day = await db.dayTemplates.get(session.dayTemplateId);
@@ -65,15 +66,17 @@ export async function swapSessionExercise(
   swapOrigins[newExerciseId] = outgoingId;
 
   const finished = session.finishedExerciseIds ?? [];
+  const supersets = remapGroupIds(session.supersets, outgoingId, newExerciseId);
+  const warmupTargets = remapRecordKey(
+    session.warmupTargets,
+    outgoingId,
+    newExerciseId,
+  );
   await db.sessions.update(sessionId, {
     sessionExerciseIds: nextIds,
     exerciseSwapOrigins: swapOrigins,
-    supersets: remapGroupIds(session.supersets, outgoingId, newExerciseId),
-    warmupTargets: remapRecordKey(
-      session.warmupTargets,
-      outgoingId,
-      newExerciseId,
-    ),
+    supersets,
+    warmupTargets,
     exerciseNotes: remapRecordKey(
       session.exerciseNotes,
       outgoingId,
@@ -82,6 +85,11 @@ export async function swapSessionExercise(
     finishedExerciseIds: finished.map((id) =>
       id === outgoingId ? newExerciseId : id,
     ),
+  });
+  await saveDayStructure(session.dayTemplateId, {
+    exerciseIds: nextIds,
+    supersets,
+    warmupTargets,
   });
   return outgoingId;
 }
@@ -95,9 +103,11 @@ export async function reorderSessionExercises(
   if (from === to) return;
   const ids = await ensureSessionExerciseIds(sessionId);
   if (from < 0 || from >= ids.length || to < 0 || to >= ids.length) return;
-  await db.sessions.update(sessionId, {
-    sessionExerciseIds: move(ids, from, to),
-  });
+  const session = await db.sessions.get(sessionId);
+  if (!session) throw new Error("Session not found");
+  const exerciseIds = move(ids, from, to);
+  await db.sessions.update(sessionId, { sessionExerciseIds: exerciseIds });
+  await saveDayStructure(session.dayTemplateId, { exerciseIds });
 }
 
 /** Mark an exercise done, or reopen it. Set counts are the user's to choose. */
@@ -125,11 +135,11 @@ export async function appendSessionExercise(
   const session = await db.sessions.get(sessionId);
   if (!session) throw new Error("Session not found");
 
-  if (session.sessionExerciseIds?.length) {
+  if (Array.isArray(session.sessionExerciseIds)) {
     if (session.sessionExerciseIds.includes(exerciseId)) return;
-    await db.sessions.update(sessionId, {
-      sessionExerciseIds: [...session.sessionExerciseIds, exerciseId],
-    });
+    const exerciseIds = [...session.sessionExerciseIds, exerciseId];
+    await db.sessions.update(sessionId, { sessionExerciseIds: exerciseIds });
+    await saveDayStructure(session.dayTemplateId, { exerciseIds });
     return;
   }
 
@@ -141,6 +151,9 @@ export async function appendSessionExercise(
   if (!extra.includes(exerciseId)) {
     await db.sessions.update(sessionId, {
       extraExerciseIds: [...extra, exerciseId],
+    });
+    await saveDayStructure(session.dayTemplateId, {
+      exerciseIds: [...current, exerciseId],
     });
   }
 }
@@ -155,17 +168,25 @@ export async function removeSessionExercise(
   const session = await db.sessions.get(sessionId);
   if (!session) throw new Error("Session not found");
 
+  const exerciseIds = ids.filter((id) => id !== exerciseId);
+  const supersets = breakGroup(session.supersets, exerciseId);
+  const warmupTargets = omitRecordKey(session.warmupTargets, exerciseId);
   await db.sessions.update(sessionId, {
-    sessionExerciseIds: ids.filter((id) => id !== exerciseId),
+    sessionExerciseIds: exerciseIds,
     extraExerciseIds: (session.extraExerciseIds ?? []).filter(
       (id) => id !== exerciseId,
     ),
-    supersets: breakGroup(session.supersets, exerciseId),
-    warmupTargets: omitRecordKey(session.warmupTargets, exerciseId),
+    supersets,
+    warmupTargets,
     exerciseNotes: omitRecordKey(session.exerciseNotes, exerciseId),
     finishedExerciseIds: (session.finishedExerciseIds ?? []).filter(
       (id) => id !== exerciseId,
     ),
+  });
+  await saveDayStructure(session.dayTemplateId, {
+    exerciseIds,
+    supersets,
+    warmupTargets,
   });
 
   if (opts.deleteLogs) {
@@ -215,11 +236,11 @@ export async function toggleSessionSuperset(
   const exerciseId = ids[index];
   if (!exerciseId) return;
   const grouped = current.some((g) => g.includes(exerciseId) && g.length >= 2);
-  await db.sessions.update(sessionId, {
-    supersets: grouped
-      ? breakGroup(current, exerciseId)
-      : pairWithNeighbor(ids, current, index),
-  });
+  const supersets = grouped
+    ? breakGroup(current, exerciseId)
+    : pairWithNeighbor(ids, current, index);
+  await db.sessions.update(sessionId, { supersets });
+  await saveDayStructure(session.dayTemplateId, { supersets });
 }
 
 export async function setSessionWarmupTarget(
@@ -231,11 +252,11 @@ export async function setSessionWarmupTarget(
   if (!session) throw new Error("Session not found");
   const day = await db.dayTemplates.get(session.dayTemplateId);
   const current = resolveSessionWarmupTargets(day, session);
-  await db.sessions.update(sessionId, {
-    warmupTargets: setRecordValue(
-      current,
-      exerciseId,
-      count > 0 ? count : undefined,
-    ),
-  });
+  const warmupTargets = setRecordValue(
+    current,
+    exerciseId,
+    count > 0 ? count : undefined,
+  );
+  await db.sessions.update(sessionId, { warmupTargets });
+  await saveDayStructure(session.dayTemplateId, { warmupTargets });
 }
