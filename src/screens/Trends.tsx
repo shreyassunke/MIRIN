@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type SetLog, type WorkoutSession } from "../db/db";
 import { formatDate, setVolume } from "../lib/workout";
 import { toDisplay, type Unit } from "../lib/units";
+import { useGender } from "../lib/body";
 import { useUnit } from "../lib/settings";
 import { TrendChart, type TrendPoint } from "../components/TrendChart";
 import { Physique } from "../components/physique/Physique";
@@ -42,6 +43,7 @@ function overallBySession(logs: SetLog[]): Map<string, number> {
 
 export function Trends() {
   const [unit] = useUnit();
+  const [gender] = useGender();
   const [picked, setPicked] = useState<RegionId | null>(null);
   const data = useLiveQuery(async () => {
     const [sessions, logs, exercises] = await Promise.all([
@@ -110,7 +112,9 @@ export function Trends() {
           onSelect={setPicked}
         />
         <p className="mt-2 mb-6 text-[11px] leading-relaxed text-muted">
-          Z-Anatomy / BodyParts3D, CC BY-SA 4.0
+          {gender === "female"
+            ? "Blender Studio Human Base Meshes, CC0"
+            : "Z-Anatomy / BodyParts3D, CC BY-SA 4.0"}
         </p>
 
         <div className="mb-2 flex items-baseline justify-between gap-3">

@@ -30,12 +30,12 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/models\/body\.glb$/,
+            urlPattern: /\/models\/body(?:-female)?\.glb$/,
             handler: "CacheFirst",
             options: {
               cacheName: "physique-model",
               expiration: {
-                maxEntries: 2,
+                maxEntries: 4,
                 maxAgeSeconds: 60 * 60 * 24 * 365,
               },
               cacheableResponse: { statuses: [0, 200] },

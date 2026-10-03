@@ -4,13 +4,16 @@ import type { Gender } from "../../lib/body";
 import { REGION_LABEL, type RegionId } from "../../lib/muscleRegions";
 import { PHYSIQUE_STAGE_CLASS } from "./constants";
 import {
+  classifyFigureRegion,
   fitPhysiqueCamera,
   loadPhysiqueSource,
+  paintFigureMesh,
   preparePhysique,
   visibleEnvelope,
   PHYSIQUE_ZOOM_MAX,
   PHYSIQUE_ZOOM_MIN,
   type PhysiqueEnvelope,
+  type PhysiqueKind,
   type PhysiqueMesh,
 } from "./loadBody";
 
@@ -62,6 +65,9 @@ export function PhysiqueCanvas({
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const musclesRef = useRef<PhysiqueMesh[]>([]);
+  const kindRef = useRef<PhysiqueKind>("anatomy");
+  const envelopeRef = useRef<PhysiqueEnvelope | null>(null);
+  const restRef = useRef<THREE.Object3D | null>(null);
   const intensitiesRef = useRef(intensities);
   const selectedRef = useRef(selected);
   const onSelectRef = useRef(onSelect);
@@ -208,12 +214,23 @@ export function PhysiqueCanvas({
         -((clientY - rect.top) / rect.height) * 2 + 1,
       );
       raycaster.setFromCamera(ndc, camera);
+      const figure = kindRef.current === "figure";
       const targets = musclesRef.current
-        .filter((m) => m.regionId && m.mesh.visible)
+        .filter((m) => m.mesh.visible && (figure || m.regionId))
         .map((m) => m.mesh);
       const hits = raycaster.intersectObjects(targets, false);
       const hit = hits[0];
       if (!hit || !(hit.object instanceof THREE.Mesh)) return;
+      if (figure) {
+        const env = envelopeRef.current;
+        const rest = restRef.current;
+        if (!env || !rest) return;
+        const local = hit.point.clone();
+        rest.worldToLocal(local);
+        const region = classifyFigureRegion(local, env);
+        if (region) onSelectRef.current(region);
+        return;
+      }
       const muscle = musclesRef.current.find((m) => m.mesh === hit.object);
       if (!muscle?.regionId) return;
       onSelectRef.current(muscle.regionId);
@@ -321,30 +338,60 @@ export function PhysiqueCanvas({
     host.addEventListener("wheel", onWheel, { passive: false });
     fit();
 
-    void loadPhysiqueSource()
+    void loadPhysiqueSource(gender)
       .then((source) => {
         if (cancelled) return;
         const prepared = preparePhysique(source, gender);
+        kindRef.current = prepared.kind;
         for (const entry of prepared.muscles) {
           const mat = new THREE.MeshStandardMaterial({
             color: BASE.clone(),
-            roughness: 0.52,
+            roughness: prepared.kind === "figure" ? 0.62 : 0.52,
             metalness: 0.03,
             envMapIntensity: 0.18,
-            vertexColors: false,
+            vertexColors: prepared.kind === "figure",
           });
           ownedMats.push(mat);
           entry.mesh.material = mat;
         }
         musclesRef.current = prepared.muscles;
-        for (const entry of prepared.muscles) {
-          paintMuscle(entry, intensitiesRef.current, selectedRef.current);
+        if (prepared.kind === "figure") {
+          prepared.root.traverse((obj) => {
+            if (!(obj instanceof THREE.Mesh)) return;
+            if (prepared.muscles.some((entry) => entry.mesh === obj)) return;
+            const mat = new THREE.MeshStandardMaterial({
+              color: BASE.clone(),
+              roughness: 0.62,
+              metalness: 0.03,
+            });
+            ownedMats.push(mat);
+            obj.material = mat;
+          });
         }
         const yaw0 = pivot.rotation.y;
         pivot.rotation.set(0, 0, 0);
         pivot.add(prepared.root);
         pivot.updateWorldMatrix(true, true);
         envelope = visibleEnvelope(pivot);
+        envelopeRef.current = envelope;
+        restRef.current = pivot;
+        if (prepared.kind === "figure") {
+          for (const entry of prepared.muscles) {
+            paintFigureMesh(
+              entry,
+              intensitiesRef.current,
+              selectedRef.current,
+              envelope,
+              pivot,
+              BASE,
+              HOT,
+            );
+          }
+        } else {
+          for (const entry of prepared.muscles) {
+            paintMuscle(entry, intensitiesRef.current, selectedRef.current);
+          }
+        }
         pivot.rotation.y = yaw0;
         setStatus("ready");
         fit();
@@ -366,6 +413,9 @@ export function PhysiqueCanvas({
       host.removeEventListener("wheel", onWheel);
       if (raf) cancelAnimationFrame(raf);
       musclesRef.current = [];
+      kindRef.current = "anatomy";
+      envelopeRef.current = null;
+      restRef.current = null;
       renderRef.current = () => {};
       for (const mat of ownedMats) mat.dispose();
       renderer.dispose();
@@ -374,8 +424,16 @@ export function PhysiqueCanvas({
   }, [gender, onError]);
 
   useEffect(() => {
-    for (const entry of musclesRef.current) {
-      paintMuscle(entry, intensities, selected);
+    const env = envelopeRef.current;
+    const rest = restRef.current;
+    if (kindRef.current === "figure" && env && rest) {
+      for (const entry of musclesRef.current) {
+        paintFigureMesh(entry, intensities, selected, env, rest, BASE, HOT);
+      }
+    } else {
+      for (const entry of musclesRef.current) {
+        paintMuscle(entry, intensities, selected);
+      }
     }
     renderRef.current();
   }, [intensities, selected]);

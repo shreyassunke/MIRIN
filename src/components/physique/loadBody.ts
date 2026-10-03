@@ -4,31 +4,16 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { Gender } from "../../lib/body";
 import { regionFromAnatomy, type RegionId } from "../../lib/muscleRegions";
 
-const MODEL_URL = "/models/body.glb";
+const MALE_URL = "/models/body.glb";
+const FEMALE_URL = "/models/body-female.glb";
 const DRACO_PATH = "/draco/";
 const FIT = 1.72;
-
-const TORSO_REGIONS = new Set<RegionId>([
-  "chest",
-  "abs",
-  "lats",
-  "traps",
-  "lower-back",
-  "glutes",
-]);
-const SHOULDER_REGIONS = new Set<RegionId>([
-  "front-delt",
-  "side-delt",
-  "rear-delt",
-]);
-const LEG_REGIONS = new Set<RegionId>(["quads", "hamstrings"]);
-
-const _world = new THREE.Vector3();
-const _inv = new THREE.Matrix4();
 
 const _box = new THREE.Box3();
 const _size = new THREE.Vector3();
 const _center = new THREE.Vector3();
+const _world = new THREE.Vector3();
+const _tint = new THREE.Color();
 
 export interface PhysiqueEnvelope {
   halfH: number;
@@ -104,7 +89,15 @@ export interface PhysiqueMesh {
   regionId: RegionId | null;
 }
 
-let sourcePromise: Promise<THREE.Group> | null = null;
+export type PhysiqueKind = "anatomy" | "figure";
+
+export interface PreparedPhysique {
+  root: THREE.Group;
+  muscles: PhysiqueMesh[];
+  kind: PhysiqueKind;
+}
+
+const sourcePromises = new Map<Gender, Promise<THREE.Group>>();
 
 function extrasOf(obj: THREE.Object3D): {
   type?: string;
@@ -124,36 +117,55 @@ function extrasOf(obj: THREE.Object3D): {
   return {};
 }
 
-export function loadPhysiqueSource(): Promise<THREE.Group> {
-  if (!sourcePromise) {
-    sourcePromise = (async () => {
-      const draco = new DRACOLoader();
-      draco.setDecoderPath(DRACO_PATH);
-      const loader = new GLTFLoader();
-      loader.setDRACOLoader(draco);
-      try {
-        const gltf = await loader.loadAsync(MODEL_URL);
-        return gltf.scene;
-      } catch (err) {
-        sourcePromise = null;
-        throw err;
-      } finally {
-        draco.dispose();
-      }
-    })();
-  }
-  return sourcePromise;
+export function loadPhysiqueSource(gender: Gender = "male"): Promise<THREE.Group> {
+  const cached = sourcePromises.get(gender);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    const draco = new DRACOLoader();
+    draco.setDecoderPath(DRACO_PATH);
+    const loader = new GLTFLoader();
+    loader.setDRACOLoader(draco);
+    try {
+      const url = gender === "female" ? FEMALE_URL : MALE_URL;
+      const gltf = await loader.loadAsync(url);
+      return gltf.scene;
+    } catch (err) {
+      sourcePromises.delete(gender);
+      throw err;
+    } finally {
+      draco.dispose();
+    }
+  })();
+  sourcePromises.set(gender, promise);
+  return promise;
+}
+
+function fitPrepared(root: THREE.Group) {
+  root.updateMatrixWorld(true);
+  const raw = visibleEnvelope(root);
+  const scale = FIT / Math.max(raw.halfH * 2, 0.001);
+  root.scale.setScalar(scale);
+  root.position.set(-raw.cx * scale, -raw.cy * scale, -raw.cz * scale);
 }
 
 export function preparePhysique(
   source: THREE.Group,
   gender: Gender = "male",
-): {
-  root: THREE.Group;
-  muscles: PhysiqueMesh[];
-} {
+): PreparedPhysique {
   const root = source.clone(true);
   const muscles: PhysiqueMesh[] = [];
+
+  if (gender === "female") {
+    root.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const name = obj.name.toLowerCase();
+      if (name.includes("eye")) return;
+      muscles.push({ mesh: obj, regionId: null });
+    });
+    fitPrepared(root);
+    return { root, muscles, kind: "figure" };
+  }
 
   root.traverse((obj) => {
     if (!(obj instanceof THREE.Mesh)) return;
@@ -167,97 +179,83 @@ export function preparePhysique(
       regionId: regionFromAnatomy(meta.name, meta.nameDetail),
     });
   });
-
-  root.updateMatrixWorld(true);
-  if (gender === "female") applyFemalePhysique(root, muscles);
-  const raw = visibleEnvelope(root);
-  const scale = FIT / Math.max(raw.halfH * 2, 0.001);
-  root.scale.setScalar(scale);
-  root.position.set(-raw.cx * scale, -raw.cy * scale, -raw.cz * scale);
-
-  return { root, muscles };
+  fitPrepared(root);
+  return { root, muscles, kind: "anatomy" };
 }
 
-function lerpKeys(y: number, keys: readonly (readonly [number, number])[]) {
-  if (y <= keys[0][0]) return keys[0][1];
-  const last = keys[keys.length - 1];
-  if (y >= last[0]) return last[1];
-  for (let i = 1; i < keys.length; i++) {
-    const [y1, v1] = keys[i - 1];
-    const [y2, v2] = keys[i];
-    if (y <= y2) {
-      return THREE.MathUtils.lerp(v1, v2, (y - y1) / (y2 - y1));
-    }
+/** Map a point on the female figure onto a training region. */
+export function classifyFigureRegion(
+  point: THREE.Vector3,
+  env: PhysiqueEnvelope,
+): RegionId | null {
+  const height = env.halfH * 2;
+  const y01 = THREE.MathUtils.clamp(
+    (point.y - (env.cy - env.halfH)) / height,
+    0,
+    1,
+  );
+  const xN = point.x / Math.max(env.halfR, 0.01);
+  const zN = point.z / Math.max(env.halfR, 0.01);
+  const ax = Math.abs(xN);
+  if (y01 > 0.84 || y01 < 0.07) return null;
+
+  const arm = ax > 0.42 && y01 > 0.38 && y01 < 0.82;
+  if (arm) {
+    if (y01 < 0.58) return "forearms";
+    if (y01 < 0.7) return zN >= 0 ? "biceps" : "triceps";
+    if (zN > 0.12) return "front-delt";
+    if (zN < -0.12) return "rear-delt";
+    return "side-delt";
   }
-  return last[1];
+
+  if (y01 < 0.28) return "calves";
+  if (y01 < 0.5) return zN >= 0 ? "quads" : "hamstrings";
+  if (y01 < 0.58) {
+    if (zN < -0.05) return "glutes";
+    return zN >= 0 ? "quads" : "hamstrings";
+  }
+  if (y01 < 0.68) {
+    if (zN < -0.08) return ax > 0.18 ? "lats" : "lower-back";
+    return "abs";
+  }
+  if (y01 < 0.76) {
+    if (zN < -0.05) return ax > 0.16 ? "lats" : "traps";
+    return "chest";
+  }
+  if (zN > 0.1) return "front-delt";
+  if (zN < -0.1) return "rear-delt";
+  if (ax > 0.22) return "side-delt";
+  return "traps";
 }
 
-/** Narrower shoulders, cinched waist, wider hips — same named muscles. */
-function applyFemalePhysique(root: THREE.Group, muscles: PhysiqueMesh[]) {
-  const env = visibleEnvelope(root);
-  const y0 = env.cy - env.halfH;
-  const height = Math.max(env.halfH * 2, 0.001);
-  const xKeys = [
-    [0.0, 0.95],
-    [0.32, 0.92],
-    [0.46, 1.06],
-    [0.54, 1.3],
-    [0.62, 0.78],
-    [0.7, 0.88],
-    [0.78, 0.74],
-    [0.9, 0.9],
-    [1.0, 0.93],
-  ] as const;
-  const zKeys = [
-    [0.0, 0.95],
-    [0.5, 1.08],
-    [0.54, 1.16],
-    [0.62, 0.88],
-    [0.7, 1.08],
-    [0.78, 0.9],
-    [1.0, 0.93],
-  ] as const;
-
-  for (const entry of muscles) {
-    const mesh = entry.mesh;
-    const geo = mesh.geometry.clone();
-    mesh.geometry = geo;
-    const pos = geo.getAttribute("position");
-    if (!pos) continue;
-    mesh.updateWorldMatrix(true, false);
-    _inv.copy(mesh.matrixWorld).invert();
-    for (let i = 0; i < pos.count; i++) {
-      _world.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
-      const y01 = THREE.MathUtils.clamp((_world.y - y0) / height, 0, 1);
-      const region = entry.regionId;
-      if (region && TORSO_REGIONS.has(region)) {
-        _world.x *= lerpKeys(y01, xKeys);
-        _world.z *= lerpKeys(y01, zKeys);
-        if (region === "chest" && _world.z > 0) {
-          const band = Math.exp(-(((y01 - 0.69) / 0.05) ** 2));
-          const side = Math.min(Math.abs(_world.x) / Math.max(env.halfR * 0.5, 0.01), 1);
-          _world.z += height * 0.058 * band * (0.3 + 0.7 * side);
-        }
-        if (region === "glutes" && _world.z < 0) {
-          const band = Math.exp(-(((y01 - 0.53) / 0.045) ** 2));
-          _world.z -= height * 0.048 * band;
-          _world.x *= 1.08;
-        }
-      } else if (region && SHOULDER_REGIONS.has(region)) {
-        _world.x *= 0.78;
-      } else if (region && LEG_REGIONS.has(region)) {
-        const hip = THREE.MathUtils.smoothstep(0.42, 0.56, y01);
-        _world.x *= 1 + 0.18 * hip;
-        const knee = Math.max(0, 1 - Math.abs(y01 - 0.33) / 0.07);
-        _world.x *= 1 - 0.05 * knee;
-      } else if (!region && y01 > 0.83) {
-        _world.x *= 0.93;
-        _world.z *= 0.93;
-      }
-      _world.applyMatrix4(_inv);
-      pos.setXYZ(i, _world.x, _world.y, _world.z);
-    }
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
+export function paintFigureMesh(
+  entry: PhysiqueMesh,
+  intensities: Record<RegionId, number>,
+  selected: RegionId | null,
+  env: PhysiqueEnvelope,
+  rest: THREE.Object3D,
+  base: THREE.Color,
+  hot: THREE.Color,
+) {
+  const mesh = entry.mesh;
+  const geo = mesh.geometry;
+  const pos = geo.getAttribute("position");
+  if (!pos) return;
+  let color = geo.getAttribute("color") as THREE.BufferAttribute | undefined;
+  if (!color || color.count !== pos.count) {
+    color = new THREE.BufferAttribute(new Float32Array(pos.count * 3), 3);
+    geo.setAttribute("color", color);
   }
+  mesh.updateWorldMatrix(true, false);
+  const scratch = _tint;
+  for (let i = 0; i < pos.count; i++) {
+    _world.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+    rest.worldToLocal(_world);
+    const region = classifyFigureRegion(_world, env);
+    const intensity = region ? (intensities[region] ?? 0) : 0;
+    scratch.copy(base).lerp(hot, intensity);
+    if (region && region === selected) scratch.lerp(hot, 0.35);
+    color.setXYZ(i, scratch.r, scratch.g, scratch.b);
+  }
+  color.needsUpdate = true;
 }

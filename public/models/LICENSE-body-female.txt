@@ -1,0 +1,8 @@
+CC0 1.0 Universal
+
+The female physique (`body-female.glb`) is exported from Blender Studio's
+Human Base Meshes bundle (GEO-body_female_realistic), dedicated to the
+public domain under CC0 1.0.
+
+https://creativecommons.org/publicdomain/zero/1.0/
+https://www.blender.org/download/demo-files/
