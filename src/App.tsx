@@ -22,6 +22,9 @@ const SplitEditor = lazy(() =>
 const Profile = lazy(() =>
   import("./screens/Profile").then((m) => ({ default: m.Profile })),
 );
+const ProfileAccount = lazy(() =>
+  import("./screens/Profile").then((m) => ({ default: m.ProfileAccount })),
+);
 const ProfileDetails = lazy(() =>
   import("./screens/ProfileDetails").then((m) => ({
     default: m.ProfileDetails,
@@ -67,13 +70,10 @@ export default function App() {
         <Route path="/" element={<Navigate to="/today" replace />} />
         <Route path="/today" element={<Today />} />
         <Route path="/exercise/:id" element={<ExerciseDetail />} />
-        <Route
-          path="/progress"
-          element={<Navigate to="/profile/progress" replace />}
-        />
+        <Route path="/progress" element={<Navigate to="/profile" replace />} />
         <Route
           path="/history/progress"
-          element={<Navigate to="/profile/progress" replace />}
+          element={<Navigate to="/profile" replace />}
         />
         <Route path="/history" element={<History />} />
         <Route path="/history/session/:sessionId" element={<SessionDetail />} />
@@ -85,12 +85,17 @@ export default function App() {
         </Route>
         <Route path="/split" element={<SplitEditor />} />
         <Route path="/profile" element={<Profile />}>
-          <Route path="progress" element={<Trends />} />
+          <Route index element={<Trends />} />
         </Route>
+        <Route path="/profile/account" element={<ProfileAccount />} />
+        <Route
+          path="/profile/progress"
+          element={<Navigate to="/profile" replace />}
+        />
         <Route path="/profile/details" element={<ProfileDetails />} />
         <Route
           path="/profile/appearance"
-          element={<Navigate to="/profile" replace />}
+          element={<Navigate to="/profile/account" replace />}
         />
         <Route
           path="/profile/measurements"

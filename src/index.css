@@ -620,88 +620,40 @@ textarea {
   animation: mirin-fade-in 160ms var(--ease-out-expo) both;
 }
 
-/* Profile Account ↔ Progress. The title and segment stay; the body turns. */
-.profile-pane {
-  view-transition-name: profile-pane;
-}
-
-html[data-pane-slide]::view-transition-old(root),
-html[data-pane-slide]::view-transition-new(root) {
-  animation: none;
-}
-
-html[data-pane-slide]::view-transition-group(profile-pane) {
-  animation-duration: 320ms;
-  animation-timing-function: var(--ease-out-expo);
-}
-
-html[data-pane-slide]::view-transition-old(profile-pane),
-html[data-pane-slide]::view-transition-new(profile-pane) {
-  mix-blend-mode: normal;
-  height: 100%;
-  object-fit: none;
-  object-position: left top;
+/*
+  Identity row hover. The wash fills the glass and is clipped to its radius,
+  so the highlight meets the stroke instead of cutting a square beside the photo.
+*/
+.identity-card {
+  position: relative;
+  isolation: isolate;
   overflow: clip;
 }
 
-html[data-pane-slide="forward"]::view-transition-old(profile-pane) {
-  animation: profile-pane-leave-back 180ms var(--ease-out-expo) both;
+.identity-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--color-wash);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms var(--ease-out-quint);
 }
 
-html[data-pane-slide="forward"]::view-transition-new(profile-pane) {
-  animation: profile-pane-enter-forward 320ms var(--ease-out-expo) both;
+.identity-card:hover::before,
+.identity-card:has(.identity-link:focus-visible)::before {
+  opacity: 1;
 }
 
-html[data-pane-slide="back"]::view-transition-old(profile-pane) {
-  animation: profile-pane-leave-forward 180ms var(--ease-out-expo) both;
+.identity-link:focus-visible {
+  outline: none;
 }
 
-html[data-pane-slide="back"]::view-transition-new(profile-pane) {
-  animation: profile-pane-enter-back 320ms var(--ease-out-expo) both;
-}
-
-@keyframes profile-pane-leave-back {
-  to {
-    opacity: 0;
-    transform: translateX(-12px);
-    filter: blur(2px);
-  }
-}
-
-@keyframes profile-pane-enter-forward {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-    filter: blur(2px);
-  }
-}
-
-@keyframes profile-pane-leave-forward {
-  to {
-    opacity: 0;
-    transform: translateX(12px);
-    filter: blur(2px);
-  }
-}
-
-@keyframes profile-pane-enter-back {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-    filter: blur(2px);
-  }
-}
-
-@keyframes profile-pane-fade-out {
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes profile-pane-fade-in {
-  from {
-    opacity: 0;
-  }
+.identity-card:has(.identity-link:focus-visible) {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
 }
 
 /* Load instrument pager — finger-tracked equipment pages */
@@ -849,18 +801,6 @@ html.reorder-active [data-reorder-index] {
 
   .load-pager-page {
     transform: none !important;
-  }
-
-  html[data-pane-slide]::view-transition-group(profile-pane) {
-    animation: none;
-  }
-
-  html[data-pane-slide]::view-transition-old(profile-pane) {
-    animation: profile-pane-fade-out 140ms linear both;
-  }
-
-  html[data-pane-slide]::view-transition-new(profile-pane) {
-    animation: profile-pane-fade-in 140ms linear both;
   }
 }
 

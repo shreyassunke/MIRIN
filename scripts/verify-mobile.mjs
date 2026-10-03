@@ -135,8 +135,8 @@ await page.waitForTimeout(800);
 await expect("progress renders under profile", () =>
   page.getByRole("heading", { name: "Profile", exact: true }).isVisible(),
 );
-await expect("progress tab is the active profile view", () =>
-  page.getByRole("link", { name: "Progress", exact: true }).isVisible(),
+await expect("account opens from the profile gear", () =>
+  page.getByRole("link", { name: "Account", exact: true }).isVisible(),
 );
 await page.goto(`${BASE}/log`, { waitUntil: "networkidle" });
 await page.waitForTimeout(600);
