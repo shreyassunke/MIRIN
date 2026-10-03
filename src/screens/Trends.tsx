@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type SetLog, type WorkoutSession } from "../db/db";
@@ -5,32 +6,20 @@ import { formatDate, setVolume } from "../lib/workout";
 import { toDisplay, type Unit } from "../lib/units";
 import { useUnit } from "../lib/settings";
 import { TrendChart, type TrendPoint } from "../components/TrendChart";
-
-/** The priority lifts to watch separately (shoulder/lat width levers). */
-const WEAK_POINTS: { label: string; exerciseIds: string[] }[] = [
-  { label: "Lateral Raise", exerciseIds: ["lateral-raise"] },
-  { label: "Rear Delt Flye", exerciseIds: ["rear-delt-flye"] },
-  {
-    label: "Incline Press",
-    exerciseIds: ["incline-barbell-press", "incline-db-press"],
-  },
-];
+import { Physique } from "../components/physique/Physique";
+import {
+  busiestRegion,
+  REGION_LABEL,
+  regionIntensities,
+  volumeByRegion,
+  type RegionId,
+} from "../lib/muscleRegions";
 
 function volumeTrend(
   sessions: WorkoutSession[],
-  logs: SetLog[],
   unit: Unit,
-  exerciseIds?: string[],
+  bySession: Map<string, number>,
 ): TrendPoint[] {
-  const filter = exerciseIds ? new Set(exerciseIds) : null;
-  const bySession = new Map<string, number>();
-  for (const log of logs) {
-    if (filter && !filter.has(log.exerciseId)) continue;
-    bySession.set(
-      log.sessionId,
-      (bySession.get(log.sessionId) ?? 0) + setVolume(log),
-    );
-  }
   return sessions
     .filter((s) => s.completed && bySession.has(s.id))
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -40,22 +29,53 @@ function volumeTrend(
     }));
 }
 
+function overallBySession(logs: SetLog[]): Map<string, number> {
+  const bySession = new Map<string, number>();
+  for (const log of logs) {
+    bySession.set(
+      log.sessionId,
+      (bySession.get(log.sessionId) ?? 0) + setVolume(log),
+    );
+  }
+  return bySession;
+}
+
 export function Trends() {
   const [unit] = useUnit();
+  const [picked, setPicked] = useState<RegionId | null>(null);
   const data = useLiveQuery(async () => {
-    const [sessions, logs] = await Promise.all([
+    const [sessions, logs, exercises] = await Promise.all([
       db.sessions.toArray(),
       db.setLogs.toArray(),
+      db.exercises.toArray(),
     ]);
-    return { sessions, logs };
+    return { sessions, logs, exercises };
   }, []);
 
-  if (!data) {
+  const volumes = useMemo(
+    () =>
+      data ? volumeByRegion(data.sessions, data.logs, data.exercises) : null,
+    [data],
+  );
+  const intensities = useMemo(
+    () => (volumes ? regionIntensities(volumes) : null),
+    [volumes],
+  );
+
+  if (!data || !volumes || !intensities) {
     return <p className="text-sm text-muted">Loading…</p>;
   }
 
-  const overall = volumeTrend(data.sessions, data.logs, unit);
+  const selected = picked ?? busiestRegion(volumes);
+  const region = volumes[selected];
+  const regionTrend = volumeTrend(data.sessions, unit, region.bySession);
+  const overall = volumeTrend(
+    data.sessions,
+    unit,
+    overallBySession(data.logs),
+  );
   const hasAny = data.logs.length > 0;
+  const contributors = region.contributors.slice(0, 4);
 
   return (
     <div>
@@ -83,37 +103,43 @@ export function Trends() {
       </section>
 
       <section>
-        <h2 className="mb-1 text-lg font-semibold tracking-tight">
-          Weak points
-        </h2>
-        <p className="mb-4 max-w-[65ch] text-sm leading-relaxed text-muted">
-          The lifts tracked separately: shoulder and lat width are the main
-          visual levers.
+        <h2 className="mb-3 text-[13px] font-medium text-muted">Muscles</h2>
+        <Physique
+          intensities={intensities}
+          selected={selected}
+          onSelect={setPicked}
+        />
+        <p className="mt-2 mb-6 text-[11px] leading-relaxed text-muted">
+          Z-Anatomy / BodyParts3D, CC BY-SA 4.0
         </p>
-        <div className="space-y-6">
-          {WEAK_POINTS.map((wp) => (
-            <div key={wp.label}>
-              <div className="mb-2 flex items-baseline justify-between">
-                <h3 className="text-[15px] font-semibold tracking-tight">
-                  {wp.label}
-                </h3>
-                {wp.exerciseIds.length === 1 && (
-                  <Link
-                    to={`/exercise/${wp.exerciseIds[0]}`}
-                    className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-                  >
-                    History
-                  </Link>
-                )}
-              </div>
-              <TrendChart
-                data={volumeTrend(data.sessions, data.logs, unit, wp.exerciseIds)}
-                height={140}
-                valueLabel={unit}
-              />
-            </div>
-          ))}
+
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <h3 className="text-[15px] font-semibold tracking-tight">
+            {REGION_LABEL[selected]}
+          </h3>
+          {contributors.length === 1 ? (
+            <Link
+              to={`/exercise/${contributors[0].id}`}
+              className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+            >
+              History
+            </Link>
+          ) : null}
         </div>
+        {contributors.length > 1 ? (
+          <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1">
+            {contributors.map((lift) => (
+              <Link
+                key={lift.id}
+                to={`/exercise/${lift.id}`}
+                className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+              >
+                {lift.name}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+        <TrendChart data={regionTrend} height={140} valueLabel={unit} />
       </section>
     </div>
   );

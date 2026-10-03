@@ -29,6 +29,30 @@ export default defineConfig({
               },
             },
           },
+          {
+            urlPattern: /\/models\/body\.glb$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "physique-model",
+              expiration: {
+                maxEntries: 2,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /\/draco\/.*$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "physique-draco",
+              expiration: {
+                maxEntries: 8,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),
