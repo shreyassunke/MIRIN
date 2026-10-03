@@ -7,14 +7,16 @@ import {
   loadPhysiqueSource,
   preparePhysique,
   visibleEnvelope,
+  PHYSIQUE_ZOOM_MAX,
+  PHYSIQUE_ZOOM_MIN,
   type PhysiqueEnvelope,
   type PhysiqueMesh,
 } from "./loadBody";
+
 const TAP_PX = 12;
-const PITCH_MAX = THREE.MathUtils.degToRad(48);
-const BASE = new THREE.Color("#454545");
-const HOT = new THREE.Color("#c8c8c8");
-const SELECTED_EMISSIVE = new THREE.Color("#ececec");
+const BASE = new THREE.Color("#7a7a7a");
+const HOT = new THREE.Color("#f4f4f4");
+const SELECTED_EMISSIVE = new THREE.Color("#ffffff");
 const NO_EMISSIVE = new THREE.Color(0x000000);
 
 function prefersReducedMotion() {
@@ -35,7 +37,13 @@ function paintMuscle(
   mat.color.copy(BASE).lerp(HOT, intensity);
   const on = entry.regionId !== null && entry.regionId === selected;
   mat.emissive.copy(on ? SELECTED_EMISSIVE : NO_EMISSIVE);
-  mat.emissiveIntensity = on ? 0.07 : 0;
+  mat.emissiveIntensity = on ? 0.14 : 0;
+}
+
+function pinchDistance(points: Map<number, { x: number; y: number }>) {
+  if (points.size < 2) return 0;
+  const [a, b] = [...points.values()];
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 export function PhysiqueCanvas({
@@ -69,23 +77,28 @@ export function PhysiqueCanvas({
 
     let cancelled = false;
     let raf = 0;
-    let yaw = 0.28;
-    let pitch = 0.08;
+    let yaw = 0.18;
     let targetYaw = yaw;
-    let targetPitch = pitch;
+    let zoom = 1;
+    let targetZoom = 1;
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     const ownedMats: THREE.MeshStandardMaterial[] = [];
     const reduced = prefersReducedMotion();
+    const pointers = new Map<number, { x: number; y: number }>();
 
     const drag = {
       id: -1,
       x: 0,
       y: 0,
       yaw: 0,
-      pitch: 0,
       captured: false,
       discarded: false,
+    };
+    const pinch = {
+      active: false,
+      startDist: 0,
+      startZoom: 1,
     };
 
     const renderer = new THREE.WebGLRenderer({
@@ -98,7 +111,7 @@ export function PhysiqueCanvas({
     renderer.setClearColor(0x0a0a0a, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.14;
     const canvas = renderer.domElement;
     canvas.style.display = "block";
     canvas.style.width = "100%";
@@ -110,20 +123,20 @@ export function PhysiqueCanvas({
 
     const scene = new THREE.Scene();
     scene.background = null;
-    const key = new THREE.DirectionalLight(0xf0f0f0, 0.82);
-    key.position.set(0.15, 1.7, 2.1);
+    const key = new THREE.DirectionalLight(0xffffff, 1.08);
+    key.position.set(0.2, 1.7, 2.2);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xd8d8d8, 0.5);
-    fill.position.set(-1.4, 0.5, 1.5);
+    const fill = new THREE.DirectionalLight(0xf0f0f0, 0.68);
+    fill.position.set(-1.5, 0.6, 1.4);
     scene.add(fill);
-    const front = new THREE.DirectionalLight(0xcfcfcf, 0.38);
-    front.position.set(0, 0.3, 2.6);
+    const front = new THREE.DirectionalLight(0xe8e8e8, 0.55);
+    front.position.set(0, 0.25, 2.7);
     scene.add(front);
-    const rim = new THREE.DirectionalLight(0xffffff, 0.28);
-    rim.position.set(0.15, 1.1, -1.8);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.32);
+    rim.position.set(0.1, 1.0, -1.8);
     scene.add(rim);
-    scene.add(new THREE.HemisphereLight(0xe4e4e4, 0x2a2a2a, 0.42));
-    scene.add(new THREE.AmbientLight(0x8a8a8a, 0.48));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1a1a, 0.48));
+    scene.add(new THREE.AmbientLight(0xb0b0b0, 0.52));
 
     const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 40);
     const pivot = new THREE.Group();
@@ -133,7 +146,7 @@ export function PhysiqueCanvas({
 
     const applyPivot = () => {
       pivot.rotation.y = yaw;
-      pivot.rotation.x = pitch;
+      pivot.rotation.x = 0;
     };
 
     const render = () => {
@@ -141,22 +154,29 @@ export function PhysiqueCanvas({
     };
     renderRef.current = render;
 
+    const applyFit = () => {
+      const w = Math.max(1, host.clientWidth);
+      const h = Math.max(1, host.clientHeight);
+      if (envelope) fitPhysiqueCamera(camera, envelope, w, h, zoom);
+    };
+
     const kick = () => {
       if (raf) return;
       const loop = () => {
         raf = 0;
         if (reduced) {
           yaw = targetYaw;
-          pitch = targetPitch;
+          zoom = targetZoom;
         } else {
           yaw += (targetYaw - yaw) * 0.18;
-          pitch += (targetPitch - pitch) * 0.18;
+          zoom += (targetZoom - zoom) * 0.22;
         }
         applyPivot();
+        applyFit();
         render();
         const still =
           Math.abs(targetYaw - yaw) < 0.0004 &&
-          Math.abs(targetPitch - pitch) < 0.0004;
+          Math.abs(targetZoom - zoom) < 0.0008;
         if (!still) raf = requestAnimationFrame(loop);
       };
       raf = requestAnimationFrame(loop);
@@ -169,7 +189,7 @@ export function PhysiqueCanvas({
       renderer.setPixelRatio(dpr);
       renderer.setSize(w, h, false);
       if (envelope) {
-        fitPhysiqueCamera(camera, envelope, w, h);
+        fitPhysiqueCamera(camera, envelope, w, h, zoom);
       } else {
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
@@ -196,18 +216,50 @@ export function PhysiqueCanvas({
       onSelectRef.current(muscle.regionId);
     };
 
+    const setZoom = (next: number) => {
+      targetZoom = THREE.MathUtils.clamp(
+        next,
+        PHYSIQUE_ZOOM_MIN,
+        PHYSIQUE_ZOOM_MAX,
+      );
+      kick();
+    };
+
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size >= 2) {
+        pinch.active = true;
+        pinch.startDist = pinchDistance(pointers);
+        pinch.startZoom = targetZoom;
+        drag.id = -1;
+        drag.discarded = true;
+        drag.captured = false;
+        host.setPointerCapture(e.pointerId);
+        return;
+      }
       drag.id = e.pointerId;
       drag.x = e.clientX;
       drag.y = e.clientY;
       drag.yaw = targetYaw;
-      drag.pitch = targetPitch;
       drag.captured = false;
       drag.discarded = false;
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      const point = pointers.get(e.pointerId);
+      if (point) {
+        point.x = e.clientX;
+        point.y = e.clientY;
+      }
+      if (pinch.active && pointers.size >= 2) {
+        e.preventDefault();
+        const dist = pinchDistance(pointers);
+        if (pinch.startDist > 10) {
+          setZoom(pinch.startZoom * (dist / pinch.startDist));
+        }
+        return;
+      }
       if (drag.id !== e.pointerId) return;
       const dx = e.clientX - drag.x;
       const dy = e.clientY - drag.y;
@@ -224,27 +276,36 @@ export function PhysiqueCanvas({
       e.preventDefault();
       const rect = host.getBoundingClientRect();
       targetYaw = drag.yaw + (dx / Math.max(rect.width, 1)) * Math.PI * 1.6;
-      targetPitch = THREE.MathUtils.clamp(
-        drag.pitch + (dy / Math.max(rect.height, 1)) * Math.PI * 0.7,
-        -PITCH_MAX,
-        PITCH_MAX,
-      );
       kick();
     };
 
     const onPointerUp = (e: PointerEvent) => {
+      const wasPinch = pinch.active;
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinch.active = false;
+      if (host.hasPointerCapture(e.pointerId)) {
+        host.releasePointerCapture(e.pointerId);
+      }
+      if (wasPinch) {
+        drag.id = -1;
+        drag.discarded = true;
+        return;
+      }
       if (drag.id !== e.pointerId) return;
       const captured = drag.captured;
       const discarded = drag.discarded;
       const startX = drag.x;
       const startY = drag.y;
       drag.id = -1;
-      if (host.hasPointerCapture(e.pointerId)) {
-        host.releasePointerCapture(e.pointerId);
-      }
       if (captured || discarded) return;
       if (Math.hypot(e.clientX - startX, e.clientY - startY) > TAP_PX) return;
       pick(e.clientX, e.clientY);
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom(targetZoom * Math.exp(-e.deltaY * 0.01));
     };
 
     applyPivot();
@@ -254,6 +315,7 @@ export function PhysiqueCanvas({
     host.addEventListener("pointermove", onPointerMove);
     host.addEventListener("pointerup", onPointerUp);
     host.addEventListener("pointercancel", onPointerUp);
+    host.addEventListener("wheel", onWheel, { passive: false });
     fit();
 
     void loadPhysiqueSource()
@@ -263,9 +325,9 @@ export function PhysiqueCanvas({
         for (const entry of prepared.muscles) {
           const mat = new THREE.MeshStandardMaterial({
             color: BASE.clone(),
-            roughness: 0.64,
-            metalness: 0.02,
-            envMapIntensity: 0.2,
+            roughness: 0.52,
+            metalness: 0.03,
+            envMapIntensity: 0.18,
             vertexColors: false,
           });
           ownedMats.push(mat);
@@ -276,13 +338,11 @@ export function PhysiqueCanvas({
           paintMuscle(entry, intensitiesRef.current, selectedRef.current);
         }
         const yaw0 = pivot.rotation.y;
-        const pitch0 = pivot.rotation.x;
         pivot.rotation.set(0, 0, 0);
         pivot.add(prepared.root);
         pivot.updateWorldMatrix(true, true);
         envelope = visibleEnvelope(pivot);
         pivot.rotation.y = yaw0;
-        pivot.rotation.x = pitch0;
         setStatus("ready");
         fit();
         kick();
@@ -300,6 +360,7 @@ export function PhysiqueCanvas({
       host.removeEventListener("pointermove", onPointerMove);
       host.removeEventListener("pointerup", onPointerUp);
       host.removeEventListener("pointercancel", onPointerUp);
+      host.removeEventListener("wheel", onWheel);
       if (raf) cancelAnimationFrame(raf);
       musclesRef.current = [];
       renderRef.current = () => {};
@@ -323,8 +384,8 @@ export function PhysiqueCanvas({
       role="img"
       aria-label={
         selected
-          ? `Physique, ${REGION_LABEL[selected]} selected`
-          : "Physique, tap a muscle to see its volume"
+          ? `Physique, ${REGION_LABEL[selected]} selected. Drag to spin, pinch to zoom.`
+          : "Physique. Drag to spin, pinch to zoom, tap a muscle for its volume."
       }
       data-physique-status={status}
     >

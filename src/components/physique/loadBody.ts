@@ -54,19 +54,25 @@ export function visibleEnvelope(root: THREE.Object3D): PhysiqueEnvelope {
  * Park the camera so the standing figure clears the frame on any aspect.
  * Height is the usual limiter; radius covers a side view after orbit.
  */
+export const PHYSIQUE_ZOOM_MIN = 1;
+export const PHYSIQUE_ZOOM_MAX = 2.8;
+
 export function fitPhysiqueCamera(
   camera: THREE.PerspectiveCamera,
   envelope: PhysiqueEnvelope,
   width: number,
   height: number,
+  zoom = 1,
   pad = 1.18,
 ) {
   camera.aspect = Math.max(width / Math.max(height, 1), 0.2);
   const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-  const dist = Math.max(
-    (envelope.halfH * pad) / tan,
-    (envelope.halfR * pad) / (tan * camera.aspect),
-  );
+  const z = THREE.MathUtils.clamp(zoom, PHYSIQUE_ZOOM_MIN, PHYSIQUE_ZOOM_MAX);
+  const dist =
+    Math.max(
+      (envelope.halfH * pad) / tan,
+      (envelope.halfR * pad) / (tan * camera.aspect),
+    ) / z;
   camera.position.set(0, envelope.cy, dist);
   camera.lookAt(0, envelope.cy, 0);
   camera.near = Math.max(dist * 0.05, 0.05);
