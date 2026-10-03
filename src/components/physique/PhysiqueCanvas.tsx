@@ -21,7 +21,7 @@ import {
 
 const TAP_PX = 12;
 const FOV = 26;
-/** Past the fitted framing, one finger slides the figure instead of turning it. */
+/** Past the fitted framing, an up or down drag slides the figure. */
 const INSPECT_ZOOM = 1.08;
 const BASE = new THREE.Color("#7a7a7a");
 const HOT = new THREE.Color("#f4f4f4");
@@ -160,14 +160,20 @@ export function PhysiqueCanvas({
     scene.add(new THREE.AmbientLight(0xb0b0b0, 0.52));
 
     const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 40);
+    // Hinge sits on the vertical line through the current view, so a turn
+    // spins the figure around that frame instead of the body's original center.
+    const hinge = new THREE.Group();
     const pivot = new THREE.Group();
     pivot.rotation.order = "YXZ";
-    scene.add(pivot);
+    hinge.add(pivot);
+    scene.add(hinge);
     let envelope: PhysiqueEnvelope | null = null;
 
     const applyPivot = () => {
-      pivot.rotation.y = yaw;
-      pivot.rotation.x = 0;
+      hinge.position.set(panX, 0, 0);
+      hinge.rotation.y = yaw;
+      pivot.position.set(-panX, 0, 0);
+      pivot.rotation.set(0, 0, 0);
     };
 
     const render = () => {
@@ -411,14 +417,15 @@ export function PhysiqueCanvas({
       const dy = e.clientY - drag.y;
       if (!drag.captured) {
         if (Math.hypot(dx, dy) <= TAP_PX) return;
-        // Fitted view: a vertical drag still scrolls the page, a sideways
-        // drag still turns the figure. Zoomed in, one finger slides it.
+        // A vertical drag at the fitted framing still scrolls the page.
+        // Sideways always turns, including after a zoom and a pan. Once
+        // zoomed in, an up or down drag slides the figure.
         if (!inspecting() && Math.abs(dy) >= Math.abs(dx)) {
           drag.discarded = true;
           return;
         }
         drag.captured = true;
-        drag.mode = inspecting() ? "pan" : "yaw";
+        drag.mode = Math.abs(dx) > Math.abs(dy) ? "yaw" : "pan";
         drag.lastX = e.clientX;
         drag.lastY = e.clientY;
         try {
@@ -500,9 +507,7 @@ export function PhysiqueCanvas({
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (pinch.active || (drag.captured && drag.mode === "pan")) {
-        e.preventDefault();
-      }
+      if (pinch.active || drag.captured) e.preventDefault();
     };
 
     applyPivot();
@@ -546,7 +551,10 @@ export function PhysiqueCanvas({
             obj.material = mat;
           });
         }
-        const yaw0 = pivot.rotation.y;
+        const yaw0 = hinge.rotation.y;
+        hinge.rotation.set(0, 0, 0);
+        hinge.position.set(0, 0, 0);
+        pivot.position.set(0, 0, 0);
         pivot.rotation.set(0, 0, 0);
         pivot.add(prepared.root);
         pivot.updateWorldMatrix(true, true);
@@ -570,7 +578,7 @@ export function PhysiqueCanvas({
             paintMuscle(entry, intensitiesRef.current, selectedRef.current);
           }
         }
-        pivot.rotation.y = yaw0;
+        hinge.rotation.y = yaw0;
         setStatus("ready");
         fit();
         kick();
@@ -625,8 +633,8 @@ export function PhysiqueCanvas({
       role="img"
       aria-label={
         selected
-          ? `${gender === "female" ? "Female physique" : "Physique"}, ${REGION_LABEL[selected]} selected. Pinch to zoom in or out. Drag with two fingers, or drag once zoomed in, to move the figure up, down, left, or right. Drag sideways to turn it.`
-          : `${gender === "female" ? "Female physique" : "Physique"}. Pinch to zoom in or out. Drag with two fingers, or drag once zoomed in, to move the figure up, down, left, or right. Drag sideways to turn it. Tap a muscle for its volume.`
+          ? `${gender === "female" ? "Female physique" : "Physique"}, ${REGION_LABEL[selected]} selected. Pinch to zoom in or out. Drag sideways to turn the figure, including after moving it. Drag with two fingers to move it. Once zoomed in, drag up or down to slide it.`
+          : `${gender === "female" ? "Female physique" : "Physique"}. Pinch to zoom in or out. Drag sideways to turn the figure, including after moving it. Drag with two fingers to move it up, down, left, or right. Once zoomed in, drag up or down to slide it. Tap a muscle for its volume.`
       }
       data-physique-status={status}
       data-physique-gender={gender}
