@@ -10,7 +10,7 @@ export function PhysiqueFallback({
   onSelect: (id: RegionId | null) => void;
 }) {
   return (
-    <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+    <ul className="absolute inset-0 grid content-start grid-cols-2 gap-2 overflow-auto sm:grid-cols-3">
       {REGION_IDS.map((id) => {
         const active = id === selected;
         const trained = intensities[id] > 0;
@@ -18,7 +18,8 @@ export function PhysiqueFallback({
           <li key={id}>
             <button
               type="button"
-              onClick={() => onSelect(id)}
+              aria-pressed={active}
+              onClick={() => onSelect(active ? null : id)}
               className={[
                 "h-11 w-full rounded-md border px-3 text-left text-[13px] font-medium transition-colors duration-150",
                 active

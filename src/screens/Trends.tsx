@@ -4,12 +4,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type SetLog, type WorkoutSession } from "../db/db";
 import { formatDate, setVolume } from "../lib/workout";
 import { toDisplay, type Unit } from "../lib/units";
-import { useGender } from "../lib/body";
 import { useUnit } from "../lib/settings";
 import { TrendChart, type TrendPoint } from "../components/TrendChart";
 import { Physique } from "../components/physique/Physique";
 import {
-  busiestRegion,
   REGION_LABEL,
   regionIntensities,
   volumeByRegion,
@@ -43,7 +41,6 @@ function overallBySession(logs: SetLog[]): Map<string, number> {
 
 export function Trends() {
   const [unit] = useUnit();
-  const [gender] = useGender();
   const [picked, setPicked] = useState<RegionId | null>(null);
   const data = useLiveQuery(async () => {
     const [sessions, logs, exercises] = await Promise.all([
@@ -68,72 +65,42 @@ export function Trends() {
     return <p className="text-sm text-muted">Loading…</p>;
   }
 
-  const selected = picked ?? busiestRegion(volumes);
-  const region = volumes[selected];
-  const regionTrend = volumeTrend(data.sessions, unit, region.bySession);
   const overall = volumeTrend(
     data.sessions,
     unit,
     overallBySession(data.logs),
   );
+  const region = picked ? volumes[picked] : null;
+  const points = region
+    ? volumeTrend(data.sessions, unit, region.bySession)
+    : overall;
   const hasAny = data.logs.length > 0;
-  const contributors = region.contributors.slice(0, 4);
+  const contributors = region ? region.contributors.slice(0, 4) : [];
+  const title = picked ? REGION_LABEL[picked] : "Overall volume";
+  const emptyLabel =
+    points.length === 0 && picked
+      ? `No ${title.toLowerCase()} volume yet`
+      : "Not enough sessions yet — log two to see a trend";
 
   return (
-    <div>
-      <p className="mb-6 text-sm text-muted">
-        Volume per completed session, in{" "}
-        {unit === "lb" ? "pounds" : "kilograms"} lifted
-      </p>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="relative min-h-[14rem] min-w-0 flex-1">
+        <Physique
+          intensities={intensities}
+          selected={picked}
+          onSelect={setPicked}
+        />
+      </div>
 
-      {!hasAny && (
-        <p className="mb-8 max-w-[65ch] text-sm leading-relaxed text-muted">
-          Nothing to chart yet. Progress appears after your first completed
-          session on the{" "}
-          <Link to="/today" className="font-medium text-ink">
-            Today
-          </Link>{" "}
-          screen.
-        </p>
-      )}
-
-      <section className="mb-10">
-        <h2 className="mb-2 text-[13px] font-medium text-muted">
-          Overall volume
-        </h2>
-        <TrendChart data={overall} height={200} valueLabel={unit} />
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-[13px] font-medium text-muted">Muscles</h2>
-        <div className="mb-6">
-          <Physique
-            intensities={intensities}
-            selected={picked}
-            onSelect={setPicked}
-          />
-          {gender === "female" ? (
-            <p className="mt-2 text-[11px] leading-relaxed text-muted">
-              Blender Studio Human Base Meshes, CC0
-            </p>
-          ) : null}
+      <section data-physique-metric className="shrink-0 pt-6">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-lg font-semibold tracking-tight" aria-live="polite">
+            {title}
+          </h2>
+          <p className="tnum text-[13px] text-muted">{unit}</p>
         </div>
-
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-          <h3 className="text-[15px] font-semibold tracking-tight">
-            {REGION_LABEL[selected]}
-          </h3>
-          {contributors.length === 1 ? (
-            <Link
-              to={`/exercise/${contributors[0].id}`}
-              className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-            >
-              History
-            </Link>
-          ) : null}
-        </div>
-        {contributors.length > 1 ? (
-          <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1">
+        {contributors.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
             {contributors.map((lift) => (
               <Link
                 key={lift.id}
@@ -144,8 +111,36 @@ export function Trends() {
               </Link>
             ))}
           </div>
-        ) : null}
-        <TrendChart data={regionTrend} height={140} valueLabel={unit} />
+        ) : (
+          <p className="mt-1 text-[13px] leading-relaxed text-muted">
+            Per completed session
+          </p>
+        )}
+        <div className="mt-3">
+          {points.length >= 2 ? (
+            <TrendChart
+              key={picked ?? "overall"}
+              data={points}
+              height={168}
+              valueLabel={unit}
+            />
+          ) : (
+            <p className="max-w-[65ch] pt-2 text-[13px] leading-relaxed text-muted">
+              {!hasAny ? (
+                <>
+                  Nothing to chart yet. Progress appears after a completed
+                  session on{" "}
+                  <Link to="/today" className="font-medium text-ink">
+                    Today
+                  </Link>
+                  .
+                </>
+              ) : (
+                emptyLabel
+              )}
+            </p>
+          )}
+        </div>
       </section>
     </div>
   );

@@ -509,6 +509,14 @@ export function PhysiqueCanvas({
     const stage = host.parentElement;
     const onOutside = (e: PointerEvent) => {
       if (stage && e.target instanceof Node && stage.contains(e.target)) return;
+      // The chart under the figure is the reading of the selection, not a dismiss.
+      const target = e.target;
+      if (
+        target instanceof Element &&
+        target.closest("[data-physique-metric]")
+      ) {
+        return;
+      }
       onSelectRef.current(null);
     };
     const observer = new ResizeObserver(fit);
@@ -638,7 +646,7 @@ export function PhysiqueCanvas({
       role="img"
       aria-label={
         selected
-          ? `${gender === "female" ? "Female physique" : "Physique"}, ${REGION_LABEL[selected]} selected. Pinch to zoom in or out. Drag sideways to turn the figure, including after moving it. Drag with two fingers to move it. Once zoomed in, drag up or down to slide it.`
+          ? `${gender === "female" ? "Female physique" : "Physique"}, ${REGION_LABEL[selected]} selected. Tap empty space for overall volume. Pinch to zoom in or out. Drag sideways to turn the figure, including after moving it. Drag with two fingers to move it. Once zoomed in, drag up or down to slide it.`
           : `${gender === "female" ? "Female physique" : "Physique"}. Pinch to zoom in or out. Drag sideways to turn the figure, including after moving it. Drag with two fingers to move it up, down, left, or right. Once zoomed in, drag up or down to slide it. Tap a muscle for its volume.`
       }
       data-physique-status={status}
