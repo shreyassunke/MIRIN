@@ -23,18 +23,20 @@ export function Profile() {
 
   return (
     <div className="flex h-[calc(100dvh-max(1.25rem,env(safe-area-inset-top))-10rem)] min-h-0 flex-col md:h-[calc(100dvh-5.5rem)]">
-      <h1 className="sr-only">Profile</h1>
-      <div className="relative min-h-0 flex-1">
-        <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
-          {outlet}
-        </Suspense>
+      <header className="mb-4 flex shrink-0 items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
         <Link
           to="/profile/account"
-          className="glass-btn absolute top-0 right-0 z-20 flex h-11 w-11 items-center justify-center rounded-pill text-ink"
+          className="glass-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-pill text-ink"
           aria-label="Account"
         >
           <GearIcon />
         </Link>
+      </header>
+      <div className="relative min-h-0 flex-1">
+        <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
+          {outlet}
+        </Suspense>
       </div>
     </div>
   );
