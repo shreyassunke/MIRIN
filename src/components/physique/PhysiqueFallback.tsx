@@ -7,7 +7,7 @@ export function PhysiqueFallback({
 }: {
   intensities: Record<RegionId, number>;
   selected: RegionId | null;
-  onSelect: (id: RegionId) => void;
+  onSelect: (id: RegionId | null) => void;
 }) {
   return (
     <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">

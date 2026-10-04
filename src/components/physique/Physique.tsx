@@ -28,7 +28,7 @@ export function Physique({
 }: {
   intensities: Record<RegionId, number>;
   selected: RegionId | null;
-  onSelect: (id: RegionId) => void;
+  onSelect: (id: RegionId | null) => void;
 }) {
   const [failed, setFailed] = useState(false);
   const onError = useCallback(() => setFailed(true), []);
@@ -63,7 +63,6 @@ export function Physique({
         <PhysiqueCanvas
           key={gender}
           gender={gender}
-          intensities={intensities}
           selected={selected}
           onSelect={onSelect}
           onError={onError}

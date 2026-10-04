@@ -106,16 +106,18 @@ export function Trends() {
 
       <section>
         <h2 className="mb-3 text-[13px] font-medium text-muted">Muscles</h2>
-        <Physique
-          intensities={intensities}
-          selected={selected}
-          onSelect={setPicked}
-        />
-        <p className="mt-2 mb-6 text-[11px] leading-relaxed text-muted">
-          {gender === "female"
-            ? "Blender Studio Human Base Meshes, CC0"
-            : "Z-Anatomy / BodyParts3D, CC BY-SA 4.0"}
-        </p>
+        <div className="mb-6">
+          <Physique
+            intensities={intensities}
+            selected={picked}
+            onSelect={setPicked}
+          />
+          {gender === "female" ? (
+            <p className="mt-2 text-[11px] leading-relaxed text-muted">
+              Blender Studio Human Base Meshes, CC0
+            </p>
+          ) : null}
+        </div>
 
         <div className="mb-2 flex items-baseline justify-between gap-3">
           <h3 className="text-[15px] font-semibold tracking-tight">

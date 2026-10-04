@@ -23,8 +23,9 @@ const TAP_PX = 12;
 const FOV = 26;
 /** Past the fitted framing, an up or down drag slides the figure. */
 const INSPECT_ZOOM = 1.08;
+/** One grey for the whole figure. Selection is a lighter step of the same tone. */
 const BASE = new THREE.Color("#7a7a7a");
-const HOT = new THREE.Color("#f4f4f4");
+const SELECTED = new THREE.Color("#b4b4b4");
 const SELECTED_EMISSIVE = new THREE.Color("#ffffff");
 const NO_EMISSIVE = new THREE.Color(0x000000);
 
@@ -35,31 +36,24 @@ function prefersReducedMotion() {
   );
 }
 
-function paintMuscle(
-  entry: PhysiqueMesh,
-  intensities: Record<RegionId, number>,
-  selected: RegionId | null,
-) {
+function paintMuscle(entry: PhysiqueMesh, selected: RegionId | null) {
   const mat = entry.mesh.material;
   if (!(mat instanceof THREE.MeshStandardMaterial)) return;
-  const intensity = entry.regionId ? (intensities[entry.regionId] ?? 0) : 0;
-  mat.color.copy(BASE).lerp(HOT, intensity);
   const on = entry.regionId !== null && entry.regionId === selected;
+  mat.color.copy(on ? SELECTED : BASE);
   mat.emissive.copy(on ? SELECTED_EMISSIVE : NO_EMISSIVE);
-  mat.emissiveIntensity = on ? 0.14 : 0;
+  mat.emissiveIntensity = on ? 0.04 : 0;
 }
 
 export function PhysiqueCanvas({
   gender,
-  intensities,
   selected,
   onSelect,
   onError,
 }: {
   gender: Gender;
-  intensities: Record<RegionId, number>;
   selected: RegionId | null;
-  onSelect: (id: RegionId) => void;
+  onSelect: (id: RegionId | null) => void;
   onError?: () => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -67,7 +61,6 @@ export function PhysiqueCanvas({
   const kindRef = useRef<PhysiqueKind>("anatomy");
   const envelopeRef = useRef<PhysiqueEnvelope | null>(null);
   const restRef = useRef<THREE.Object3D | null>(null);
-  const intensitiesRef = useRef(intensities);
   const selectedRef = useRef(selected);
   const onSelectRef = useRef(onSelect);
   const renderRef = useRef<() => void>(() => {});
@@ -76,7 +69,6 @@ export function PhysiqueCanvas({
   );
   const [ownsGesture, setOwnsGesture] = useState(false);
 
-  intensitiesRef.current = intensities;
   selectedRef.current = selected;
   onSelectRef.current = onSelect;
 
@@ -277,11 +269,14 @@ export function PhysiqueCanvas({
       raycaster.setFromCamera(ndc, camera);
       const figure = kindRef.current === "figure";
       const targets = musclesRef.current
-        .filter((m) => m.mesh.visible && (figure || m.regionId))
+        .filter((m) => m.mesh.visible)
         .map((m) => m.mesh);
       const hits = raycaster.intersectObjects(targets, false);
       const hit = hits[0];
-      if (!hit || !(hit.object instanceof THREE.Mesh)) return;
+      if (!hit || !(hit.object instanceof THREE.Mesh)) {
+        onSelectRef.current(null);
+        return;
+      }
       if (figure) {
         const env = envelopeRef.current;
         const rest = restRef.current;
@@ -511,8 +506,14 @@ export function PhysiqueCanvas({
     };
 
     applyPivot();
+    const stage = host.parentElement;
+    const onOutside = (e: PointerEvent) => {
+      if (stage && e.target instanceof Node && stage.contains(e.target)) return;
+      onSelectRef.current(null);
+    };
     const observer = new ResizeObserver(fit);
     observer.observe(host);
+    window.addEventListener("pointerdown", onOutside);
     host.addEventListener("pointerdown", onPointerDown);
     host.addEventListener("pointermove", onPointerMove);
     host.addEventListener("pointerup", onPointerUp);
@@ -528,7 +529,11 @@ export function PhysiqueCanvas({
         kindRef.current = prepared.kind;
         for (const entry of prepared.muscles) {
           const mat = new THREE.MeshStandardMaterial({
-            color: BASE.clone(),
+            // Vertex color is the grey. A tinted material.color would multiply it darker.
+            color:
+              prepared.kind === "figure"
+                ? new THREE.Color("#ffffff")
+                : BASE.clone(),
             roughness: prepared.kind === "figure" ? 0.62 : 0.52,
             metalness: 0.03,
             envMapIntensity: 0.18,
@@ -565,17 +570,16 @@ export function PhysiqueCanvas({
           for (const entry of prepared.muscles) {
             paintFigureMesh(
               entry,
-              intensitiesRef.current,
               selectedRef.current,
               envelope,
               pivot,
               BASE,
-              HOT,
+              SELECTED,
             );
           }
         } else {
           for (const entry of prepared.muscles) {
-            paintMuscle(entry, intensitiesRef.current, selectedRef.current);
+            paintMuscle(entry, selectedRef.current);
           }
         }
         hinge.rotation.y = yaw0;
@@ -593,6 +597,7 @@ export function PhysiqueCanvas({
       cancelled = true;
       setOwnsGesture(false);
       observer.disconnect();
+      window.removeEventListener("pointerdown", onOutside);
       host.removeEventListener("pointerdown", onPointerDown);
       host.removeEventListener("pointermove", onPointerMove);
       host.removeEventListener("pointerup", onPointerUp);
@@ -616,15 +621,15 @@ export function PhysiqueCanvas({
     const rest = restRef.current;
     if (kindRef.current === "figure" && env && rest) {
       for (const entry of musclesRef.current) {
-        paintFigureMesh(entry, intensities, selected, env, rest, BASE, HOT);
+        paintFigureMesh(entry, selected, env, rest, BASE, SELECTED);
       }
     } else {
       for (const entry of musclesRef.current) {
-        paintMuscle(entry, intensities, selected);
+        paintMuscle(entry, selected);
       }
     }
     renderRef.current();
-  }, [intensities, selected]);
+  }, [selected]);
 
   return (
     <div

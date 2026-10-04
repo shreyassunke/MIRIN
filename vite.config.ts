@@ -30,7 +30,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/models\/body(?:-female)?\.glb$/,
+            urlPattern: /\/models\/(?:male-body|body-female)\.glb$/,
             handler: "CacheFirst",
             options: {
               cacheName: "physique-model",

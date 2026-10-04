@@ -1,16 +1,14 @@
 # Anatomical and figure models
 
-## Male physique — `body.glb`
+## Male physique — `male-body.glb`
 
-Browser-sized Z-Anatomy mesh from
-[hpfrei/body-anatomy-3d-viewer](https://github.com/hpfrei/body-anatomy-3d-viewer).
+Browser-sized mesh simplified from the ZBrush 2018 sculpt in
+`models-src/male_body_files`. That download included no license notice.
 
-- Source data: [Z-Anatomy](https://www.z-anatomy.com/) / BodyParts3D
-- License: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
-- Full text: [LICENSE-body.txt](./LICENSE-body.txt)
-
-Shown in grayscale as a training-volume selector. No changes were made to
-the source geometry beyond hiding non-muscle meshes.
+Training regions are stored on each mesh as glTF extras (`type`, `name`,
+`nameDetail`). Head, hands, feet, and the front of the lower leg stay
+visible and are not selectable. The source sculpt was reduced to about
+140,000 triangles.
 
 ## Female physique — `body-female.glb`
 

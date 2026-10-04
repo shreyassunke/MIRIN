@@ -6,8 +6,8 @@ import type { Exercise, SetLog, WorkoutSession } from "../db/db";
  * Training regions the physique can light up. Side and rear delts stay
  * distinct so a raise and a reverse flye do not collapse into "shoulders".
  *
- * Anatomical names below are the `userData.name` / `nameDetail` values from
- * public/models/body.glb (Z-Anatomy via hpfrei/body-anatomy-3d-viewer).
+ * Anatomical names below are the `userData.name` / `nameDetail` values on
+ * public/models/male-body.glb.
  */
 export const REGION_IDS = [
   "front-delt",

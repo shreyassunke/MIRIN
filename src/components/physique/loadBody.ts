@@ -4,7 +4,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { Gender } from "../../lib/body";
 import { regionFromAnatomy, type RegionId } from "../../lib/muscleRegions";
 
-const MALE_URL = "/models/body.glb";
+const MALE_URL = "/models/male-body.glb";
 const FEMALE_URL = "/models/body-female.glb";
 const DRACO_PATH = "/draco/";
 const FIT = 1.72;
@@ -276,6 +276,10 @@ export function preparePhysique(
   root.traverse((obj) => {
     if (!(obj instanceof THREE.Mesh)) return;
     const meta = extrasOf(obj);
+    if (meta.type === "body") {
+      muscles.push({ mesh: obj, regionId: null });
+      return;
+    }
     if (meta.type !== "muscle") {
       obj.visible = false;
       return;
@@ -336,12 +340,11 @@ export function classifyFigureRegion(
 
 export function paintFigureMesh(
   entry: PhysiqueMesh,
-  intensities: Record<RegionId, number>,
   selected: RegionId | null,
   env: PhysiqueEnvelope,
   rest: THREE.Object3D,
   base: THREE.Color,
-  hot: THREE.Color,
+  selectedColor: THREE.Color,
 ) {
   const mesh = entry.mesh;
   const geo = mesh.geometry;
@@ -358,9 +361,7 @@ export function paintFigureMesh(
     _world.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
     rest.worldToLocal(_world);
     const region = classifyFigureRegion(_world, env);
-    const intensity = region ? (intensities[region] ?? 0) : 0;
-    scratch.copy(base).lerp(hot, intensity);
-    if (region && region === selected) scratch.lerp(hot, 0.35);
+    scratch.copy(region && region === selected ? selectedColor : base);
     color.setXYZ(i, scratch.r, scratch.g, scratch.b);
   }
   color.needsUpdate = true;
