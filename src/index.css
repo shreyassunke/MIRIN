@@ -42,6 +42,7 @@ html {
   background: var(--color-bg);
   color-scheme: dark;
   overflow-x: clip;
+  overscroll-behavior-x: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
   transition: background-color 180ms var(--ease-out-expo);
@@ -56,6 +57,7 @@ body {
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
+  overscroll-behavior-x: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -644,13 +646,34 @@ textarea {
 /* Load instrument pager — finger-tracked equipment pages */
 .load-swipe-field {
   touch-action: pan-y;
+  overscroll-behavior-x: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
 
+.load-swipe-field :not(input):not(textarea):not(select) {
+  touch-action: pan-y;
+}
+
 .load-swipe-field [data-no-pager] {
   touch-action: manipulation;
+}
+
+.exercise-deck {
+  overflow: hidden;
+}
+
+.exercise-deck-track {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  will-change: transform;
+}
+
+.exercise-deck-page {
+  flex: 0 0 100%;
+  width: 100%;
 }
 
 .load-pager-root {
@@ -688,6 +711,7 @@ textarea {
 
 .load-swipe-field.is-paging .load-pager-track,
 .load-swipe-field.is-paging .load-pager-page,
+.load-swipe-field.is-paging .exercise-deck-track,
 .load-pager-root.is-paging .load-pager-track,
 .load-pager-root.is-paging .load-pager-page {
   will-change: transform, opacity;

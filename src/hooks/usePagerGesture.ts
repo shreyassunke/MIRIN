@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 
-const LOCK_PX = 12;
-const SETTLE_MS = 380;
-const FLICK_PX_MS = 0.42;
+const LOCK_PX = 8;
+const SETTLE_MS = 300;
+const FLICK_PX_MS = 0.35;
 const STALE_VX_MS = 80;
 
 function prefersReducedMotion() {
@@ -63,13 +63,13 @@ function canScrollNestedX(
   return false;
 }
 
-function isExemptTarget(target: EventTarget | null) {
+function isExemptTarget(target: EventTarget | null, pageClaim: boolean) {
   if (!(target instanceof Element)) return false;
-  return Boolean(
-    target.closest(
-      "input, textarea, select, [contenteditable='true'], [data-no-pager]",
-    ),
-  );
+  if (target.closest("input, textarea, select, [contenteditable='true']")) {
+    return true;
+  }
+  if (pageClaim) return false;
+  return Boolean(target.closest("[data-no-pager]"));
 }
 
 /** Snap from the finger's current page, not the down-point. Flick wins. */
@@ -98,10 +98,9 @@ type Track = {
 };
 
 /**
- * Finger-tracked horizontal paging. Document capture after pointerdown so a
- * swipe starting on a child (canvas, stepper) still tracks 1:1. Vertical
- * intent is left to scroll / the dumbbell rack. The reps control, Log, and
- * drop sit behind `[data-no-pager]` and never start a drag.
+ * Finger-tracked horizontal paging. Document listeners own the drag — never
+ * pointer capture, so a WebGL canvas cannot cancel the swipe. Vertical intent
+ * still scrolls the page. `claim: "page"` starts from any child except fields.
  */
 export function usePagerGesture({
   count,
@@ -111,6 +110,7 @@ export function usePagerGesture({
   onProgress,
   onIndexChange,
   getWidth,
+  claim = "controls",
 }: {
   count: number;
   index: number;
@@ -119,23 +119,27 @@ export function usePagerGesture({
   onProgress: (progress: number, dragging: boolean) => void;
   onIndexChange: (index: number) => void;
   getWidth?: () => number;
+  /** `page` claims every horizontal drag; `controls` honors `[data-no-pager]`. */
+  claim?: "controls" | "page";
 }): { goTo: (index: number, animate?: boolean) => void } {
   const progress = useRef(index);
   const dragging = useRef(false);
   const settle = useRef<number | null>(null);
   const paintRaf = useRef<number | null>(null);
   const track = useRef<Track | null>(null);
-  const releasing = useRef(false);
   const indexRef = useRef(index);
   const countRef = useRef(count);
   const onProgressRef = useRef(onProgress);
   const onIndexRef = useRef(onIndexChange);
   const getWidthRef = useRef(getWidth);
+  const claimRef = useRef(claim);
+  const suppressClick = useRef(false);
   indexRef.current = index;
   countRef.current = count;
   onProgressRef.current = onProgress;
   onIndexRef.current = onIndexChange;
   getWidthRef.current = getWidth;
+  claimRef.current = claim;
 
   const paint = useCallback((value: number, isDragging: boolean) => {
     progress.current = value;
@@ -205,17 +209,7 @@ export function usePagerGesture({
     const root = rootRef.current;
     if (!root || !enabled || count < 2) return;
 
-    const releaseCapture = (pointerId: number) => {
-      releasing.current = true;
-      if (root.hasPointerCapture(pointerId)) {
-        try {
-          root.releasePointerCapture(pointerId);
-        } catch {
-          /* already released */
-        }
-      }
-      releasing.current = false;
-    };
+    const pageClaim = () => claimRef.current === "page";
 
     const dropWindow = () => {
       document.removeEventListener("pointermove", onMove, true);
@@ -242,7 +236,6 @@ export function usePagerGesture({
       if (!current || current.id !== event.pointerId) return;
       track.current = null;
       dropWindow();
-      releaseCapture(event.pointerId);
       dragging.current = false;
       stopPaintRaf();
 
@@ -272,19 +265,16 @@ export function usePagerGesture({
           dropWindow();
           return;
         }
-        if (canScrollNestedX(root, event.target, dx)) {
+        if (!pageClaim() && canScrollNestedX(root, event.target, dx)) {
           track.current = null;
           dropWindow();
           return;
         }
         current.locked = true;
         dragging.current = true;
-        try {
-          root.setPointerCapture(event.pointerId);
-        } catch {
-          /* document listeners still drive the drag */
-        }
+        suppressClick.current = true;
         if (event.cancelable) event.preventDefault();
+        paint(clampedFromFinger(current, event.clientX), true);
       }
 
       if (event.cancelable) event.preventDefault();
@@ -315,11 +305,6 @@ export function usePagerGesture({
     const onUp = (event: PointerEvent) => finish(event, true);
     const onCancel = (event: PointerEvent) => finish(event, false);
 
-    const onLostCapture = (event: PointerEvent) => {
-      if (releasing.current) return;
-      finish(event, false);
-    };
-
     const abort = () => {
       const current = track.current;
       if (!current) {
@@ -329,10 +314,8 @@ export function usePagerGesture({
         }
         return;
       }
-      const pointerId = current.id;
       track.current = null;
       dropWindow();
-      releaseCapture(pointerId);
       dragging.current = false;
       stopPaintRaf();
       settleTo(Math.round(progress.current), true);
@@ -341,7 +324,7 @@ export function usePagerGesture({
     const onDown = (event: PointerEvent) => {
       if (!event.isPrimary) return;
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      if (isExemptTarget(event.target)) return;
+      if (isExemptTarget(event.target, pageClaim())) return;
       stopSettle();
       stopPaintRaf();
       const width =
@@ -367,7 +350,15 @@ export function usePagerGesture({
     };
 
     const onKey = (event: KeyboardEvent) => {
-      if (event.target !== root) return;
+      if (!(event.target instanceof Node) || !root.contains(event.target)) {
+        return;
+      }
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("input, textarea, select, [contenteditable='true']")
+      ) {
+        return;
+      }
       if (event.key === "ArrowRight") {
         event.preventDefault();
         goTo(indexRef.current + 1);
@@ -377,9 +368,25 @@ export function usePagerGesture({
       }
     };
 
+    const onTouchMove = (event: TouchEvent) => {
+      if (!dragging.current) return;
+      if (event.cancelable) event.preventDefault();
+    };
+
+    const onClick = (event: MouseEvent) => {
+      if (!suppressClick.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClick.current = false;
+    };
+
     root.addEventListener("pointerdown", onDown, { capture: true });
-    root.addEventListener("lostpointercapture", onLostCapture);
     root.addEventListener("keydown", onKey);
+    root.addEventListener("click", onClick, true);
+    document.addEventListener("touchmove", onTouchMove, {
+      capture: true,
+      passive: false,
+    });
     const onHidden = () => {
       if (document.visibilityState === "hidden") abort();
     };
@@ -388,8 +395,9 @@ export function usePagerGesture({
     window.addEventListener("pagehide", abort);
     return () => {
       root.removeEventListener("pointerdown", onDown, { capture: true });
-      root.removeEventListener("lostpointercapture", onLostCapture);
       root.removeEventListener("keydown", onKey);
+      root.removeEventListener("click", onClick, true);
+      document.removeEventListener("touchmove", onTouchMove, true);
       window.removeEventListener("blur", abort);
       document.removeEventListener("visibilitychange", onHidden);
       window.removeEventListener("pagehide", abort);

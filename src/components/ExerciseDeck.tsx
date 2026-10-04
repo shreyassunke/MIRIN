@@ -5,6 +5,7 @@ import {
   useLayoutEffect,
   useRef,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { usePagerGesture } from "../hooks/usePagerGesture";
 
@@ -13,6 +14,8 @@ interface ExerciseDeckProps {
   onIndexChange: (index: number) => void;
   label: string;
   children: ReactNode;
+  /** Own horizontal paging from this node — typically the whole Today page. */
+  fieldRef?: RefObject<HTMLElement | null>;
 }
 
 function heightAt(progress: number, heights: number[], reduced: boolean) {
@@ -39,6 +42,7 @@ export function ExerciseDeck({
   onIndexChange,
   label,
   children,
+  fieldRef,
 }: ExerciseDeckProps) {
   const pages = Children.toArray(children);
   const count = pages.length;
@@ -50,6 +54,7 @@ export function ExerciseDeck({
   const heights = useRef<number[]>([]);
   const progressRef = useRef(index);
   const draggingRef = useRef(false);
+  const gestureRef = fieldRef ?? rootRef;
 
   const paint = useCallback((progress: number, dragging: boolean) => {
     progressRef.current = progress;
@@ -57,30 +62,24 @@ export function ExerciseDeck({
     const track = trackRef.current;
     const viewport = viewportRef.current;
     const reduced = prefersReducedMotion();
+    const width = viewport?.clientWidth ?? 0;
     if (track) {
-      const x = reduced ? -Math.round(progress) * 100 : -progress * 100;
-      track.style.transform = `translate3d(${x}%, 0, 0)`;
+      const x = reduced ? -Math.round(progress) * width : -progress * width;
+      track.style.transform = width
+        ? `translate3d(${x}px, 0, 0)`
+        : `translate3d(${-progress * 100}%, 0, 0)`;
     }
-    pageRefs.current.forEach((page, i) => {
+    pageRefs.current.forEach((page) => {
       if (!page) return;
-      if (reduced) {
-        page.style.transform = "none";
-        page.style.opacity =
-          Math.abs(i - Math.round(progress)) < 0.5 ? "1" : "0";
-        return;
-      }
-      const delta = i - progress;
-      const abs = Math.abs(delta);
-      const clamped = Math.max(-1, Math.min(1, delta));
-      page.style.transform = `rotateY(${clamped * -12}deg) scale(${1 - Math.min(abs, 1) * 0.05})`;
-      page.style.opacity = String(1 - Math.min(abs, 1) * 0.32);
+      page.style.transform = "none";
+      page.style.opacity = "1";
     });
     const h = heightAt(progress, heights.current, reduced);
     if (viewport && h > 0) viewport.style.height = `${Math.round(h)}px`;
     const inMotion =
       dragging || Math.abs(progress - Math.round(progress)) > 0.001;
-    rootRef.current?.classList.toggle("is-paging", inMotion);
-  }, []);
+    gestureRef.current?.classList.toggle("is-paging", inMotion);
+  }, [gestureRef]);
 
   const measure = useCallback(() => {
     const next: number[] = [];
@@ -96,10 +95,11 @@ export function ExerciseDeck({
     count,
     index,
     enabled: paging,
-    rootRef,
+    rootRef: gestureRef,
     onProgress: paint,
     onIndexChange,
     getWidth: () => viewportRef.current?.clientWidth ?? 1,
+    claim: "page",
   });
 
   useLayoutEffect(() => {
@@ -111,7 +111,7 @@ export function ExerciseDeck({
       return ro;
     });
     return () => observers.forEach((ro) => ro?.disconnect());
-  }, [measure, count, index]);
+  }, [measure, count]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -134,9 +134,9 @@ export function ExerciseDeck({
   }
 
   return (
-    <div ref={rootRef} className="load-swipe-field">
-      <div ref={viewportRef} className="load-pager">
-        <div ref={trackRef} className="load-pager-track">
+    <div ref={rootRef} className={fieldRef ? undefined : "load-swipe-field"}>
+      <div ref={viewportRef} className="exercise-deck">
+        <div ref={trackRef} className="exercise-deck-track">
           {pages.map((child, i) => {
             const active = i === index;
             return (
@@ -145,7 +145,7 @@ export function ExerciseDeck({
                 ref={(el) => {
                   pageRefs.current[i] = el;
                 }}
-                className="load-pager-page"
+                className="exercise-deck-page"
                 aria-hidden={!active}
                 {...(!active ? { inert: "" } : {})}
               >

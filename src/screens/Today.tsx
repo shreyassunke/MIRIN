@@ -328,6 +328,7 @@ export function Today() {
   } | null>(null);
   const [formVideoId, setFormVideoId] = useState<string | null>(null);
   const loggingRef = useRef(false);
+  const pageSwipeRef = useRef<HTMLDivElement>(null);
   /** Completing fills sets from last session, so it takes a second tap. */
   const [finishArmed, setFinishArmed] = useState(false);
 
@@ -945,7 +946,7 @@ export function Today() {
   }
 
   return (
-    <div>
+    <div ref={pageSwipeRef} className="load-swipe-field">
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="shrink-0 pr-2">
           <DaySwitcher
@@ -994,6 +995,7 @@ export function Today() {
             setSwappingIndex(null);
           }}
           label={activeDisplayName || "Exercises"}
+          fieldRef={pageSwipeRef}
         >
           {data.exercises.map((exercise, index) => {
             const logged = logsByExercise.get(exercise.id) ?? [];
@@ -1315,7 +1317,6 @@ export function Today() {
                             <div className="flex justify-center">
                               <button
                                 type="button"
-                                data-no-pager=""
                                 onClick={() =>
                                   setLateralityFor(
                                     laterality === "bilateral"

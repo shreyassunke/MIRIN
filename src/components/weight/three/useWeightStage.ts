@@ -381,6 +381,12 @@ export function useWeightStage(opts: {
         if (!start.captured) {
           if (e.defaultPrevented) {
             start.discarded = true;
+          } else if (
+            host.closest(".load-swipe-field") &&
+            Math.abs(dx) > Math.abs(dy) &&
+            Math.hypot(dx, dy) > 4
+          ) {
+            start.discarded = true;
           } else if (Math.hypot(dx, dy) > TAP_PX) {
             const vertical = Math.abs(dy) >= Math.abs(dx);
             if (vertical) {

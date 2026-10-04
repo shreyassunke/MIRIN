@@ -98,14 +98,10 @@ export function TodayExercisePage({
         ) : null}
       </div>
 
-      {notes ? (
-        <div data-no-pager="" className="text-left">
-          {notes}
-        </div>
-      ) : null}
+      {notes ? <div className="text-left">{notes}</div> : null}
 
       {isSwapping && (
-        <div data-no-pager="">
+        <div>
           <ExerciseCombobox
             label="Replace with…"
             excludeIds={excludeSwapIds}
@@ -117,10 +113,7 @@ export function TodayExercisePage({
       )}
 
       {showChips && (
-        <div
-          data-no-pager=""
-          className="tnum flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-muted"
-        >
+        <div className="tnum flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-muted">
           {logged.map((s, i) => {
             const isLast = i === logged.length - 1;
             if (isLast && onUndoLast && !preview) {
