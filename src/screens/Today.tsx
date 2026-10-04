@@ -1215,7 +1215,7 @@ export function Today() {
                           value={reps}
                           step={1}
                           min={1}
-                          layout="inline"
+                          layout="readout"
                           inlineSuffix="reps"
                           size="compact"
                           onChange={setReps}

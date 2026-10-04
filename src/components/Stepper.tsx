@@ -53,17 +53,19 @@ export function Stepper({
       ? "glass-btn flex h-12 w-12 items-center justify-center rounded-pill text-xl leading-none text-ink"
       : "glass-btn flex h-11 w-11 items-center justify-center rounded-pill text-lg leading-none text-ink";
   const valueSize = readout
-    ? "text-3xl leading-none"
+    ? size === "compact"
+      ? "h-11 text-base leading-none"
+      : "text-3xl leading-none"
     : size === "lead"
       ? "h-11 min-w-[5.5rem] text-3xl leading-none"
       : size === "compact"
         ? "h-11 min-w-14 text-base"
         : "h-12 min-w-[4.75rem] text-xl";
   const valueClass = readout
-    ? "tnum w-full border-0 bg-transparent p-0 text-center text-3xl font-semibold leading-none tracking-tight text-ink outline-none"
+    ? `tnum w-full border-0 bg-transparent p-0 text-center font-semibold tracking-tight text-ink outline-none ${valueSize}`
     : `tnum ${valueSize} rounded-md border border-transparent bg-transparent px-1 text-center font-semibold tracking-tight text-ink focus:border-hairline focus:bg-bg`;
   const suffixClass =
-    size === "lead" || readout
+    size === "lead" || (readout && size !== "compact")
       ? "ml-1.5 text-sm text-muted"
       : "ml-1 text-[13px] font-medium text-muted";
 
