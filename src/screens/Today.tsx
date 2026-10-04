@@ -42,14 +42,15 @@ import {
   convertLoadForLaterality,
   defaultLaterality,
   lateralityCaption,
+  lateralityLimbForRegion,
   loadSharing,
   supportsLaterality,
   type Laterality,
 } from "../lib/laterality";
+import { regionForExercise } from "../lib/muscleRegions";
 import {
   appendSessionExercise,
   removeSessionExercise,
-  reorderSessionExercises,
   resolveSessionExerciseIds,
   resolveSessionSupersets,
   resolveSessionWarmupTargets,
@@ -62,7 +63,6 @@ import {
 import {
   DEFAULT_WARMUP_COUNT,
   formatRest,
-  groupPosFor,
   inSuperset,
   orderedGroup,
   patchExercisePref,
@@ -71,7 +71,8 @@ import {
 } from "../lib/exerciseMeta";
 import { deleteSetDrop, deleteSetLog } from "../lib/history";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
-import { TodayExerciseTile } from "../components/TodayExerciseTile";
+import { TodayExercisePage } from "../components/TodayExerciseTile";
+import { ExerciseDeck } from "../components/ExerciseDeck";
 import { NoteEditor } from "../components/NoteEditor";
 import { FormVideoPanel } from "../components/FormVideo";
 import { formClipsFor } from "../lib/formVideos";
@@ -89,7 +90,6 @@ import {
   ItemOverflow,
   RestPresetPanel,
 } from "../components/ItemOverflow";
-import { useDragReorder } from "../hooks/useDragReorder";
 import {
   DEFAULT_BAR,
   MANUAL_STEP,
@@ -105,7 +105,6 @@ import { Stepper } from "../components/Stepper";
 import { RestTimer } from "../components/RestTimer";
 import { UnitToggle } from "../components/UnitToggle";
 import { DaySwitcher } from "../components/DaySwitcher";
-import { LateralityToggle } from "../components/LateralityToggle";
 import {
   BarbellPicker,
   BarbellRack,
@@ -315,7 +314,7 @@ export function Today() {
   const navigate = useNavigate();
   const [unit] = useUnit();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  /** When false, derived auto-expand is paused (user closed the open card). */
+  /** When false, derived selection is paused (no unfinished exercise to follow). */
   const [followDerived, setFollowDerived] = useState(true);
   const [restDuration, setRestDuration] = useState(DEFAULT_REST_SECONDS);
   const [timerRun, setTimerRun] = useState(0);
@@ -341,7 +340,6 @@ export function Today() {
   const lateralityRef = useRef<Laterality>("bilateral");
   const [manualWeight, setManualWeight] = useState(45);
   const [reps, setReps] = useState(8);
-  const swipeFieldRef = useRef<HTMLDivElement>(null);
 
   const logsByExercise = useMemo(() => {
     const map = new Map<string, SetLog[]>();
@@ -376,17 +374,6 @@ export function Today() {
     return id;
   }, [data?.dayTemplateId, data?.sessionId]);
 
-  const { getItemProps, shouldSuppressClick } = useDragReorder({
-    enabled: (data?.exercises.length ?? 0) > 1,
-    handleOnly: false,
-    onReorder: (from, to) => {
-      void (async () => {
-        const sessionId = await ensureSession();
-        await reorderSessionExercises(sessionId, from, to);
-      })();
-    },
-  });
-
   const finishedIds = useMemo(
     () => new Set(data?.finishedExerciseIds ?? []),
     [data?.finishedExerciseIds],
@@ -413,9 +400,10 @@ export function Today() {
     [data, logsByExercise, finishedIds],
   );
 
-  const activeId = followDerived
-    ? (selectedId ?? derivedActiveId)
-    : selectedId;
+  const activeId =
+    (followDerived ? (selectedId ?? derivedActiveId) : selectedId) ??
+    data?.exercises[data.exercises.length - 1]?.id ??
+    null;
   const activeLogs = activeId ? (logsByExercise.get(activeId) ?? []) : [];
   const activeWorkingCount = workingSets(activeLogs).length;
   const activeWarmupCount = activeLogs.filter((s) => s.isWarmup).length;
@@ -607,9 +595,34 @@ export function Today() {
   }
 
   const activeExercise = data.exercises.find((e) => e.id === activeId);
+  const activeEquipment = activeExercise
+    ? equipmentForExercise(activeExercise)
+    : "other";
   const inputMode = activeExercise
-    ? resolveInputMethod(equipmentForExercise(activeExercise), mode)
+    ? resolveInputMethod(activeEquipment, mode)
     : mode;
+  const activeModes = activeExercise
+    ? inputModesForEquipment(activeEquipment)
+    : [];
+  const activeMode = activeModes.some((m) => m.id === mode)
+    ? mode
+    : (activeModes[0]?.id ?? "manual");
+  const activeDisplayName = activeExercise
+    ? exerciseLabelForMethod(activeExercise.name, activeMode)
+    : "";
+  const activeLimb = lateralityLimbForRegion(
+    activeExercise ? regionForExercise(activeExercise) : null,
+  );
+  const lateralityLabel = lateralityCaption(
+    laterality,
+    loadSharing(inputMode, activeEquipment),
+    activeLimb,
+  );
+  const lateralityNextLabel = lateralityCaption(
+    laterality === "bilateral" ? "unilateral" : "bilateral",
+    loadSharing(inputMode, activeEquipment),
+    activeLimb,
+  );
 
   const totalDisplay =
     inputMode === "barbell"
@@ -619,7 +632,25 @@ export function Today() {
         : manualWeight;
 
   const anyLogged = data.logs.length > 0;
-  const fillExerciseCount = new Set(fillPlan.map((p) => p.exerciseId)).size;
+  const showSameAsLast = !anyLogged && fillPlan.length > 0;
+  const showFillLeft = anyLogged && fillPlan.length > 0;
+  const showComplete = anyLogged && fillPlan.length === 0;
+  const activeLogged = activeId ? (logsByExercise.get(activeId) ?? []) : [];
+  const activeIndex = Math.max(
+    0,
+    data.exercises.findIndex((e) => e.id === activeId),
+  );
+  const prefills = data.prefills;
+  const dayTemplateId = data.dayTemplateId;
+
+  function nextSetLabel(exercise: Exercise) {
+    const logged = logsByExercise.get(exercise.id) ?? [];
+    const working = logged.filter((s) => !s.isWarmup).length;
+    const prior = prefills[exercise.id] ?? [];
+    const source = prior[working] ?? prior[prior.length - 1];
+    if (source) return formatSet(source, (lb) => toDisplay(lb, unit));
+    return `${formatWeight(toDisplay(startWeightFor(exercise.id), unit))}×${defaultRepsFor(dayTemplateId ?? "")}`;
+  }
 
   function setMode(next: InputMethod, exerciseId: string) {
     setModeState(next);
@@ -651,13 +682,16 @@ export function Today() {
     inputMethod: InputMethod,
     loadBreakdown?: LoadBreakdown,
     setLateralityValue?: Laterality,
+    options?: { drops?: SetDrop[]; forceWorking?: boolean },
   ) {
     const sessionId = await ensureSession();
     const session = await db.sessions.get(sessionId);
     const existing = logsByExercise.get(exerciseId) ?? [];
     const setNumber = existing.length + 1;
     const warmupDone = existing.filter((s) => s.isWarmup).length;
-    const isWarmup = warmupDone < (data?.warmupTargets[exerciseId] ?? 0);
+    const isWarmup = options?.forceWorking
+      ? false
+      : warmupDone < (data?.warmupTargets[exerciseId] ?? 0);
     await db.setLogs.add({
       id: newId(),
       sessionId,
@@ -668,9 +702,11 @@ export function Today() {
       inputMethod,
       loadBreakdown,
       laterality: setLateralityValue,
+      drops: options?.drops,
       isWarmup: isWarmup || undefined,
       swappedFromExerciseId: session?.exerciseSwapOrigins?.[exerciseId],
     });
+    setFinishArmed(false);
     // A logged set reopens an exercise that was called done.
     if (finishedIds.has(exerciseId)) {
       await setExerciseFinished(sessionId, exerciseId, false);
@@ -777,6 +813,24 @@ export function Today() {
     }
   }
 
+  async function logFromPrior(source: SetLog) {
+    if (loggingRef.current) return;
+    loggingRef.current = true;
+    try {
+      await logSet(
+        source.exerciseId,
+        source.weight,
+        source.reps,
+        source.inputMethod ?? "manual",
+        source.loadBreakdown,
+        source.laterality,
+        { drops: source.drops, forceWorking: true },
+      );
+    } finally {
+      loggingRef.current = false;
+    }
+  }
+
   async function undoLastLog(exerciseId: string) {
     const logged = logsByExercise.get(exerciseId) ?? [];
     const last = logged[logged.length - 1];
@@ -856,8 +910,15 @@ export function Today() {
 
   async function handleRemoveExercise(exerciseId: string) {
     const sessionId = await ensureSession();
+    const at = data?.exercises.findIndex((e) => e.id === exerciseId) ?? -1;
+    const neighbor =
+      at >= 0
+        ? (data!.exercises[at + 1] ?? data!.exercises[at - 1])
+        : undefined;
     await removeSessionExercise(sessionId, exerciseId);
-    if (selectedId === exerciseId) setSelectedId(null);
+    if (selectedId === exerciseId || activeId === exerciseId) {
+      setSelectedId(neighbor?.id ?? null);
+    }
     setSwappingIndex(null);
     setEditingNote(null);
   }
@@ -885,7 +946,7 @@ export function Today() {
 
   return (
     <div>
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="shrink-0 pr-2">
           <DaySwitcher
             dayName={data.dayName}
@@ -903,387 +964,407 @@ export function Today() {
             {anyLogged &&
               ` · ${data.logs.length} ${data.logs.length === 1 ? "set" : "sets"} logged`}
           </p>
+          {showSameAsLast && (
+            <button
+              type="button"
+              onClick={() =>
+                finishArmed ? void finishWorkout() : setFinishArmed(true)
+              }
+              className="mt-2 text-[13px] font-medium text-ink transition-colors duration-150 hover:text-muted"
+            >
+              {finishArmed ? "Confirm" : "Same as last time"}
+              <span className="ml-1.5 font-normal text-muted">
+                {fillPlan.length} {fillPlan.length === 1 ? "set" : "sets"}
+              </span>
+            </button>
+          )}
         </div>
         <UnitToggle />
       </header>
 
-      <ul>
-        {data.exercises.map((exercise, index) => {
-          const logged = logsByExercise.get(exercise.id) ?? [];
-          const isActive = exercise.id === activeId;
-          const finished = finishedIds.has(exercise.id);
-          const dragProps = getItemProps(index);
-          const equipment = equipmentForExercise(exercise);
-          const modes = inputModesForEquipment(equipment);
-          const activeMode = modes.some((m) => m.id === mode)
-            ? mode
-            : modes[0]?.id ?? "manual";
-          const displayName = exerciseLabelForMethod(
-            exercise.name,
-            isActive
-              ? activeMode
-              : (data.modePrefs[exercise.id] ??
-                exercise.inputMethodHint ??
-                "manual"),
-          );
-          const grouped = inSuperset(data.supersets, exercise.id);
-          const sessionNote = data.exerciseNotes[exercise.id];
-          const stickyNote = data.stickyNotes[exercise.id];
-          const warmupOn = (data.warmupTargets[exercise.id] ?? 0) > 0;
-          const rest = data.restSeconds[exercise.id];
-          const editing =
-            editingNote?.id === exercise.id ? editingNote.kind : null;
-          const hasFormVideo = formClipsFor(exercise.id).length > 0;
-          const showingVideo = formVideoId === exercise.id;
+      {data.exercises.length > 0 && (
+        <div className="mb-6">
+        <ExerciseDeck
+          index={activeIndex}
+          onIndexChange={(next) => {
+            const id = data.exercises[next]?.id;
+            if (!id) return;
+            setFollowDerived(true);
+            setSelectedId(id);
+            setSwappingIndex(null);
+          }}
+          label={activeDisplayName || "Exercises"}
+        >
+          {data.exercises.map((exercise, index) => {
+            const logged = logsByExercise.get(exercise.id) ?? [];
+            const isLive = exercise.id === activeId;
+            const finished = finishedIds.has(exercise.id);
+            const prior = data.prefills[exercise.id] ?? [];
+            const workingCount = logged.filter((s) => !s.isWarmup).length;
+            const pending = finished ? [] : prior.slice(workingCount);
+            const displayName = exerciseLabelForMethod(
+              exercise.name,
+              isLive
+                ? activeMode
+                : (data.modePrefs[exercise.id] ??
+                  exercise.inputMethodHint ??
+                  "manual"),
+            );
+            const grouped = inSuperset(data.supersets, exercise.id);
+            const sessionNote = data.exerciseNotes[exercise.id];
+            const stickyNote = data.stickyNotes[exercise.id];
+            const warmupOn = (data.warmupTargets[exercise.id] ?? 0) > 0;
+            const rest = data.restSeconds[exercise.id];
+            const editing =
+              editingNote?.id === exercise.id ? editingNote.kind : null;
+            const hasFormVideo = formClipsFor(exercise.id).length > 0;
+            const showingVideo = formVideoId === exercise.id;
 
-          return (
-            <TodayExerciseTile
-              key={exercise.id}
-              exercise={exercise}
-              logged={logged}
-              isActive={isActive}
-              finished={finished}
-              isSwapping={swappingIndex === index}
-              excludeSwapIds={data.exerciseIds.filter((id) => id !== exercise.id)}
-              reorderIndex={index}
-              dragRowClassName={dragProps.className}
-              dragStyle={dragProps.style}
-              groupPos={groupPosFor(data.exerciseIds, data.supersets, exercise.id)}
-              inSuperset={grouped}
-              title={displayName}
-              overflow={
-                <ItemOverflow
-                  label={`${displayName} options`}
-                  items={[
-                    {
-                      id: "note",
-                      label: sessionNote ? "Edit note" : "Add note",
-                      icon: <IconNote />,
-                      onSelect: () =>
-                        setEditingNote({ id: exercise.id, kind: "session" }),
-                    },
-                    {
-                      id: "sticky",
-                      label: stickyNote ? "Edit sticky note" : "Add sticky note",
-                      icon: <IconSticky />,
-                      onSelect: () =>
-                        setEditingNote({ id: exercise.id, kind: "sticky" }),
-                    },
-                    {
-                      id: "warmup",
-                      label: warmupOn
-                        ? "Remove warm-up sets"
-                        : "Add warm-up sets",
-                      icon: <IconWarmup />,
-                      onSelect: () => void handleToggleWarmup(exercise.id),
-                    },
-                    {
-                      id: "rest",
-                      label: rest
-                        ? `Rest timer · ${formatRest(rest)}`
-                        : "Rest timer",
-                      icon: <IconRest />,
-                      panel: ({ close }) => (
-                        <RestPresetPanel
-                          value={rest ?? DEFAULT_REST_SECONDS}
-                          onPick={(seconds) =>
-                            void patchExercisePref(exercise.id, {
-                              restSeconds: seconds,
-                            })
-                          }
-                          close={close}
-                        />
-                      ),
-                    },
-                    {
-                      id: "replace",
-                      label: "Replace",
-                      icon: <IconReplace />,
-                      onSelect: () => {
-                        setFollowDerived(true);
-                        setSelectedId(exercise.id);
-                        setSwappingIndex(index);
+            return (
+              <TodayExercisePage
+                key={exercise.id}
+                exercise={exercise}
+                logged={logged}
+                pending={pending}
+                finished={finished}
+                isSwapping={swappingIndex === index}
+                excludeSwapIds={data.exerciseIds.filter(
+                  (id) => id !== exercise.id,
+                )}
+                inSuperset={grouped}
+                title={displayName}
+                position={`${index + 1} / ${data.exercises.length}`}
+                preview={!isLive}
+                previewSet={!isLive ? nextSetLabel(exercise) : undefined}
+                overflow={
+                  <ItemOverflow
+                    label={`${displayName} options`}
+                    items={[
+                      {
+                        id: "note",
+                        label: sessionNote ? "Edit note" : "Add note",
+                        icon: <IconNote />,
+                        onSelect: () =>
+                          setEditingNote({ id: exercise.id, kind: "session" }),
                       },
-                    },
-                    ...(hasFormVideo
-                      ? [
-                          {
-                            id: "video",
-                            label: showingVideo
-                              ? "Hide form video"
-                              : "Form video",
-                            icon: <IconVideo />,
-                            onSelect: () =>
-                              setFormVideoId((current) =>
-                                current === exercise.id ? null : exercise.id,
-                              ),
-                          },
-                        ]
-                      : []),
-                    {
-                      id: "history",
-                      label: "History",
-                      icon: <IconHistory />,
-                      onSelect: () => navigate(`/exercise/${exercise.id}`),
-                    },
-                    {
-                      id: "superset",
-                      label: grouped ? "Break superset" : "Create superset",
-                      icon: <IconSuperset />,
-                      disabled: data.exercises.length < 2,
-                      onSelect: () => void handleToggleSuperset(index),
-                    },
-                    {
-                      id: "done",
-                      label: finished ? "Reopen" : "Mark done",
-                      icon: <IconDone />,
-                      onSelect: () =>
-                        void toggleExerciseFinished(exercise.id, !finished),
-                    },
-                    {
-                      id: "remove",
-                      label: "Remove",
-                      icon: <IconRemove />,
-                      danger: true,
-                      separatorBefore: true,
-                      onSelect: () => void handleRemoveExercise(exercise.id),
-                    },
-                  ]}
-                />
-              }
-              notes={
-                stickyNote || sessionNote || editing ? (
-                  <>
-                    {stickyNote && editing !== "sticky" && (
-                      <p className="text-[13px] leading-relaxed text-muted">
-                        {stickyNote}
-                      </p>
-                    )}
-                    {sessionNote && editing !== "session" && (
-                      <p className="text-[13px] leading-relaxed text-ink">
-                        {sessionNote}
-                      </p>
-                    )}
-                    {editing === "session" && (
-                      <NoteEditor
-                        initial={sessionNote ?? ""}
-                        placeholder="Note for this session"
-                        label={`Note for ${exercise.name}`}
-                        onCommit={(value) =>
-                          void handleSessionNote(exercise.id, value)
-                        }
-                        onCancel={() => setEditingNote(null)}
-                      />
-                    )}
-                    {editing === "sticky" && (
-                      <NoteEditor
-                        initial={stickyNote ?? ""}
-                        placeholder="Sticky note — stays on this exercise"
-                        label={`Sticky note for ${exercise.name}`}
-                        onCommit={(value) => {
-                          void patchExercisePref(exercise.id, {
-                            stickyNote: value,
-                          });
-                          setEditingNote(null);
-                        }}
-                        onCancel={() => setEditingNote(null)}
-                      />
-                    )}
-                  </>
-                ) : null
-              }
-              onDragPointerDown={dragProps.onPointerDown}
-              onDragPointerMove={dragProps.onPointerMove}
-              onDragPointerUp={dragProps.onPointerUp}
-              onDragPointerCancel={dragProps.onPointerCancel}
-              shouldSuppressClick={shouldSuppressClick}
-              onToggle={() => {
-                if (shouldSuppressClick()) return;
-                if (swappingIndex === index) {
-                  setSwappingIndex(null);
-                  return;
-                }
-                if (isActive) {
-                  setFollowDerived(false);
-                  setSelectedId(null);
-                  setSwappingIndex(null);
-                  return;
-                }
-                setFollowDerived(true);
-                setSelectedId(exercise.id);
-                setSwappingIndex(null);
-              }}
-              onCancelSwap={() => setSwappingIndex(null)}
-              onSwapPick={(entry) => void handleSwapExercise(index, entry)}
-              formatLoggedSet={(s) => formatSet(s, (lb) => toDisplay(lb, unit))}
-              onUndoLast={() => void undoLastLog(exercise.id)}
-              undoLastHasDrop={
-                (logged[logged.length - 1]?.drops?.length ?? 0) > 0
-              }
-              swipeFieldRef={
-                isActive && modes.length > 1 ? swipeFieldRef : undefined
-              }
-            >
-              {showingVideo && (
-                <FormVideoPanel
-                  exerciseId={exercise.id}
-                  open
-                  className="pt-3 pb-1"
-                />
-              )}
-              {isActive && (
-                <div className="flex flex-col gap-4 pt-4 pb-2">
-                  <LoadInstrument
-                    unit={unit}
-                    modes={modes}
-                    mode={activeMode}
-                    onModeChange={(next) => setMode(next, exercise.id)}
-                    fieldRef={modes.length > 1 ? swipeFieldRef : undefined}
-                    footer={
-                      <Stepper
-                        label="Reps"
-                        value={reps}
-                        step={1}
-                        min={1}
-                        layout="inline"
-                        inlineSuffix="reps"
-                        size="compact"
-                        onChange={setReps}
-                      />
-                    }
-                    pages={modes.map((m) => {
-                      if (m.id === "barbell") {
-                        return {
-                          id: m.id,
-                          label: m.label,
-                          weight: round2(
-                            barWeight + 2 * plates.reduce((a, b) => a + b, 0),
-                          ),
-                          weightDisplay: (
-                            <BarWeightControl
-                              unit={unit}
-                              barWeight={barWeight}
-                              plates={plates}
-                              onChange={(bar, next) => {
-                                setBarWeight(bar);
-                                setPlates(next);
-                              }}
-                            />
-                          ),
-                          stage: (
-                            <BarbellPicker
-                              key={`${exercise.id}:${unit}`}
-                              unit={unit}
-                              barWeight={barWeight}
-                              plates={plates}
-                              live={activeMode === "barbell"}
-                              onChange={(bar, next) => {
-                                setBarWeight(bar);
-                                setPlates(next);
-                              }}
-                            />
-                          ),
-                          extras: (
-                            <BarbellRack
-                              unit={unit}
-                              barWeight={barWeight}
-                              plates={plates}
-                              onChange={(bar, next) => {
-                                setBarWeight(bar);
-                                setPlates(next);
-                              }}
-                            />
-                          ),
-                        };
-                      }
-                      if (m.id === "dumbbell") {
-                        return {
-                          id: m.id,
-                          label: m.label,
-                          weight: dumbbell,
-                          qualifier:
-                            laterality === "bilateral"
-                              ? lateralityCaption(laterality, "independent")
-                              : undefined,
-                          stage: (
-                            <DumbbellPicker
-                              unit={unit}
-                              value={dumbbell}
-                              laterality={laterality}
-                              live={activeMode === "dumbbell"}
-                              onChange={setDumbbell}
-                              onToggleLaterality={() =>
-                                setLateralityFor(
-                                  laterality === "bilateral"
-                                    ? "unilateral"
-                                    : "bilateral",
-                                  exercise.id,
-                                )
-                              }
-                            />
-                          ),
-                        };
-                      }
-                      return {
-                        id: m.id,
-                        label: m.label,
-                        weight: manualWeight,
-                        weightDisplay: (
-                          <Stepper
-                            label={`Weight (${unit})`}
-                            value={manualWeight}
-                            step={MANUAL_STEP[unit]}
-                            min={0}
-                            layout="readout"
-                            inlineSuffix={unit}
-                            size="lead"
-                            onChange={setManualWeight}
+                      {
+                        id: "sticky",
+                        label: stickyNote
+                          ? "Edit sticky note"
+                          : "Add sticky note",
+                        icon: <IconSticky />,
+                        onSelect: () =>
+                          setEditingNote({ id: exercise.id, kind: "sticky" }),
+                      },
+                      {
+                        id: "warmup",
+                        label: warmupOn
+                          ? "Remove warm-up sets"
+                          : "Add warm-up sets",
+                        icon: <IconWarmup />,
+                        onSelect: () => void handleToggleWarmup(exercise.id),
+                      },
+                      {
+                        id: "rest",
+                        label: rest
+                          ? `Rest timer · ${formatRest(rest)}`
+                          : "Rest timer",
+                        icon: <IconRest />,
+                        panel: ({ close }) => (
+                          <RestPresetPanel
+                            value={rest ?? DEFAULT_REST_SECONDS}
+                            onPick={(seconds) =>
+                              void patchExercisePref(exercise.id, {
+                                restSeconds: seconds,
+                              })
+                            }
+                            close={close}
                           />
                         ),
-                        extras:
-                          supportsLaterality("manual", equipment) ? (
-                            <div className="flex justify-center">
-                              <LateralityToggle
-                                value={laterality}
-                                onChange={(next) =>
-                                  setLateralityFor(next, exercise.id)
-                                }
-                                variant="arms"
+                      },
+                      {
+                        id: "replace",
+                        label: "Replace",
+                        icon: <IconReplace />,
+                        onSelect: () => {
+                          setFollowDerived(true);
+                          setSelectedId(exercise.id);
+                          setSwappingIndex(index);
+                        },
+                      },
+                      ...(hasFormVideo
+                        ? [
+                            {
+                              id: "video",
+                              label: showingVideo
+                                ? "Hide form video"
+                                : "Form video",
+                              icon: <IconVideo />,
+                              onSelect: () =>
+                                setFormVideoId((current) =>
+                                  current === exercise.id ? null : exercise.id,
+                                ),
+                            },
+                          ]
+                        : []),
+                      {
+                        id: "history",
+                        label: "History",
+                        icon: <IconHistory />,
+                        onSelect: () => navigate(`/exercise/${exercise.id}`),
+                      },
+                      {
+                        id: "superset",
+                        label: grouped ? "Break superset" : "Create superset",
+                        icon: <IconSuperset />,
+                        disabled: data.exercises.length < 2,
+                        onSelect: () => void handleToggleSuperset(index),
+                      },
+                      {
+                        id: "done",
+                        label: finished ? "Reopen" : "Mark done",
+                        icon: <IconDone />,
+                        onSelect: () =>
+                          void toggleExerciseFinished(exercise.id, !finished),
+                      },
+                      {
+                        id: "remove",
+                        label: "Remove",
+                        icon: <IconRemove />,
+                        danger: true,
+                        separatorBefore: true,
+                        onSelect: () => void handleRemoveExercise(exercise.id),
+                      },
+                    ]}
+                  />
+                }
+                notes={
+                  stickyNote || sessionNote || editing ? (
+                    <>
+                      {stickyNote && editing !== "sticky" && (
+                        <p className="text-[13px] leading-relaxed text-muted">
+                          {stickyNote}
+                        </p>
+                      )}
+                      {sessionNote && editing !== "session" && (
+                        <p className="text-[13px] leading-relaxed text-ink">
+                          {sessionNote}
+                        </p>
+                      )}
+                      {editing === "session" && (
+                        <NoteEditor
+                          initial={sessionNote ?? ""}
+                          placeholder="Note for this session"
+                          label={`Note for ${exercise.name}`}
+                          onCommit={(value) =>
+                            void handleSessionNote(exercise.id, value)
+                          }
+                          onCancel={() => setEditingNote(null)}
+                        />
+                      )}
+                      {editing === "sticky" && (
+                        <NoteEditor
+                          initial={stickyNote ?? ""}
+                          placeholder="Sticky note — stays on this exercise"
+                          label={`Sticky note for ${exercise.name}`}
+                          onCommit={(value) => {
+                            void patchExercisePref(exercise.id, {
+                              stickyNote: value,
+                            });
+                            setEditingNote(null);
+                          }}
+                          onCancel={() => setEditingNote(null)}
+                        />
+                      )}
+                    </>
+                  ) : null
+                }
+                onCancelSwap={() => setSwappingIndex(null)}
+                onSwapPick={(entry) => void handleSwapExercise(index, entry)}
+                formatLoggedSet={(s) =>
+                  formatSet(s, (lb) => toDisplay(lb, unit))
+                }
+                onUndoLast={() => void undoLastLog(exercise.id)}
+                undoLastHasDrop={
+                  (logged[logged.length - 1]?.drops?.length ?? 0) > 0
+                }
+                onStampNext={
+                  pending[0] ? () => void logFromPrior(pending[0]) : undefined
+                }
+              >
+                {isLive && showingVideo && (
+                  <FormVideoPanel
+                    exerciseId={exercise.id}
+                    open
+                    className="pt-1 pb-1"
+                  />
+                )}
+                {isLive && activeExercise && (
+                  <>
+                    <LoadInstrument
+                      unit={unit}
+                      modes={activeModes}
+                      mode={activeMode}
+                      swipe={false}
+                      onModeChange={(next) => setMode(next, activeExercise.id)}
+                      footer={
+                        <Stepper
+                          label="Reps"
+                          value={reps}
+                          step={1}
+                          min={1}
+                          layout="inline"
+                          inlineSuffix="reps"
+                          size="compact"
+                          onChange={setReps}
+                        />
+                      }
+                      pages={activeModes.map((m) => {
+                        if (m.id === "barbell") {
+                          return {
+                            id: m.id,
+                            label: m.label,
+                            weight: round2(
+                              barWeight + 2 * plates.reduce((a, b) => a + b, 0),
+                            ),
+                            weightDisplay: (
+                              <BarWeightControl
+                                unit={unit}
+                                barWeight={barWeight}
+                                plates={plates}
+                                onChange={(bar, next) => {
+                                  setBarWeight(bar);
+                                  setPlates(next);
+                                }}
                               />
+                            ),
+                            stage: (
+                              <BarbellPicker
+                                key={`${activeExercise.id}:${unit}`}
+                                unit={unit}
+                                barWeight={barWeight}
+                                plates={plates}
+                                live={activeMode === "barbell"}
+                                onChange={(bar, next) => {
+                                  setBarWeight(bar);
+                                  setPlates(next);
+                                }}
+                              />
+                            ),
+                            extras: (
+                              <BarbellRack
+                                unit={unit}
+                                barWeight={barWeight}
+                                plates={plates}
+                                onChange={(bar, next) => {
+                                  setBarWeight(bar);
+                                  setPlates(next);
+                                }}
+                              />
+                            ),
+                          };
+                        }
+                        if (m.id === "dumbbell") {
+                          return {
+                            id: m.id,
+                            label: m.label,
+                            weight: dumbbell,
+                            qualifier:
+                              laterality === "bilateral"
+                                ? lateralityCaption(laterality, "independent")
+                                : undefined,
+                            stage: (
+                              <DumbbellPicker
+                                unit={unit}
+                                value={dumbbell}
+                                laterality={laterality}
+                                live={activeMode === "dumbbell"}
+                                onChange={setDumbbell}
+                                onToggleLaterality={() =>
+                                  setLateralityFor(
+                                    laterality === "bilateral"
+                                      ? "unilateral"
+                                      : "bilateral",
+                                    activeExercise.id,
+                                  )
+                                }
+                              />
+                            ),
+                          };
+                        }
+                        return {
+                          id: m.id,
+                          label: m.label,
+                          weight: manualWeight,
+                          weightDisplay: (
+                            <Stepper
+                              label={`Weight (${unit})`}
+                              value={manualWeight}
+                              step={MANUAL_STEP[unit]}
+                              min={0}
+                              layout="readout"
+                              inlineSuffix={unit}
+                              size="lead"
+                              onChange={setManualWeight}
+                            />
+                          ),
+                          extras: supportsLaterality(
+                            "manual",
+                            activeEquipment,
+                          ) ? (
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                data-no-pager=""
+                                onClick={() =>
+                                  setLateralityFor(
+                                    laterality === "bilateral"
+                                      ? "unilateral"
+                                      : "bilateral",
+                                    activeExercise.id,
+                                  )
+                                }
+                                className="min-h-11 px-2 text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+                                aria-label={`${lateralityLabel}. Switch to ${lateralityNextLabel}`}
+                              >
+                                {lateralityLabel}
+                              </button>
                             </div>
                           ) : undefined,
-                      };
-                    })}
-                  />
+                        };
+                      })}
+                    />
 
-                  <div data-no-pager="" className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => logCurrent(exercise.id)}
-                      className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
-                    >
-                      {loggingWarmup
-                        ? `Log warm-up ${formatWeight(totalDisplay)}×${reps}`
-                        : `Log ${formatWeight(totalDisplay)}×${reps}`}
-                    </button>
-
-                    {logged.length > 0 && (
+                    <div className="flex flex-col gap-2">
                       <button
                         type="button"
-                        onClick={() => void logDrop(exercise.id)}
-                        aria-label={`Add a drop to set ${logged.length} of ${exercise.name}`}
-                        className="glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
+                        onClick={() => logCurrent(activeExercise.id)}
+                        className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
                       >
-                        Add drop to set {logged.length}
+                        {loggingWarmup
+                          ? `Log warm-up ${formatWeight(totalDisplay)}×${reps}`
+                          : `Log ${formatWeight(totalDisplay)}×${reps}`}
                       </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </TodayExerciseTile>
-          );
-        })}
-      </ul>
+
+                      {activeLogged.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => void logDrop(activeExercise.id)}
+                          aria-label={`Add a drop to set ${activeLogged.length} of ${activeExercise.name}`}
+                          className="glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
+                        >
+                          Add drop to set {activeLogged.length}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </TodayExercisePage>
+            );
+          })}
+        </ExerciseDeck>
+        </div>
+      )}
 
       {!data.isRestDay && (
         <div className="mt-4">
@@ -1308,7 +1389,24 @@ export function Today() {
         </div>
       )}
 
-      {data.exercises.length > 0 && (
+      {showFillLeft && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() =>
+              finishArmed ? void finishWorkout() : setFinishArmed(true)
+            }
+            className="text-[13px] font-medium text-ink transition-colors duration-150 hover:text-muted"
+          >
+            {finishArmed ? "Confirm" : "Fill what’s left"}
+            <span className="ml-1.5 font-normal text-muted">
+              {fillPlan.length} {fillPlan.length === 1 ? "set" : "sets"}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {showComplete && (
         <div className="mt-6">
           <button
             type="button"
@@ -1317,28 +1415,13 @@ export function Today() {
             }
             className={[
               "h-12 w-full rounded-pill text-[15px] font-semibold",
-              // The One Accent Rule: an open exercise owns the accent for its
-              // log button, so this takes it only once nothing is logging.
               activeId === null
                 ? "btn-primary bg-accent text-bg hover:bg-ink"
                 : "glass-btn text-ink",
             ].join(" ")}
           >
-            {finishArmed ? "Confirm" : "Complete all exercises"}
+            {finishArmed ? "Confirm" : "Complete workout"}
           </button>
-          <p className="mt-2 text-center text-[13px] text-muted">
-            {fillPlan.length > 0
-              ? `${finishArmed ? "Logs" : "Fills"} ${fillPlan.length} ${
-                  fillPlan.length === 1 ? "set" : "sets"
-                } from last session across ${fillExerciseCount} ${
-                  fillExerciseCount === 1 ? "exercise" : "exercises"
-                }, then completes.`
-              : anyLogged
-                ? `Completes the workout with ${data.logs.length} ${
-                    data.logs.length === 1 ? "set" : "sets"
-                  } logged.`
-                : "Nothing recorded to fill from. Completes an empty session."}
-          </p>
         </div>
       )}
 

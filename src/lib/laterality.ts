@@ -80,10 +80,34 @@ export function volumeLimbs(
   return sharing === "shared" ? 2 : 1;
 }
 
+export type LateralityLimb = "arms" | "legs" | "sides";
+
+const LEG_REGIONS = new Set(["quads", "hamstrings", "glutes", "calves"]);
+const ARM_REGIONS = new Set(["biceps", "triceps", "forearms"]);
+
+export function lateralityLimbForRegion(
+  region: string | null | undefined,
+): LateralityLimb {
+  if (!region) return "sides";
+  if (LEG_REGIONS.has(region)) return "legs";
+  if (ARM_REGIONS.has(region)) return "arms";
+  return "sides";
+}
+
 export function lateralityCaption(
   laterality: Laterality,
   sharing: LoadSharing,
+  limb: LateralityLimb = "sides",
 ): string {
-  if (laterality === "unilateral") return "per side";
-  return sharing === "independent" ? "per hand" : "both arms";
+  if (sharing === "independent") {
+    return laterality === "unilateral" ? "per side" : "per hand";
+  }
+  if (laterality === "unilateral") {
+    if (limb === "legs") return "per leg";
+    if (limb === "arms") return "per arm";
+    return "per side";
+  }
+  if (limb === "legs") return "both legs";
+  if (limb === "arms") return "both arms";
+  return "both sides";
 }

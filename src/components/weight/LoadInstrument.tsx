@@ -32,6 +32,8 @@ interface LoadInstrumentProps {
   fieldRef?: RefObject<HTMLElement | null>;
   /** Sits on every equipment page, so Log stays one gap below the instrument. */
   footer?: ReactNode;
+  /** Finger-drag between equipment pages. Chevrons stay either way. */
+  swipe?: boolean;
 }
 
 /** Active page height, blended while a swipe is between pages. */
@@ -120,6 +122,7 @@ export function LoadInstrument({
   pages,
   fieldRef,
   footer,
+  swipe = true,
 }: LoadInstrumentProps) {
   const visible = pages.filter((page) => modes.some((m) => m.id === page.id));
   const index = Math.max(
@@ -185,7 +188,7 @@ export function LoadInstrument({
   const { goTo } = usePagerGesture({
     count: visible.length,
     index,
-    enabled: paging,
+    enabled: paging && swipe,
     rootRef: fieldRef ?? rootRef,
     onProgress: paint,
     onIndexChange: (next) => {
@@ -236,19 +239,19 @@ export function LoadInstrument({
 
   useEffect(() => {
     const field = (fieldRef ?? rootRef).current;
-    if (!field || !paging) return;
+    if (!field || !paging || !swipe) return;
     field.tabIndex = 0;
     field.setAttribute("role", "region");
     field.setAttribute(
       "aria-label",
-      `Weight input, ${methodLabel}. Swipe, use the side buttons, or use arrow keys to change.`,
+      `Weight input, ${methodLabel}. Use the side buttons to change.`,
     );
     return () => {
       field.removeAttribute("role");
       field.removeAttribute("aria-label");
       field.removeAttribute("tabindex");
     };
-  }, [fieldRef, methodLabel, paging]);
+  }, [fieldRef, methodLabel, paging, swipe]);
 
   const body = (page: LoadInstrumentPage, pageIndex: number, live = false) => (
     <div
