@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { formatWeight } from "../lib/workout";
 
 interface StepperProps {
@@ -47,134 +47,66 @@ export function Stepper({
   const [draft, setDraft] = useState("");
 
   const display = format ? format(value) : formatWeight(value);
+  const shown = editing ? draft : display;
   const readout = layout === "readout";
   const btn =
     size === "default"
       ? "glass-btn flex h-12 w-12 items-center justify-center rounded-pill text-xl leading-none text-ink"
       : "glass-btn flex h-11 w-11 items-center justify-center rounded-pill text-lg leading-none text-ink";
-  const valueSize = readout
-    ? size === "compact"
-      ? "h-11 text-base leading-none"
-      : "text-3xl leading-none"
-    : size === "lead"
-      ? "h-11 min-w-[5.5rem] text-3xl leading-none"
+  const valueSize =
+    size === "lead" || (readout && size !== "compact")
+      ? "h-11 text-3xl leading-none"
       : size === "compact"
-        ? "h-11 min-w-14 text-base"
-        : "h-12 min-w-[4.75rem] text-xl";
-  const valueClass = readout
-    ? `tnum w-full border-0 bg-transparent p-0 text-center font-semibold tracking-tight text-ink outline-none ${valueSize}`
-    : `tnum ${valueSize} rounded-md border border-transparent bg-transparent px-1 text-center font-semibold tracking-tight text-ink focus:border-hairline focus:bg-bg`;
+        ? "h-11 text-base leading-none"
+        : "h-12 text-xl leading-none";
   const suffixClass =
     size === "lead" || (readout && size !== "compact")
       ? "ml-1.5 text-sm text-muted"
       : "ml-1 text-[13px] font-medium text-muted";
 
-  const beginEdit = () => {
-    setDraft(String(value));
-    setEditing(true);
-  };
-
-  const commit = () => {
-    const parsed = parseDraft(draft);
+  const commit = (text: string) => {
+    const parsed = parseDraft(text);
     if (parsed !== null) onChange(clamp(parsed, min, max));
     setEditing(false);
   };
 
-  const cancel = () => {
-    setDraft(String(value));
-    setEditing(false);
-  };
-
-  useEffect(() => {
-    if (!editing) return;
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, [editing]);
-
   const suffix =
-    !readout && (layout === "inline" || layout === "stacked") && inlineSuffix ? (
+    (readout || layout === "inline" || layout === "stacked") && inlineSuffix ? (
       <span className={suffixClass}>{inlineSuffix}</span>
     ) : null;
 
-  const valueControl = readout ? (
-    <span className="inline-grid items-center">
-      <span
-        aria-hidden="true"
-        className={`invisible col-start-1 row-start-1 tnum px-0.5 ${valueSize} font-semibold tracking-tight`}
-      >
-        {editing ? draft || "0" : display}
-      </span>
-      {editing ? (
-        <input
-          ref={inputRef}
-          id={inputId}
-          type="text"
-          inputMode="decimal"
-          enterKeyHint="done"
-          aria-label={label || "Value"}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              commit();
-            }
-            if (e.key === "Escape") {
-              e.preventDefault();
-              cancel();
-            }
-          }}
-          className={`col-start-1 row-start-1 ${valueClass}`}
-        />
-      ) : (
-        <button
-          type="button"
-          id={inputId}
-          aria-label={`${label || "Value"}, ${display}. Tap to type.`}
-          onClick={beginEdit}
-          className={`col-start-1 row-start-1 cursor-text ${valueClass}`}
-        >
-          {display}
-        </button>
-      )}
-    </span>
-  ) : editing ? (
+  const valueControl = (
     <input
       ref={inputRef}
       id={inputId}
       type="text"
       inputMode="decimal"
+      enterKeyHint="done"
+      autoComplete="off"
       aria-label={label || "Value"}
-      value={draft}
+      value={shown}
+      size={Math.max(shown.length, 1)}
+      onFocus={() => {
+        setDraft(String(value));
+        setEditing(true);
+        requestAnimationFrame(() => inputRef.current?.select());
+      }}
       onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
+      onBlur={(e) => commit(e.target.value)}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
-          commit();
+          (e.target as HTMLInputElement).blur();
         }
         if (e.key === "Escape") {
           e.preventDefault();
-          cancel();
+          setDraft(String(value));
+          setEditing(false);
+          (e.target as HTMLInputElement).blur();
         }
       }}
-      className={valueClass}
+      className={`numeral tnum text-center font-semibold tracking-tight text-ink ${valueSize}`}
     />
-  ) : (
-    <button
-      type="button"
-      id={inputId}
-      aria-label={`${label || "Value"}, ${display}. Tap to type.`}
-      onClick={beginEdit}
-      className={[
-        valueClass,
-        "inline-flex cursor-text items-center justify-center transition-colors duration-150 hover:border-hairline hover:bg-bg",
-      ].join(" ")}
-    >
-      {display}
-      {suffix}
-    </button>
   );
 
   const decrease = (
@@ -205,9 +137,7 @@ export function Stepper({
         className="inline-flex min-h-11 items-center justify-center whitespace-nowrap"
       >
         {valueControl}
-        {inlineSuffix ? (
-          <span className={suffixClass}>{inlineSuffix}</span>
-        ) : null}
+        {suffix}
       </div>
     );
   }
@@ -215,7 +145,10 @@ export function Stepper({
   if (layout === "stacked") {
     return (
       <div className="flex flex-col items-center gap-2">
-        {valueControl}
+        <span className="inline-flex items-center">
+          {valueControl}
+          {suffix}
+        </span>
         <div className="flex w-44 items-center justify-between">
           {decrease}
           {increase}
@@ -227,7 +160,10 @@ export function Stepper({
   const controls = (
     <div className="flex items-center gap-1.5">
       {decrease}
-      {valueControl}
+      <span className="inline-flex items-center">
+        {valueControl}
+        {suffix}
+      </span>
       {increase}
     </div>
   );
