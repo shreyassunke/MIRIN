@@ -73,10 +73,7 @@ export const inputModesForEquipment = (
     case "free-weight":
       return equipment === "kettlebell"
         ? [{ id: "manual", label: "Free Weight" }]
-        : [
-            { id: "dumbbell", label: "Dumbbell" },
-            { id: "manual", label: "Type weight" },
-          ];
+        : [{ id: "dumbbell", label: "Dumbbell" }];
     case "bodyweight":
       return [{ id: "manual", label: "Bodyweight" }];
     case "cable":

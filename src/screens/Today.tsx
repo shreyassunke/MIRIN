@@ -1201,6 +1201,18 @@ export function Today() {
                             id: m.id,
                             label: m.label,
                             weight: dumbbell,
+                            weightDisplay: (
+                              <Stepper
+                                label={`Weight (${unit})`}
+                                value={dumbbell}
+                                step={MANUAL_STEP[unit]}
+                                min={0}
+                                layout="readout"
+                                inlineSuffix={unit}
+                                size="lead"
+                                onChange={setDumbbell}
+                              />
+                            ),
                             qualifier:
                               laterality === "bilateral"
                                 ? lateralityCaption(laterality, "independent")
