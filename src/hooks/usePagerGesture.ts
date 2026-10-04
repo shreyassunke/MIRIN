@@ -202,8 +202,8 @@ export function usePagerGesture({
   useEffect(() => {
     if (dragging.current || settle.current != null) return;
     if (Math.abs(progress.current - index) < 0.001) return;
-    paint(index, false);
-  }, [index, paint]);
+    settleTo(index, true);
+  }, [index, settleTo]);
 
   useEffect(() => {
     const root = rootRef.current;

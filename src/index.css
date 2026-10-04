@@ -686,6 +686,68 @@ textarea {
   overflow: hidden;
 }
 
+/* Carousel marks on a 10px pitch. Near the current exercise they are 6px;
+   three steps away they drop to 4px, and further marks are 3px. */
+.exercise-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  margin-top: 2px;
+}
+
+.exercise-dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.exercise-dot::before {
+  content: "";
+  position: absolute;
+  inset: -17px 0;
+}
+
+.exercise-dot::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--dot, 6px);
+  height: var(--dot, 6px);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-ink) 42%, transparent);
+  transform: translate(-50%, -50%);
+  transition:
+    width 160ms var(--ease-out-expo),
+    height 160ms var(--ease-out-expo),
+    background-color 160ms var(--ease-out-expo);
+}
+
+.exercise-dot:hover::after {
+  background: color-mix(in srgb, var(--color-ink) 70%, transparent);
+}
+
+.exercise-dot:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+.exercise-dot[aria-current="true"]::after,
+.exercise-dot[aria-current="true"]:hover::after {
+  background: var(--color-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-dot::after {
+    transition: none;
+  }
+}
+
 .exercise-deck-track {
   display: flex;
   width: 100%;
@@ -696,6 +758,8 @@ textarea {
 .exercise-deck-page {
   flex: 0 0 100%;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .load-pager-root {

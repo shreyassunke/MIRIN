@@ -5,7 +5,6 @@ import {
   useLayoutEffect,
   useRef,
   type ReactNode,
-  type RefObject,
 } from "react";
 import { usePagerGesture } from "../hooks/usePagerGesture";
 
@@ -13,21 +12,11 @@ interface ExerciseDeckProps {
   index: number;
   onIndexChange: (index: number) => void;
   label: string;
+  /** Accessible name for each dot, in page order. */
+  pageLabels?: string[];
+  /** Resets the locked frame height when the exercise list changes. */
+  frameKey: string;
   children: ReactNode;
-  /** Own horizontal paging from this node — typically the whole Today page. */
-  fieldRef?: RefObject<HTMLElement | null>;
-}
-
-function heightAt(progress: number, heights: number[], reduced: boolean) {
-  const n = heights.length;
-  if (n === 0) return 0;
-  const clamped = Math.max(0, Math.min(n - 1, progress));
-  if (reduced) return heights[Math.round(clamped)] ?? 0;
-  const i = Math.floor(clamped);
-  const t = clamped - i;
-  const a = heights[i] ?? 0;
-  const b = heights[Math.min(n - 1, i + 1)] ?? a;
-  return a + (b - a) * t;
 }
 
 function prefersReducedMotion() {
@@ -37,12 +26,17 @@ function prefersReducedMotion() {
   );
 }
 
+/**
+ * One fixed frame. Pages translate inside it; the frame keeps the tallest
+ * page's height so a swipe never changes the box.
+ */
 export function ExerciseDeck({
   index,
   onIndexChange,
   label,
+  pageLabels,
+  frameKey,
   children,
-  fieldRef,
 }: ExerciseDeckProps) {
   const pages = Children.toArray(children);
   const count = pages.length;
@@ -54,7 +48,7 @@ export function ExerciseDeck({
   const heights = useRef<number[]>([]);
   const progressRef = useRef(index);
   const draggingRef = useRef(false);
-  const gestureRef = fieldRef ?? rootRef;
+  const frameLock = useRef({ key: "", height: 0 });
 
   const paint = useCallback((progress: number, dragging: boolean) => {
     progressRef.current = progress;
@@ -69,17 +63,31 @@ export function ExerciseDeck({
         ? `translate3d(${x}px, 0, 0)`
         : `translate3d(${-progress * 100}%, 0, 0)`;
     }
-    pageRefs.current.forEach((page) => {
-      if (!page) return;
-      page.style.transform = "none";
-      page.style.opacity = "1";
-    });
-    const h = heightAt(progress, heights.current, reduced);
-    if (viewport && h > 0) viewport.style.height = `${Math.round(h)}px`;
     const inMotion =
       dragging || Math.abs(progress - Math.round(progress)) > 0.001;
-    gestureRef.current?.classList.toggle("is-paging", inMotion);
-  }, [gestureRef]);
+    rootRef.current?.classList.toggle("is-paging", inMotion);
+    if (inMotion || !viewport) return;
+    if (frameLock.current.key !== frameKey) {
+      frameLock.current = { key: frameKey, height: 0 };
+    }
+    const max = heights.current.reduce((tallest, height) => {
+      return Math.max(tallest, height || 0);
+    }, 0);
+    const next = Math.max(frameLock.current.height, max);
+    frameLock.current.height = next;
+    if (next > 0) viewport.style.height = `${Math.round(next)}px`;
+  }, [frameKey]);
+
+  const { goTo } = usePagerGesture({
+    count,
+    index,
+    enabled: paging,
+    rootRef,
+    onProgress: paint,
+    onIndexChange,
+    getWidth: () => viewportRef.current?.clientWidth ?? 1,
+    claim: "page",
+  });
 
   const measure = useCallback(() => {
     const next: number[] = [];
@@ -91,16 +99,10 @@ export function ExerciseDeck({
     paint(progressRef.current, draggingRef.current);
   }, [paint]);
 
-  usePagerGesture({
-    count,
-    index,
-    enabled: paging,
-    rootRef: gestureRef,
-    onProgress: paint,
-    onIndexChange,
-    getWidth: () => viewportRef.current?.clientWidth ?? 1,
-    claim: "page",
-  });
+  useLayoutEffect(() => {
+    frameLock.current = { key: frameKey, height: 0 };
+    measure();
+  }, [frameKey, measure]);
 
   useLayoutEffect(() => {
     measure();
@@ -120,40 +122,65 @@ export function ExerciseDeck({
     root.setAttribute("role", "region");
     root.setAttribute(
       "aria-label",
-      `${label}. Swipe or use arrow keys to change exercise.`,
+      `${label}. Exercise ${index + 1} of ${count}. Swipe or use arrow keys to change exercise.`,
     );
     return () => {
       root.removeAttribute("role");
       root.removeAttribute("aria-label");
       root.removeAttribute("tabindex");
     };
-  }, [label, paging]);
+  }, [count, index, label, paging]);
 
   if (!paging) {
-    return <div>{pages[0]}</div>;
+    return <div data-exercise-frame="">{pages[0]}</div>;
   }
 
   return (
-    <div ref={rootRef} className={fieldRef ? undefined : "load-swipe-field"}>
-      <div ref={viewportRef} className="exercise-deck">
-        <div ref={trackRef} className="exercise-deck-track">
-          {pages.map((child, i) => {
-            const active = i === index;
-            return (
-              <div
-                key={i}
-                ref={(el) => {
-                  pageRefs.current[i] = el;
-                }}
-                className="exercise-deck-page"
-                aria-hidden={!active}
-                {...(!active ? { inert: "" } : {})}
-              >
-                {child}
-              </div>
-            );
-          })}
+    <div className="exercise-frame" data-exercise-frame="">
+      <div ref={rootRef} className="load-swipe-field">
+        <div ref={viewportRef} className="exercise-deck">
+          <div ref={trackRef} className="exercise-deck-track">
+            {pages.map((child, i) => {
+              const active = i === index;
+              return (
+                <div
+                  key={i}
+                  ref={(el) => {
+                    pageRefs.current[i] = el;
+                  }}
+                  className="exercise-deck-page"
+                  aria-hidden={!active}
+                  {...(!active ? { inert: "" } : {})}
+                >
+                  {child}
+                </div>
+              );
+            })}
+          </div>
         </div>
+      </div>
+      <div
+        className="exercise-dots"
+        role="group"
+        aria-label="Exercises in this workout"
+      >
+        {pages.map((_, i) => {
+          const selected = i === index;
+          const distance = Math.abs(i - index);
+          const name = pageLabels?.[i] ?? `Exercise ${i + 1}`;
+          const dot = distance >= 4 ? 3 : distance === 3 ? 4 : 6;
+          return (
+            <button
+              key={i}
+              type="button"
+              className="exercise-dot"
+              style={{ "--dot": `${dot}px` }}
+              aria-label={`${name}, ${i + 1} of ${count}`}
+              aria-current={selected ? "true" : undefined}
+              onClick={() => goTo(i)}
+            />
+          );
+        })}
       </div>
     </div>
   );
