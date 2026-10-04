@@ -243,26 +243,24 @@ export function BarWeightControl({
   }
 
   return (
-    <div className="text-center">
-      <div className="flex min-h-11 flex-col items-center justify-center">
-        <button
-          ref={triggerRef}
-          type="button"
-          id={triggerId}
-          aria-expanded={open}
-          aria-haspopup="listbox"
-          aria-controls={open ? listId : undefined}
-          aria-label={`Total ${formatWeight(total)} ${unit}. Bar ${formatWeight(barWeight)} ${unit}. Change bar.`}
-          onClick={() => setOpen((value) => !value)}
-          className="inline-flex min-h-11 items-center rounded-md px-3"
-        >
-          <span className="tnum text-3xl font-semibold tracking-tight">
-            {formatWeight(total)}
-          </span>
-          <span className="ml-1.5 text-sm text-muted">{unit}</span>
-          <Chevron open={open} />
-        </button>
-      </div>
+    <div className="flex flex-col items-center">
+      <button
+        ref={triggerRef}
+        type="button"
+        id={triggerId}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls={open ? listId : undefined}
+        aria-label={`Total ${formatWeight(total)} ${unit}. Bar ${formatWeight(barWeight)} ${unit}. Change bar.`}
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex min-h-11 items-center"
+      >
+        <span className="tnum text-3xl font-semibold tracking-tight">
+          {formatWeight(total)}
+        </span>
+        <span className="ml-1.5 text-sm text-muted">{unit}</span>
+        <Chevron open={open} />
+      </button>
       {open &&
         createPortal(
           <div

@@ -10,6 +10,7 @@ import type { InputModeOption } from "../../lib/library";
 import type { InputMethod, Unit } from "../../lib/units";
 import { formatWeight } from "../../lib/workout";
 import { usePagerGesture } from "../../hooks/usePagerGesture";
+import { Stepper } from "../Stepper";
 
 export interface LoadInstrumentPage {
   id: InputMethod;
@@ -18,6 +19,8 @@ export interface LoadInstrumentPage {
   weightDisplay?: ReactNode;
   /** Quiet gloss after the unit — e.g. "per hand" for a pair of bells. */
   qualifier?: string;
+  onQualifierClick?: () => void;
+  qualifierAria?: string;
   stage?: ReactNode;
   extras?: ReactNode;
 }
@@ -30,8 +33,9 @@ interface LoadInstrumentProps {
   pages: LoadInstrumentPage[];
   /** Larger hit target than the cluster — typically the open exercise card. */
   fieldRef?: RefObject<HTMLElement | null>;
-  /** Sits on every equipment page, so Log stays one gap below the instrument. */
-  footer?: ReactNode;
+  /** Live set count — sits on the weight line as `× 8`, same language as the chips. */
+  reps?: number;
+  onRepsChange?: (reps: number) => void;
   /** Finger-drag between equipment pages. Chevrons stay either way. */
   swipe?: boolean;
 }
@@ -56,18 +60,33 @@ function prefersReducedMotion() {
   );
 }
 
-function PageChevron({ direction }: { direction: "prev" | "next" }) {
+
+function SetReps({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
   return (
-    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden="true">
-      <path
-        d={direction === "prev" ? "M10 4 6 8l4 4" : "M6 4l4 4-4 4"}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <>
+      <span
+        className="mx-1.5 select-none text-3xl font-semibold tracking-tight text-muted"
+        aria-hidden="true"
+      >
+        ×
+      </span>
+      <Stepper
+        label="Reps"
+        value={value}
+        step={1}
+        min={1}
+        layout="readout"
+        size="lead"
+        inlineSuffix="reps"
+        onChange={onChange}
       />
-    </svg>
+    </>
   );
 }
 
@@ -76,67 +95,87 @@ function WeightHeader({
   weight,
   weightDisplay,
   qualifier,
+  onQualifierClick,
+  qualifierAria,
+  reps,
+  onRepsChange,
 }: {
   unit: Unit;
   weight: number;
   weightDisplay?: ReactNode;
   qualifier?: string;
+  onQualifierClick?: () => void;
+  qualifierAria?: string;
+  reps?: number;
+  onRepsChange?: (reps: number) => void;
 }) {
-  if (weightDisplay) {
-    return <div className="flex justify-center">{weightDisplay}</div>;
-  }
+  const count =
+    reps != null && onRepsChange ? (
+      <SetReps value={reps} onChange={onRepsChange} />
+    ) : null;
+
+  const gloss = qualifier ? (
+    onQualifierClick ? (
+      <button
+        type="button"
+        onClick={onQualifierClick}
+        aria-label={qualifierAria ?? qualifier}
+        className="ml-1.5 min-h-11 text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+      >
+        {qualifier}
+      </button>
+    ) : (
+      <span className="ml-1.5 text-[13px] text-muted">{qualifier}</span>
+    )
+  ) : null;
+
   return (
-    <p className="flex min-h-11 items-center justify-center whitespace-nowrap">
-      <span className="tnum text-3xl font-semibold tracking-tight">
-        {formatWeight(weight)}
-      </span>
-      <span className="ml-1.5 text-sm text-muted">{unit}</span>
-      {qualifier ? (
-        <span className="ml-2 text-[13px] text-muted">{qualifier}</span>
-      ) : null}
-    </p>
+    <div className="flex min-h-11 flex-wrap items-center justify-center whitespace-nowrap">
+      {weightDisplay ?? (
+        <>
+          <span className="tnum text-3xl font-semibold tracking-tight">
+            {formatWeight(weight)}
+          </span>
+          <span className="ml-1.5 text-sm text-muted">{unit}</span>
+        </>
+      )}
+      {gloss}
+      {count}
+    </div>
   );
 }
 
-/** Names the instrument the arrows change — never the live weight. */
+/** Other methods only — the instrument already names the current one. */
 function EquipmentSwitch({
-  label,
-  prevLabel,
-  nextLabel,
-  onPrev,
-  onNext,
+  options,
+  current,
+  onPick,
 }: {
-  label: string;
-  prevLabel?: string;
-  nextLabel?: string;
-  onPrev: () => void;
-  onNext: () => void;
+  options: { id: string; label: string }[];
+  current: string;
+  onPick: (id: string) => void;
 }) {
+  const others = options.filter((option) => option.id !== current);
+  if (others.length === 0) return null;
   return (
     <div className="flex items-center justify-center">
-      <button
-        type="button"
-        data-no-pager=""
-        disabled={!prevLabel}
-        aria-label={prevLabel ? `Previous, ${prevLabel}` : "Previous"}
-        onClick={onPrev}
-        className="flex h-11 w-11 items-center justify-center text-muted transition-colors duration-150 hover:text-ink disabled:pointer-events-none disabled:opacity-0"
-      >
-        <PageChevron direction="prev" />
-      </button>
-      <span className="min-w-[6.5rem] text-center text-[13px] font-medium text-muted">
-        {label}
-      </span>
-      <button
-        type="button"
-        data-no-pager=""
-        disabled={!nextLabel}
-        aria-label={nextLabel ? `Next, ${nextLabel}` : "Next"}
-        onClick={onNext}
-        className="flex h-11 w-11 items-center justify-center text-muted transition-colors duration-150 hover:text-ink disabled:pointer-events-none disabled:opacity-0"
-      >
-        <PageChevron direction="next" />
-      </button>
+      {others.map((option, i) => (
+        <span key={option.id} className="contents">
+          {i > 0 ? (
+            <span className="text-[13px] text-muted" aria-hidden="true">
+              ·
+            </span>
+          ) : null}
+          <button
+            type="button"
+            data-no-pager=""
+            onClick={() => onPick(option.id)}
+            className="min-h-11 px-2.5 text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+          >
+            {option.label}
+          </button>
+        </span>
+      ))}
     </div>
   );
 }
@@ -148,7 +187,8 @@ export function LoadInstrument({
   onModeChange,
   pages,
   fieldRef,
-  footer,
+  reps,
+  onRepsChange,
   swipe = true,
 }: LoadInstrumentProps) {
   const visible = pages.filter((page) => modes.some((m) => m.id === page.id));
@@ -230,14 +270,6 @@ export function LoadInstrument({
     aim.current = index;
   }, [index]);
 
-  const stepPage = (delta: -1 | 1) => {
-    const max = Math.max(0, visible.length - 1);
-    const next = Math.max(0, Math.min(max, aim.current + delta));
-    if (next === aim.current) return;
-    aim.current = next;
-    goTo(next);
-  };
-
   useLayoutEffect(() => {
     measure();
     const observers = pageRefs.current.map((page) => {
@@ -271,7 +303,7 @@ export function LoadInstrument({
     field.setAttribute("role", "region");
     field.setAttribute(
       "aria-label",
-      `Weight input, ${methodLabel}. Use the arrows under the instrument to change.`,
+      `Weight input, ${methodLabel}. Other methods are listed under the instrument.`,
     );
     return () => {
       field.removeAttribute("role");
@@ -290,6 +322,10 @@ export function LoadInstrument({
         weight={page.weight}
         weightDisplay={page.weightDisplay}
         qualifier={page.qualifier}
+        onQualifierClick={page.onQualifierClick}
+        qualifierAria={page.qualifierAria}
+        reps={reps}
+        onRepsChange={onRepsChange}
       />
       {page.stage}
       {page.extras}
@@ -298,62 +334,53 @@ export function LoadInstrument({
 
   const switcher = paging ? (
     <EquipmentSwitch
-      label={visible[index]?.label ?? methodLabel}
-      prevLabel={visible[index - 1]?.label}
-      nextLabel={visible[index + 1]?.label}
-      onPrev={() => stepPage(-1)}
-      onNext={() => stepPage(1)}
+      options={visible.map((page) => ({ id: page.id, label: page.label }))}
+      current={visible[index]?.id ?? mode}
+      onPick={(id) => {
+        const next = visible.findIndex((page) => page.id === id);
+        if (next < 0) return;
+        aim.current = next;
+        goTo(next);
+      }}
     />
-  ) : null;
-
-  const reps = footer ? (
-    <div data-no-pager="" className="flex justify-center">
-      {footer}
-    </div>
   ) : null;
 
   if (!paging) {
     const page = visible[0];
     if (!page) return null;
     return (
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          {body(page, true)}
-          {switcher}
-        </div>
-        {reps}
+      <div className="flex flex-col gap-1">
+        {body(page, true)}
+        {switcher}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <div ref={rootRef} className="load-pager-root">
-          <div ref={viewportRef} className="load-pager">
-            <div ref={trackRef} className="load-pager-track">
-              {visible.map((page, i) => {
-                const active = page.id === mode;
-                return (
-                  <div
-                    key={page.id}
-                    ref={(el) => {
-                      pageRefs.current[i] = el;
-                    }}
-                    className="load-pager-page"
-                    aria-hidden={!active}
-                    {...(!active ? { inert: "" } : {})}
-                  >
-                    {body(page, active)}
-                  </div>
-                );
-              })}
-            </div>
+    <div className="flex flex-col gap-1">
+      <div ref={rootRef} className="load-pager-root">
+        <div ref={viewportRef} className="load-pager">
+          <div ref={trackRef} className="load-pager-track">
+            {visible.map((page, i) => {
+              const active = page.id === mode;
+              return (
+                <div
+                  key={page.id}
+                  ref={(el) => {
+                    pageRefs.current[i] = el;
+                  }}
+                  className="load-pager-page"
+                  aria-hidden={!active}
+                  {...(!active ? { inert: "" } : {})}
+                >
+                  {body(page, active)}
+                </div>
+              );
+            })}
           </div>
         </div>
-        {switcher}
       </div>
-      {reps}
+      {switcher}
     </div>
   );
 }

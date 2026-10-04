@@ -69,7 +69,6 @@ import {
   warmupDisplayWeight,
   workingSets,
 } from "../lib/exerciseMeta";
-import { deleteSetDrop, deleteSetLog } from "../lib/history";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { TodayExercisePage } from "../components/TodayExerciseTile";
 import { ExerciseDeck } from "../components/ExerciseDeck";
@@ -633,7 +632,6 @@ export function Today() {
         : manualWeight;
 
   const anyLogged = data.logs.length > 0;
-  const showSameAsLast = !anyLogged && fillPlan.length > 0;
   const showFillLeft = anyLogged && fillPlan.length > 0;
   const showComplete = anyLogged && fillPlan.length === 0;
   const activeLogged = activeId ? (logsByExercise.get(activeId) ?? []) : [];
@@ -814,36 +812,6 @@ export function Today() {
     }
   }
 
-  async function logFromPrior(source: SetLog) {
-    if (loggingRef.current) return;
-    loggingRef.current = true;
-    try {
-      await logSet(
-        source.exerciseId,
-        source.weight,
-        source.reps,
-        source.inputMethod ?? "manual",
-        source.loadBreakdown,
-        source.laterality,
-        { drops: source.drops, forceWorking: true },
-      );
-    } finally {
-      loggingRef.current = false;
-    }
-  }
-
-  async function undoLastLog(exerciseId: string) {
-    const logged = logsByExercise.get(exerciseId) ?? [];
-    const last = logged[logged.length - 1];
-    if (!last) return;
-    if (last.drops?.length) {
-      await deleteSetDrop(last.id, last.drops.length - 1);
-    } else {
-      await deleteSetLog(last.id);
-    }
-    setTimerVisible(false);
-  }
-
   /**
    * Fill every set still missing against last session, then close the session.
    * Available at any point in the workout, including before the first set.
@@ -965,20 +933,6 @@ export function Today() {
             {anyLogged &&
               ` · ${data.logs.length} ${data.logs.length === 1 ? "set" : "sets"} logged`}
           </p>
-          {showSameAsLast && (
-            <button
-              type="button"
-              onClick={() =>
-                finishArmed ? void finishWorkout() : setFinishArmed(true)
-              }
-              className="mt-2 text-[13px] font-medium text-ink transition-colors duration-150 hover:text-muted"
-            >
-              {finishArmed ? "Confirm" : "Same as last time"}
-              <span className="ml-1.5 font-normal text-muted">
-                {fillPlan.length} {fillPlan.length === 1 ? "set" : "sets"}
-              </span>
-            </button>
-          )}
         </div>
         <UnitToggle />
       </header>
@@ -1001,9 +955,6 @@ export function Today() {
             const logged = logsByExercise.get(exercise.id) ?? [];
             const isLive = exercise.id === activeId;
             const finished = finishedIds.has(exercise.id);
-            const prior = data.prefills[exercise.id] ?? [];
-            const workingCount = logged.filter((s) => !s.isWarmup).length;
-            const pending = finished ? [] : prior.slice(workingCount);
             const displayName = exerciseLabelForMethod(
               exercise.name,
               isLive
@@ -1027,7 +978,6 @@ export function Today() {
                 key={exercise.id}
                 exercise={exercise}
                 logged={logged}
-                pending={pending}
                 finished={finished}
                 isSwapping={swappingIndex === index}
                 excludeSwapIds={data.exerciseIds.filter(
@@ -1183,16 +1133,6 @@ export function Today() {
                 }
                 onCancelSwap={() => setSwappingIndex(null)}
                 onSwapPick={(entry) => void handleSwapExercise(index, entry)}
-                formatLoggedSet={(s) =>
-                  formatSet(s, (lb) => toDisplay(lb, unit))
-                }
-                onUndoLast={() => void undoLastLog(exercise.id)}
-                undoLastHasDrop={
-                  (logged[logged.length - 1]?.drops?.length ?? 0) > 0
-                }
-                onStampNext={
-                  pending[0] ? () => void logFromPrior(pending[0]) : undefined
-                }
               >
                 {isLive && showingVideo && (
                   <FormVideoPanel
@@ -1209,18 +1149,8 @@ export function Today() {
                       mode={activeMode}
                       swipe={false}
                       onModeChange={(next) => setMode(next, activeExercise.id)}
-                      footer={
-                        <Stepper
-                          label="Reps"
-                          value={reps}
-                          step={1}
-                          min={1}
-                          layout="readout"
-                          inlineSuffix="reps"
-                          size="compact"
-                          onChange={setReps}
-                        />
-                      }
+                      reps={reps}
+                      onRepsChange={setReps}
                       pages={activeModes.map((m) => {
                         if (m.id === "barbell") {
                           return {
@@ -1310,28 +1240,25 @@ export function Today() {
                               onChange={setManualWeight}
                             />
                           ),
-                          extras: supportsLaterality(
+                          qualifier: supportsLaterality(
                             "manual",
                             activeEquipment,
-                          ) ? (
-                            <div className="flex justify-center">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setLateralityFor(
-                                    laterality === "bilateral"
-                                      ? "unilateral"
-                                      : "bilateral",
-                                    activeExercise.id,
-                                  )
-                                }
-                                className="min-h-11 px-2 text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-                                aria-label={`${lateralityLabel}. Switch to ${lateralityNextLabel}`}
-                              >
-                                {lateralityLabel}
-                              </button>
-                            </div>
-                          ) : undefined,
+                          )
+                            ? lateralityLabel
+                            : undefined,
+                          onQualifierClick: supportsLaterality(
+                            "manual",
+                            activeEquipment,
+                          )
+                            ? () =>
+                                setLateralityFor(
+                                  laterality === "bilateral"
+                                    ? "unilateral"
+                                    : "bilateral",
+                                  activeExercise.id,
+                                )
+                            : undefined,
+                          qualifierAria: `${lateralityLabel}. Switch to ${lateralityNextLabel}`,
                         };
                       })}
                     />

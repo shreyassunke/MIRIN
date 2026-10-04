@@ -6,7 +6,6 @@ import { ExerciseCombobox } from "./ExerciseCombobox";
 interface TodayExercisePageProps {
   exercise: Exercise;
   logged: SetLog[];
-  pending: SetLog[];
   finished: boolean;
   isSwapping: boolean;
   excludeSwapIds: string[];
@@ -15,14 +14,10 @@ interface TodayExercisePageProps {
   notes?: ReactNode;
   onCancelSwap: () => void;
   onSwapPick: (entry: ExerciseLibraryEntry) => void;
-  formatLoggedSet: (log: SetLog) => string;
-  onUndoLast?: () => void;
-  undoLastHasDrop?: boolean;
-  onStampNext?: () => void;
   children?: ReactNode;
   title?: string;
   position?: string;
-  /** Neighbor page during a swipe — name, chips, and the next set only. */
+  /** Neighbor page during a swipe — name and the next set only. */
   preview?: boolean;
   previewSet?: string;
 }
@@ -30,7 +25,6 @@ interface TodayExercisePageProps {
 export function TodayExercisePage({
   exercise,
   logged,
-  pending,
   finished,
   isSwapping,
   excludeSwapIds,
@@ -39,10 +33,6 @@ export function TodayExercisePage({
   notes,
   onCancelSwap,
   onSwapPick,
-  formatLoggedSet,
-  onUndoLast,
-  undoLastHasDrop = false,
-  onStampNext,
   children,
   title,
   position,
@@ -51,7 +41,6 @@ export function TodayExercisePage({
 }: TodayExercisePageProps) {
   const name = title ?? exercise.name;
   const workingCount = logged.filter((s) => !s.isWarmup).length;
-  const showChips = logged.length > 0 || pending.length > 0;
   const status = finished
     ? `Done · ${workingCount}`
     : workingCount > 0
@@ -109,57 +98,6 @@ export function TodayExercisePage({
             onCancel={onCancelSwap}
             onPick={onSwapPick}
           />
-        </div>
-      )}
-
-      {showChips && (
-        <div className="tnum flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-muted">
-          {logged.map((s, i) => {
-            const isLast = i === logged.length - 1;
-            if (isLast && onUndoLast && !preview) {
-              const label = formatLoggedSet(s);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={onUndoLast}
-                  aria-label={
-                    undoLastHasDrop
-                      ? `Undo last drop on ${label}`
-                      : `Undo ${label}`
-                  }
-                  className="glass-chip inline-flex h-8 items-center gap-1.5 rounded-pill px-2.5 text-ink"
-                >
-                  <span>{label}</span>
-                  <span className="text-[13px] font-medium text-muted">
-                    Undo
-                  </span>
-                </button>
-              );
-            }
-            return (
-              <span key={s.id} className="text-ink">
-                {formatLoggedSet(s)}
-              </span>
-            );
-          })}
-          {pending.map((s, i) => {
-            const label = formatLoggedSet(s);
-            if (i === 0 && onStampNext && !preview) {
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={onStampNext}
-                  aria-label={`Log ${label} from last session`}
-                  className="glass-chip inline-flex h-8 items-center rounded-pill px-2.5 text-ink"
-                >
-                  {label}
-                </button>
-              );
-            }
-            return <span key={s.id}>{label}</span>;
-          })}
         </div>
       )}
 
