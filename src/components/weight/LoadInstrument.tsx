@@ -58,7 +58,7 @@ function prefersReducedMotion() {
 
 function PageChevron({ direction }: { direction: "prev" | "next" }) {
   return (
-    <svg viewBox="0 0 16 16" className="h-5 w-5" aria-hidden="true">
+    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden="true">
       <path
         d={direction === "prev" ? "M10 4 6 8l4 4" : "M6 4l4 4-4 4"}
         fill="none"
@@ -76,20 +76,16 @@ function WeightHeader({
   weight,
   weightDisplay,
   qualifier,
-  leading,
-  trailing,
 }: {
   unit: Unit;
   weight: number;
   weightDisplay?: ReactNode;
   qualifier?: string;
-  /** Equipment-page arrows. They hug the live weight; they do not change it. */
-  leading?: ReactNode;
-  trailing?: ReactNode;
 }) {
-  const value = weightDisplay ? (
-    <div className="flex justify-center">{weightDisplay}</div>
-  ) : (
+  if (weightDisplay) {
+    return <div className="flex justify-center">{weightDisplay}</div>;
+  }
+  return (
     <p className="flex min-h-11 items-center justify-center whitespace-nowrap">
       <span className="tnum text-3xl font-semibold tracking-tight">
         {formatWeight(weight)}
@@ -100,16 +96,47 @@ function WeightHeader({
       ) : null}
     </p>
   );
+}
 
-  if (!leading && !trailing) {
-    return <div className="text-center">{value}</div>;
-  }
-
+/** Names the instrument the arrows change — never the live weight. */
+function EquipmentSwitch({
+  label,
+  prevLabel,
+  nextLabel,
+  onPrev,
+  onNext,
+}: {
+  label: string;
+  prevLabel?: string;
+  nextLabel?: string;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
   return (
-    <div className="flex items-start justify-center gap-4">
-      {leading}
-      <div className="min-w-0 text-center">{value}</div>
-      {trailing}
+    <div className="flex items-center justify-center">
+      <button
+        type="button"
+        data-no-pager=""
+        disabled={!prevLabel}
+        aria-label={prevLabel ? `Previous, ${prevLabel}` : "Previous"}
+        onClick={onPrev}
+        className="flex h-11 w-11 items-center justify-center text-muted transition-colors duration-150 hover:text-ink disabled:pointer-events-none disabled:opacity-0"
+      >
+        <PageChevron direction="prev" />
+      </button>
+      <span className="min-w-[6.5rem] text-center text-[13px] font-medium text-muted">
+        {label}
+      </span>
+      <button
+        type="button"
+        data-no-pager=""
+        disabled={!nextLabel}
+        aria-label={nextLabel ? `Next, ${nextLabel}` : "Next"}
+        onClick={onNext}
+        className="flex h-11 w-11 items-center justify-center text-muted transition-colors duration-150 hover:text-ink disabled:pointer-events-none disabled:opacity-0"
+      >
+        <PageChevron direction="next" />
+      </button>
     </div>
   );
 }
@@ -244,7 +271,7 @@ export function LoadInstrument({
     field.setAttribute("role", "region");
     field.setAttribute(
       "aria-label",
-      `Weight input, ${methodLabel}. Use the side buttons to change.`,
+      `Weight input, ${methodLabel}. Use the arrows under the instrument to change.`,
     );
     return () => {
       field.removeAttribute("role");
@@ -253,7 +280,7 @@ export function LoadInstrument({
     };
   }, [fieldRef, methodLabel, paging, swipe]);
 
-  const body = (page: LoadInstrumentPage, pageIndex: number, live = false) => (
+  const body = (page: LoadInstrumentPage, live = false) => (
     <div
       className="flex flex-col gap-2"
       aria-live={live ? "polite" : undefined}
@@ -263,13 +290,21 @@ export function LoadInstrument({
         weight={page.weight}
         weightDisplay={page.weightDisplay}
         qualifier={page.qualifier}
-        leading={paging ? pageButton("prev", pageIndex) : undefined}
-        trailing={paging ? pageButton("next", pageIndex) : undefined}
       />
       {page.stage}
       {page.extras}
     </div>
   );
+
+  const switcher = paging ? (
+    <EquipmentSwitch
+      label={visible[index]?.label ?? methodLabel}
+      prevLabel={visible[index - 1]?.label}
+      nextLabel={visible[index + 1]?.label}
+      onPrev={() => stepPage(-1)}
+      onNext={() => stepPage(1)}
+    />
+  ) : null;
 
   const reps = footer ? (
     <div data-no-pager="" className="flex justify-center">
@@ -277,36 +312,15 @@ export function LoadInstrument({
     </div>
   ) : null;
 
-  const pageButton = (direction: "prev" | "next", pageIndex: number) => {
-    const delta: -1 | 1 = direction === "prev" ? -1 : 1;
-    const target = visible[pageIndex + delta];
-    const atBound = !target;
-    return (
-      <button
-        type="button"
-        data-no-pager=""
-        className="glass-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-pill text-ink disabled:pointer-events-none"
-        aria-label={
-          target
-            ? `${direction === "prev" ? "Previous" : "Next"}, ${target.label}`
-            : direction === "prev"
-              ? "Previous"
-              : "Next"
-        }
-        disabled={atBound}
-        onClick={() => stepPage(delta)}
-      >
-        <PageChevron direction={direction} />
-      </button>
-    );
-  };
-
   if (!paging) {
     const page = visible[0];
     if (!page) return null;
     return (
       <div className="flex flex-col gap-4">
-        {body(page, 0, true)}
+        <div className="flex flex-col gap-1">
+          {body(page, true)}
+          {switcher}
+        </div>
         {reps}
       </div>
     );
@@ -314,27 +328,30 @@ export function LoadInstrument({
 
   return (
     <div className="flex flex-col gap-4">
-      <div ref={rootRef} className="load-pager-root">
-        <div ref={viewportRef} className="load-pager">
-          <div ref={trackRef} className="load-pager-track">
-            {visible.map((page, i) => {
-              const active = page.id === mode;
-              return (
-                <div
-                  key={page.id}
-                  ref={(el) => {
-                    pageRefs.current[i] = el;
-                  }}
-                  className="load-pager-page"
-                  aria-hidden={!active}
-                  {...(!active ? { inert: "" } : {})}
-                >
-                  {body(page, i, active)}
-                </div>
-              );
-            })}
+      <div className="flex flex-col gap-1">
+        <div ref={rootRef} className="load-pager-root">
+          <div ref={viewportRef} className="load-pager">
+            <div ref={trackRef} className="load-pager-track">
+              {visible.map((page, i) => {
+                const active = page.id === mode;
+                return (
+                  <div
+                    key={page.id}
+                    ref={(el) => {
+                      pageRefs.current[i] = el;
+                    }}
+                    className="load-pager-page"
+                    aria-hidden={!active}
+                    {...(!active ? { inert: "" } : {})}
+                  >
+                    {body(page, active)}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
+        {switcher}
       </div>
       {reps}
     </div>
