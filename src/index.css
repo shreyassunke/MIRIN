@@ -243,49 +243,13 @@ textarea {
   color: var(--color-muted);
 }
 
-/* Pill nav — fill-only active bubble, Instagram-tight inset */
+/* Pill nav — one glass bar. The active tab is the filled icon, not a second pill. */
 .nav-pill-track {
-  --nav-pill-inset: 0.25rem;
-  isolation: isolate;
-  padding: var(--nav-pill-inset);
+  padding: 0.25rem;
   border-color: var(--color-glass-border);
   box-shadow:
     inset 0 1px 0 var(--color-sheen),
     var(--shadow-glass);
-}
-
-.nav-pill-indicator {
-  position: absolute;
-  top: var(--nav-pill-inset);
-  bottom: var(--nav-pill-inset);
-  left: 0;
-  z-index: 0;
-  border-radius: var(--radius-pill);
-  background: var(--color-wash-strong);
-  border: 0;
-  box-shadow: none;
-  opacity: 0;
-  pointer-events: none;
-  will-change: transform, width, opacity, filter;
-}
-
-.nav-pill-indicator-ready {
-  opacity: 1;
-}
-
-.nav-pill-indicator-animate {
-  transition:
-    transform var(--motion-nav) var(--ease-out-expo),
-    width var(--motion-nav) var(--ease-out-expo),
-    opacity 160ms var(--ease-out-expo),
-    background-color var(--motion-nav) var(--ease-out-expo),
-    box-shadow var(--motion-nav) var(--ease-out-expo),
-    filter var(--motion-nav) var(--ease-out-expo);
-}
-
-.nav-pill-indicator-settle {
-  background: color-mix(in srgb, var(--color-ink) 20%, transparent);
-  filter: brightness(1.06);
 }
 
 .nav-pill-item {
@@ -473,14 +437,6 @@ textarea {
   box-shadow: var(--shadow-float);
 }
 
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .nav-pill-indicator {
-    background: var(--color-surface-raised);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
 /* Primary remains solid accent; light press feedback only */
 .btn-primary,
 .btn-primary:hover {
@@ -621,29 +577,31 @@ textarea {
 }
 
 /*
-  Identity row hover. The wash fills the glass and is clipped to its radius,
-  so the highlight meets the stroke instead of cutting a square beside the photo.
+  Identity row hover. The wash fills the name row and is clipped to the card's
+  top radius, so the highlight meets the stroke beside the photo and stops
+  at the divider above appearance and sign out.
 */
-.identity-card {
+.identity-row {
   position: relative;
   isolation: isolate;
   overflow: clip;
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
 }
 
-.identity-card::before {
+.identity-row::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  border-radius: inherit;
   background: var(--color-wash);
   opacity: 0;
   pointer-events: none;
   transition: opacity 150ms var(--ease-out-quint);
 }
 
-.identity-card:hover::before,
-.identity-card:has(.identity-link:focus-visible)::before {
+.identity-row:hover::before,
+.identity-row:has(.identity-link:focus-visible)::before {
   opacity: 1;
 }
 
@@ -651,9 +609,36 @@ textarea {
   outline: none;
 }
 
-.identity-card:has(.identity-link:focus-visible) {
+.identity-row:has(.identity-link:focus-visible) {
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
+}
+
+/* Recessed seat for the appearance choice. No second glass panel. */
+.appearance-track {
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
+}
+
+/* Sign out is a row of the account sheet, not a pill inside it. */
+.account-signout {
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--motion-fast) var(--ease-out-expo);
+}
+
+.account-signout span {
+  transition: transform var(--motion-fast) var(--ease-out-expo);
+}
+
+.account-signout:hover {
+  background: var(--color-wash);
+}
+
+.account-signout:active {
+  background: var(--color-wash-strong);
+}
+
+.account-signout:active span {
+  transform: scale(0.98);
 }
 
 /* Load instrument pager — finger-tracked equipment pages */
@@ -777,11 +762,8 @@ html.reorder-active [data-reorder-index] {
     animation: none;
   }
 
-  .nav-pill-indicator {
-    transition: none;
-  }
-
-  .nav-pill-item:active .nav-pill-label {
+  .nav-pill-item:active .nav-pill-label,
+  .account-signout:active span {
     transform: none;
   }
 

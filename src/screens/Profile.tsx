@@ -15,9 +15,6 @@ import { AVATAR_KEY, useSettingValue } from "../lib/profile";
 import { getContactLine, getDisplayName } from "../lib/user";
 import { Chevron, ProfileBack } from "./profile/chrome";
 
-const secondaryBtn =
-  "glass-btn h-12 rounded-pill px-5 text-sm font-medium text-ink";
-
 export function Profile() {
   const outlet = useOutlet();
 
@@ -64,79 +61,81 @@ export function ProfileAccount() {
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">Account</h1>
       </header>
 
-      <section className="identity-card glass flex items-center gap-4 rounded-xl p-4">
-        <button
-          type="button"
-          className="relative z-10 shrink-0 rounded-pill transition-transform duration-150 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
-          aria-label="Edit photo"
-          onClick={() => {
-            if (avatar === null) return;
-            setEditorOpen(true);
-          }}
-        >
-          <Avatar
-            src={avatar || null}
-            name={displayName}
-            email={contact}
-            size={64}
-          />
-          <span className="pointer-events-none absolute -right-0.5 -bottom-0.5 flex h-6 w-6 items-center justify-center rounded-pill border border-glass-border bg-bg text-ink shadow-float">
-            <CameraIcon />
-          </span>
-        </button>
-        <Link
-          to="/profile/details"
-          className="identity-link relative z-10 -my-4 -mr-4 flex min-h-16 min-w-0 flex-1 items-center gap-3 py-4 pr-4"
-        >
-          <span className="sr-only">Details</span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-semibold tracking-tight">
-              {displayName || "No name set"}
-            </span>
-            {contact ? (
-              <span className="mt-0.5 block truncate text-[13px] text-muted">
-                {contact}
-              </span>
-            ) : null}
-          </span>
-          <span className="text-muted">
-            <Chevron />
-          </span>
-        </Link>
-      </section>
-
-      <div
-        role="group"
-        aria-label="Appearance"
-        className="glass mt-8 flex w-full max-w-sm overflow-hidden rounded-pill p-0.5"
-      >
-        {APPEARANCE_MODES.map((option) => (
+      <section className="identity-card glass rounded-xl">
+        <div className="identity-row flex items-center gap-4 p-4">
           <button
-            key={option}
             type="button"
-            aria-pressed={mode === option}
-            aria-label={MODE_LABEL[option]}
-            onClick={() => void saveAppearance(option)}
-            className={`${chipClass(mode === option)} appearance-choice h-11 flex-1 px-3 text-sm`}
+            className="relative z-10 shrink-0 rounded-pill transition-transform duration-150 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+            aria-label="Edit photo"
+            onClick={() => {
+              if (avatar === null) return;
+              setEditorOpen(true);
+            }}
           >
-            {option === "system" ? (
-              MODE_LABEL.system
-            ) : (
-              <NavGlyph
-                glyph={MODE_GLYPHS[option]}
-                active={mode === option}
-                animate={glyphsReady}
-                className="nav-glyph-sm nav-glyph-tone"
-              />
-            )}
+            <Avatar
+              src={avatar || null}
+              name={displayName}
+              email={contact}
+              size={64}
+            />
+            <span className="pointer-events-none absolute -right-0.5 -bottom-0.5 flex h-6 w-6 items-center justify-center rounded-pill border border-glass-border bg-bg text-ink shadow-float">
+              <CameraIcon />
+            </span>
           </button>
-        ))}
-      </div>
+          <Link
+            to="/profile/details"
+            className="identity-link relative z-10 -my-4 -mr-4 flex min-h-16 min-w-0 flex-1 items-center gap-3 py-4 pr-4"
+          >
+            <span className="sr-only">Details</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[15px] font-semibold tracking-tight">
+                {displayName || "No name set"}
+              </span>
+              {contact ? (
+                <span className="mt-0.5 block truncate text-[13px] text-muted">
+                  {contact}
+                </span>
+              ) : null}
+            </span>
+            <span className="text-muted">
+              <Chevron />
+            </span>
+          </Link>
+        </div>
 
-      <div className="mt-8">
+        <div className="border-t border-glass-border px-4 pt-4">
+          <div
+            role="group"
+            aria-label="Appearance"
+            className="appearance-track flex w-full overflow-hidden rounded-pill p-0.5"
+          >
+            {APPEARANCE_MODES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={mode === option}
+                aria-label={MODE_LABEL[option]}
+                onClick={() => void saveAppearance(option)}
+                className={`${chipClass(mode === option)} appearance-choice h-11 flex-1 px-3 text-sm`}
+              >
+                {option === "system" ? (
+                  MODE_LABEL.system
+                ) : (
+                  <NavGlyph
+                    glyph={MODE_GLYPHS[option]}
+                    active={mode === option}
+                    animate={glyphsReady}
+                    className="nav-glyph-sm nav-glyph-tone"
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button
           type="button"
-          className={secondaryBtn}
+          className={`account-signout mt-2 flex h-12 w-full items-center px-4 text-left text-sm font-medium text-ink ${signOutError ? "" : "rounded-b-xl"}`}
           onClick={() => {
             setSignOutError(null);
             void signOut().then((result) => {
@@ -144,16 +143,16 @@ export function ProfileAccount() {
             });
           }}
         >
-          Sign out
+          <span>Sign out</span>
         </button>
         {signOutError ? (
-          <p className="mt-2 text-[13px] leading-relaxed text-ink" role="alert">
+          <p className="px-4 pt-1 pb-4 text-[13px] leading-relaxed text-ink" role="alert">
             {signOutError}
           </p>
         ) : null}
-      </div>
+      </section>
 
-      <section className="mt-10">
+      <section className="mt-12">
         <h2 className="text-[13px] font-medium text-muted">About</h2>
         <p className="mt-1.5 max-w-[65ch] text-[13px] leading-relaxed text-muted">
           Form videos play through the embedded YouTube player and stay the
