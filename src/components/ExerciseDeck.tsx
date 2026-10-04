@@ -4,6 +4,7 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { usePagerGesture } from "../hooks/usePagerGesture";
@@ -174,7 +175,7 @@ export function ExerciseDeck({
               key={i}
               type="button"
               className="exercise-dot"
-              style={{ "--dot": `${dot}px` }}
+              style={{ "--dot": `${dot}px` } as CSSProperties}
               aria-label={`${name}, ${i + 1} of ${count}`}
               aria-current={selected ? "true" : undefined}
               onClick={() => goTo(i)}
