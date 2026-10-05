@@ -3,6 +3,7 @@ import {
   equipmentForExercise,
   exerciseLabelForMethod,
   inputModesForEquipment,
+  isLatPulldownMachine,
   resolveInputMethod,
 } from "../lib/library";
 import {
@@ -21,6 +22,7 @@ import {
   BarWeightControl,
 } from "./weight/BarbellPicker";
 import { DumbbellPicker } from "./weight/DumbbellPicker";
+import { LatPulldownPicker } from "./weight/LatPulldownPicker";
 import { LoadInstrument } from "./weight/LoadInstrument";
 
 interface TodayExerciseStageProps {
@@ -71,6 +73,7 @@ export function TodayExerciseStage({
     limb,
   );
   const manualLaterality = supportsLaterality("manual", equipment);
+  const latPulldown = isLatPulldownMachine(exercise);
 
   return (
     <LoadInstrument
@@ -172,6 +175,14 @@ export function TodayExerciseStage({
           qualifierAria: manualLaterality
             ? `${lateralityLabel}. Switch to ${lateralityNextLabel}`
             : undefined,
+          stage: latPulldown ? (
+            <LatPulldownPicker
+              unit={unit}
+              value={draft.manualWeight}
+              live={live}
+              onChange={onManual}
+            />
+          ) : undefined,
         };
       })}
     />

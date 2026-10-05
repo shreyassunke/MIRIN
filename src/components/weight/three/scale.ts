@@ -121,6 +121,18 @@ export const DUMBBELL_CAM: FixedCamPose = {
   parallaxDeg: DB_CAM_PARALLAX_DEG,
 };
 
+/**
+ * Front of the lat pulldown, a little above the bar so the top beam reads.
+ * Distance sits outside the frame; FOV does the fitting.
+ */
+export const LAT_PULLDOWN_CAM: FixedCamPose = {
+  distance: 150,
+  elevationDeg: 6,
+  padX: 1.06,
+  padY: 1.1,
+  parallaxDeg: 2,
+};
+
 const _box = new THREE.Box3();
 const _corner = new THREE.Vector3();
 

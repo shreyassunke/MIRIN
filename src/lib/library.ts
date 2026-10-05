@@ -120,6 +120,21 @@ const staticById = new Map(STATIC_LIBRARY.map((e) => [e.id, e]));
 
 export const libraryEntry = (id: string) => staticById.get(id);
 
+const LAT_PULLDOWN_IDS = new Set([
+  "lat-pulldown",
+  "wide-grip-pulldown",
+  "close-grip-front-lat-pulldown",
+  "full-range-of-motion-lat-pulldown",
+  "one-arm-lat-pulldown",
+]);
+
+/** The selectorized lat-pulldown, including grip variants of the same machine. */
+export function isLatPulldownMachine(exercise: { id: string; name: string }) {
+  return (
+    LAT_PULLDOWN_IDS.has(exercise.id) || /\blat pulldown\b/i.test(exercise.name)
+  );
+}
+
 /** Friendly labels for the dataset's muscle slugs. */
 const MUSCLE_LABELS: Record<string, string> = {
   abdominals: "Abs",

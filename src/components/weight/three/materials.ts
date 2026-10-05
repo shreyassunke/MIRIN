@@ -137,6 +137,18 @@ function assignBump(
   mat.bumpScale = scale;
 }
 
+/** Satin frame for the lat-pulldown mesh. Light enough to read on near-black. */
+export function frameMaterial() {
+  return remember("frame", () => {
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#c4c4c8"),
+      metalness: 0.62,
+      roughness: 0.4,
+      envMapIntensity: 1.05,
+    });
+  });
+}
+
 export function steelMaterial(id = "steel") {
   return remember(id, () => {
     return new THREE.MeshStandardMaterial({
