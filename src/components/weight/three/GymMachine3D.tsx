@@ -2,38 +2,45 @@ import { useCallback, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
+import type { GymMachineId } from "../../../lib/library";
 import { MANUAL_STEP, round2, type Unit } from "../../../lib/units";
+import {
+  GYM_MACHINE_LABEL,
+  GYM_MACHINE_STAGE,
+  GYM_MACHINE_URL,
+} from "../gymMachine";
 import { frameMaterial } from "./materials";
 import { LAT_PULLDOWN_CAM } from "./scale";
 import { useWeightStage } from "./useWeightStage";
 
-const MODEL_URL = "/models/lat-pulldown.glb";
+const cache = new Map<string, Promise<GLTF>>();
 
-let latGltf: Promise<GLTF> | null = null;
-
-function loadLatPulldown() {
-  if (!latGltf) {
-    latGltf = new GLTFLoader().loadAsync(MODEL_URL).catch((err) => {
-      latGltf = null;
-      throw err;
-    });
-  }
-  return latGltf;
+function loadMachine(url: string) {
+  const hit = cache.get(url);
+  if (hit) return hit;
+  const pending = new GLTFLoader().loadAsync(url).catch((err) => {
+    cache.delete(url);
+    throw err;
+  });
+  cache.set(url, pending);
+  return pending;
 }
 
-interface LatPulldown3DProps {
+interface GymMachine3DProps {
+  machine: GymMachineId;
   unit: Unit;
   value: number;
   onChange?: (value: number) => void;
   live?: boolean;
 }
 
-export function LatPulldown3D({
+export function GymMachine3D({
+  machine,
   unit,
   value,
   onChange,
   live = true,
-}: LatPulldown3DProps) {
+}: GymMachine3DProps) {
   const valueRef = useRef(value);
   const unitRef = useRef(unit);
   const onChangeRef = useRef(onChange);
@@ -51,7 +58,7 @@ export function LatPulldown3D({
   const attach = useCallback((pivot: THREE.Group) => {
     let cancelled = false;
     let root: THREE.Object3D | null = null;
-    loadLatPulldown()
+    loadMachine(GYM_MACHINE_URL[machine])
       .then((gltf) => {
         if (cancelled) return;
         root = gltf.scene.clone(true);
@@ -76,7 +83,7 @@ export function LatPulldown3D({
       cancelled = true;
       if (root) pivot.remove(root);
     };
-  }, []);
+  }, [machine]);
 
   const { hostRef, fit, pointer } = useWeightStage({
     attach,
@@ -87,19 +94,16 @@ export function LatPulldown3D({
     live,
   });
   fitRef.current = fit;
+  const stage = `${GYM_MACHINE_STAGE[machine]}${onChange ? " cursor-ns-resize" : ""}`;
 
   return (
     <div
       ref={hostRef}
-      className={
-        onChange
-          ? "mx-auto h-64 w-full max-w-sm cursor-ns-resize"
-          : "mx-auto h-64 w-full max-w-sm"
-      }
+      className={stage}
       style={{ touchAction: onChange ? "none" : "pan-y" }}
       role="img"
-      aria-label="Lat pulldown machine"
-      data-lat-pulldown=""
+      aria-label={GYM_MACHINE_LABEL[machine]}
+      data-gym-machine={machine}
       {...pointer}
     />
   );

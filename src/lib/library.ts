@@ -135,6 +135,29 @@ export function isLatPulldownMachine(exercise: { id: string; name: string }) {
   );
 }
 
+export type GymMachineId = "lat-pulldown" | "cable" | "leg-curl" | "pec-deck";
+
+/**
+ * Which station sits under the number. Cable work shares the crossover.
+ * Lying leg curl is the seeded Leg Curl; seated and standing curls stay bare.
+ */
+export function gymMachineFor(exercise: {
+  id: string;
+  name: string;
+  equipment?: string;
+  isCustom?: boolean;
+}): GymMachineId | null {
+  if (isLatPulldownMachine(exercise)) return "lat-pulldown";
+  if (equipmentForExercise(exercise) === "cable") return "cable";
+  if (exercise.id === "leg-curl" || /\blying leg curls?\b/i.test(exercise.name)) {
+    return "leg-curl";
+  }
+  if (exercise.id === "butterfly" || /\b(pec[-\s]?deck|butterfly)\b/i.test(exercise.name)) {
+    return "pec-deck";
+  }
+  return null;
+}
+
 /** Friendly labels for the dataset's muscle slugs. */
 const MUSCLE_LABELS: Record<string, string> = {
   abdominals: "Abs",
