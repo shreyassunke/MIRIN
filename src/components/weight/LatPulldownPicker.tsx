@@ -17,7 +17,7 @@ interface LatPulldownPickerProps {
 function MachineFallback() {
   return (
     <div
-      className="mx-auto h-48 w-full max-w-xs"
+      className="mx-auto h-64 w-full max-w-sm"
       data-lat-pulldown=""
       aria-hidden="true"
     />

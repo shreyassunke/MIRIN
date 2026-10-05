@@ -62,9 +62,6 @@ export function LatPulldown3D({
           obj.castShadow = false;
           obj.receiveShadow = false;
         });
-        // The mesh's long axis is the depth of the station. A three-quarter
-        // turn puts the stack, the top beam, and the bar in one view.
-        root.rotation.y = 1.05;
         root.updateWorldMatrix(true, true);
         const box = new THREE.Box3().setFromObject(root);
         const center = box.getCenter(new THREE.Vector3());
@@ -96,8 +93,8 @@ export function LatPulldown3D({
       ref={hostRef}
       className={
         onChange
-          ? "mx-auto h-48 w-full max-w-xs cursor-ns-resize"
-          : "mx-auto h-48 w-full max-w-xs"
+          ? "mx-auto h-64 w-full max-w-sm cursor-ns-resize"
+          : "mx-auto h-64 w-full max-w-sm"
       }
       style={{ touchAction: onChange ? "none" : "pan-y" }}
       role="img"

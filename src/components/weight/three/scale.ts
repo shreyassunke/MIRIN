@@ -126,10 +126,10 @@ export const DUMBBELL_CAM: FixedCamPose = {
  * Distance sits outside the frame; FOV does the fitting.
  */
 export const LAT_PULLDOWN_CAM: FixedCamPose = {
-  distance: 150,
-  elevationDeg: 6,
-  padX: 1.06,
-  padY: 1.1,
+  distance: 160,
+  elevationDeg: 12,
+  padX: 1.08,
+  padY: 1.12,
   parallaxDeg: 2,
 };
 
