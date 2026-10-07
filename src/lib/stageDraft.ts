@@ -1,6 +1,10 @@
 import type { Exercise, SetLog } from "../db/db";
 import { workingSets, warmupDisplayWeight } from "./exerciseMeta";
 import {
+  resolveCableAttachment,
+  type CableAttachmentId,
+} from "./cableAttachment";
+import {
   attachmentForEquipment,
   equipmentForExercise,
   resolveInputMethod,
@@ -39,6 +43,8 @@ export type StageDraft = {
   manualWeight: number;
   reps: number;
   loggingWarmup: boolean;
+  /** Clip on a cable station. Ignored for bar, bell, and selectorized machines. */
+  cableAttachment: CableAttachmentId;
 };
 
 export function stageTotal(draft: StageDraft): number {
@@ -71,7 +77,12 @@ export function resolveStageDraft(args: {
   dayTemplateId: string | null;
   modePref?: InputMethod;
   lateralityPref?: Laterality;
-  carry?: { mode?: InputMethod; laterality?: Laterality };
+  cableAttachmentPref?: string;
+  carry?: {
+    mode?: InputMethod;
+    laterality?: Laterality;
+    cableAttachment?: CableAttachmentId;
+  };
 }): StageDraft {
   const { exercise, prior, unit } = args;
   const { working, warmupCount, loggingWarmup, todayWorking } = progressOf(
@@ -156,6 +167,10 @@ export function resolveStageDraft(args: {
     manualWeight,
     reps,
     loggingWarmup,
+    cableAttachment: resolveCableAttachment(
+      exercise,
+      args.carry?.cableAttachment ?? args.cableAttachmentPref,
+    ),
   };
 }
 
@@ -169,6 +184,7 @@ export function syncStageDrafts(
     prefills: Record<string, SetLog[]>;
     modePrefs: Record<string, InputMethod>;
     lateralityPrefs: Record<string, Laterality>;
+    cableAttachmentPrefs: Record<string, string>;
     warmupTargets: Record<string, number>;
   },
 ): { next: Record<string, StageDraft>; changed: boolean } {
@@ -193,8 +209,13 @@ export function syncStageDrafts(
       dayTemplateId: ctx.dayTemplateId,
       modePref: ctx.modePrefs[exercise.id],
       lateralityPref: ctx.lateralityPrefs[exercise.id],
+      cableAttachmentPref: ctx.cableAttachmentPrefs[exercise.id],
       carry: current
-        ? { mode: current.mode, laterality: current.laterality }
+        ? {
+            mode: current.mode,
+            laterality: current.laterality,
+            cableAttachment: current.cableAttachment,
+          }
         : undefined,
     });
   }

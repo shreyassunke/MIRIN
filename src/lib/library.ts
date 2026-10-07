@@ -135,11 +135,21 @@ export function isLatPulldownMachine(exercise: { id: string; name: string }) {
   );
 }
 
-export type GymMachineId = "lat-pulldown" | "cable" | "leg-curl" | "pec-deck";
+export type GymMachineId =
+  | "lat-pulldown"
+  | "cable"
+  | "seated-row"
+  | "leg-curl"
+  | "pec-deck"
+  | "leg-press"
+  | "calf-raise";
 
 /**
- * Which station sits under the number. Cable work shares the crossover.
- * Lying leg curl is the seeded Leg Curl; seated and standing curls stay bare.
+ * Which station sits under the number. Cable stations (lat pulldown, seated
+ * row, everything else on a cable) are identified here and drawn as the
+ * clip, not the machine. Lying leg curl is the seeded Leg Curl; seated and
+ * standing curls stay bare. Leg press and calf raise match only machine
+ * work, so barbell and Smith variants stay bare.
  */
 export function gymMachineFor(exercise: {
   id: string;
@@ -147,8 +157,21 @@ export function gymMachineFor(exercise: {
   equipment?: string;
   isCustom?: boolean;
 }): GymMachineId | null {
+  const equipment = equipmentForExercise(exercise);
   if (isLatPulldownMachine(exercise)) return "lat-pulldown";
-  if (equipmentForExercise(exercise) === "cable") return "cable";
+  if (
+    equipment === "cable" &&
+    (exercise.id === "cable-row" || /\bseated (cable )?rows?\b/i.test(exercise.name))
+  ) {
+    return "seated-row";
+  }
+  if (equipment === "cable") return "cable";
+  if (equipment === "machine" && !/\bsmith\b/i.test(exercise.name)) {
+    if (/\bleg press\b/i.test(exercise.name)) return "leg-press";
+    if (exercise.id === "calf-raise" || /\bstanding calf raises?\b/i.test(exercise.name)) {
+      return "calf-raise";
+    }
+  }
   if (exercise.id === "leg-curl" || /\blying leg curls?\b/i.test(exercise.name)) {
     return "leg-curl";
   }

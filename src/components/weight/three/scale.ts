@@ -133,6 +133,18 @@ export const LAT_PULLDOWN_CAM: FixedCamPose = {
   parallaxDeg: 2,
 };
 
+/**
+ * Cable attachments lie in the image plane. Enough elevation to read a
+ * vertical eyelet hole and the top of a ribbed grip, without a plan view.
+ */
+export const CABLE_CAM: FixedCamPose = {
+  distance: 78,
+  elevationDeg: 28,
+  padX: 1.16,
+  padY: 1.22,
+  parallaxDeg: 2,
+};
+
 const _box = new THREE.Box3();
 const _corner = new THREE.Vector3();
 

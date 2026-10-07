@@ -124,6 +124,8 @@ export interface ExercisePreference {
   restSeconds?: number;
   /** Pair vs single-arm; remembered like the weight input method. */
   preferredLaterality?: Laterality;
+  /** Cable clip remembered for this exercise. */
+  preferredCableAttachment?: string;
 }
 
 export interface Setting {

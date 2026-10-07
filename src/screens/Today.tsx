@@ -10,6 +10,7 @@ import {
 } from "../db/db";
 import {
   DEFAULT_REST_SECONDS,
+  formatSet,
   formatWeight,
   lastSets,
   newId,
@@ -30,6 +31,7 @@ import {
   equipmentForExercise,
   type ExerciseLibraryEntry,
 } from "../lib/library";
+import type { CableAttachmentId } from "../lib/cableAttachment";
 import {
   convertLoadForLaterality,
   loadSharing,
@@ -56,8 +58,12 @@ import {
   patchExercisePref,
   workingSets,
 } from "../lib/exerciseMeta";
+import { deleteSetDrop, deleteSetLog } from "../lib/history";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
-import { TodayExercisePage } from "../components/TodayExerciseTile";
+import {
+  LoggedSetLedger,
+  TodayExercisePage,
+} from "../components/TodayExerciseTile";
 import { ExerciseDeck } from "../components/ExerciseDeck";
 import {
   exerciseStageTitle,
@@ -80,7 +86,14 @@ import {
   ItemOverflow,
   RestPresetPanel,
 } from "../components/ItemOverflow";
-import { nearestDumbbell, toCanonical, type InputMethod } from "../lib/units";
+import { OverloadPanel } from "../components/overload/OverloadPanel";
+import {
+  decomposePlates,
+  nearestDumbbell,
+  toCanonical,
+  toDisplay,
+  type InputMethod,
+} from "../lib/units";
 import {
   resolveStageDraft,
   stageTotal,
@@ -107,6 +120,7 @@ interface TodayData {
   prefills: Record<string, SetLog[]>;
   modePrefs: Record<string, InputMethod>;
   lateralityPrefs: Record<string, Laterality>;
+  cableAttachmentPrefs: Record<string, CableAttachmentId>;
   stickyNotes: Record<string, string>;
   restSeconds: Record<string, number>;
   exerciseNotes: Record<string, string>;
@@ -188,6 +202,7 @@ function useTodayData(): TodayData | undefined {
       }
       const modePrefs: Record<string, InputMethod> = {};
       const lateralityPrefs: Record<string, Laterality> = {};
+      const cableAttachmentPrefs: Record<string, CableAttachmentId> = {};
       const stickyNotes: Record<string, string> = {};
       const restSeconds: Record<string, number> = {};
       for (const pref of await db.exercisePrefs.toArray()) {
@@ -196,6 +211,15 @@ function useTodayData(): TodayData | undefined {
         }
         if (pref.preferredLaterality) {
           lateralityPrefs[pref.exerciseId] = pref.preferredLaterality;
+        }
+        if (
+          pref.preferredCableAttachment === "straight" ||
+          pref.preferredCableAttachment === "ez" ||
+          pref.preferredCableAttachment === "close" ||
+          pref.preferredCableAttachment === "rope" ||
+          pref.preferredCableAttachment === "stirrup"
+        ) {
+          cableAttachmentPrefs[pref.exerciseId] = pref.preferredCableAttachment;
         }
         if (pref.stickyNote) stickyNotes[pref.exerciseId] = pref.stickyNote;
         if (pref.restSeconds) restSeconds[pref.exerciseId] = pref.restSeconds;
@@ -214,6 +238,7 @@ function useTodayData(): TodayData | undefined {
         prefills,
         modePrefs,
         lateralityPrefs,
+        cableAttachmentPrefs,
         stickyNotes,
         restSeconds,
         exerciseNotes: open?.exerciseNotes ?? {},
@@ -249,6 +274,7 @@ function useTodayData(): TodayData | undefined {
 
     const modePrefs: Record<string, InputMethod> = {};
     const lateralityPrefs: Record<string, Laterality> = {};
+    const cableAttachmentPrefs: Record<string, CableAttachmentId> = {};
     const stickyNotes: Record<string, string> = {};
     const restSeconds: Record<string, number> = {};
     for (const pref of await db.exercisePrefs.toArray()) {
@@ -257,6 +283,15 @@ function useTodayData(): TodayData | undefined {
       }
       if (pref.preferredLaterality) {
         lateralityPrefs[pref.exerciseId] = pref.preferredLaterality;
+      }
+      if (
+        pref.preferredCableAttachment === "straight" ||
+        pref.preferredCableAttachment === "ez" ||
+        pref.preferredCableAttachment === "close" ||
+        pref.preferredCableAttachment === "rope" ||
+        pref.preferredCableAttachment === "stirrup"
+      ) {
+        cableAttachmentPrefs[pref.exerciseId] = pref.preferredCableAttachment;
       }
       if (pref.stickyNote) stickyNotes[pref.exerciseId] = pref.stickyNote;
       if (pref.restSeconds) restSeconds[pref.exerciseId] = pref.restSeconds;
@@ -276,6 +311,7 @@ function useTodayData(): TodayData | undefined {
       prefills,
       modePrefs,
       lateralityPrefs,
+      cableAttachmentPrefs,
       stickyNotes,
       restSeconds,
       exerciseNotes: open?.exerciseNotes ?? {},
@@ -403,6 +439,7 @@ export function Today() {
           prefills: data.prefills,
           modePrefs: data.modePrefs,
           lateralityPrefs: data.lateralityPrefs,
+          cableAttachmentPrefs: data.cableAttachmentPrefs,
           warmupTargets: data.warmupTargets,
         }).next;
 
@@ -416,6 +453,7 @@ export function Today() {
         prefills: data.prefills,
         modePrefs: data.modePrefs,
         lateralityPrefs: data.lateralityPrefs,
+        cableAttachmentPrefs: data.cableAttachmentPrefs,
         warmupTargets: data.warmupTargets,
       });
       return synced.changed ? synced.next : prev;
@@ -533,6 +571,28 @@ export function Today() {
     });
   }
 
+  /** Load the overload recommendation onto the stage, in that mode's own terms. */
+  function takeRecommendation(
+    exerciseId: string,
+    weight: number,
+    reps: number,
+  ) {
+    const current = viewDrafts[exerciseId];
+    if (!current) return;
+    if (current.mode === "barbell") {
+      patchDraft(exerciseId, {
+        plates: decomposePlates(weight, current.barWeight, unit),
+        reps,
+      });
+      return;
+    }
+    if (current.mode === "dumbbell") {
+      patchDraft(exerciseId, { dumbbell: nearestDumbbell(weight, unit), reps });
+      return;
+    }
+    patchDraft(exerciseId, { manualWeight: weight, reps });
+  }
+
   function setMode(next: InputMethod, exerciseId: string) {
     if (!data) return;
     const today = data;
@@ -550,7 +610,12 @@ export function Today() {
           dayTemplateId: today.dayTemplateId,
           modePref: next,
           lateralityPref: current.laterality,
-          carry: { mode: next, laterality: current.laterality },
+          cableAttachmentPref: current.cableAttachment,
+          carry: {
+            mode: next,
+            laterality: current.laterality,
+            cableAttachment: current.cableAttachment,
+          },
         }),
       }));
     }
@@ -579,6 +644,13 @@ export function Today() {
           : {}),
     });
     void patchExercisePref(exerciseId, { preferredLaterality: next });
+  }
+
+  function setAttachment(next: CableAttachmentId, exerciseId: string) {
+    const current = viewDrafts[exerciseId];
+    if (!current || next === current.cableAttachment) return;
+    patchDraft(exerciseId, { cableAttachment: next });
+    void patchExercisePref(exerciseId, { preferredCableAttachment: next });
   }
 
   async function logSet(
@@ -685,6 +757,20 @@ export function Today() {
     setTimerExerciseId(exerciseId);
     setTimerRun((n) => n + 1);
     setTimerVisible(true);
+  }
+
+  /** Take back the last action on this exercise: a drop, or the set itself. */
+  async function undoLastLog(exerciseId: string) {
+    const logged = logsByExercise.get(exerciseId) ?? [];
+    const last = logged[logged.length - 1];
+    if (!last) return;
+    if (last.drops?.length) {
+      await deleteSetDrop(last.id, last.drops.length - 1);
+    } else {
+      await deleteSetLog(last.id);
+    }
+    setTimerVisible(false);
+    setFinishArmed(false);
   }
 
   async function toggleExerciseFinished(exerciseId: string, finished: boolean) {
@@ -1027,6 +1113,7 @@ export function Today() {
                         exercise.id,
                       )
                     }
+                    onAttachment={(next) => setAttachment(next, exercise.id)}
                   />
                 ) : null}
               </TodayExercisePage>
@@ -1051,6 +1138,12 @@ export function Today() {
 
       {activeExercise && activeDraft && (
         <div data-log-bar="" className="mt-3 flex flex-col gap-2">
+          <LoggedSetLedger
+            logs={activeLogged}
+            formatSet={(set) => formatSet(set, (lb) => toDisplay(lb, unit))}
+            undoLastHasDrop={(activeLogged.at(-1)?.drops?.length ?? 0) > 0}
+            onUndoLast={() => void undoLastLog(activeExercise.id)}
+          />
           <button
             type="button"
             onClick={() => logCurrent(activeExercise.id)}
@@ -1135,6 +1228,22 @@ export function Today() {
 
       {activeId && formVideoId === activeId && (
         <FormVideoPanel exerciseId={activeId} open className="pt-1 pb-1" />
+      )}
+
+      {activeExercise && activeDraft && (
+        <div className="mt-6">
+          <OverloadPanel
+            exercise={activeExercise}
+            draft={activeDraft}
+            todayLogs={activeLogged}
+            prior={data.prefills[activeExercise.id] ?? []}
+            unit={unit}
+            dayTemplateId={data.dayTemplateId}
+            onTake={(weight, reps) =>
+              takeRecommendation(activeExercise.id, weight, reps)
+            }
+          />
+        </div>
       )}
 
       {showFillLeft && (

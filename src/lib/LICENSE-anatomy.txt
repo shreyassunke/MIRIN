@@ -1,0 +1,8 @@
+CC BY 4.0
+
+The muscle outlines in `anatomy.generated.ts` are extracted from the Body
+Atlas by Ryan Graves, licensed under CC BY 4.0. Attribution is displayed in
+the app on the Profile → Account screen.
+
+https://creativecommons.org/licenses/by/4.0/
+https://www.figma.com/community/file/1320468164820924031

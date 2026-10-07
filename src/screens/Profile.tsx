@@ -167,6 +167,29 @@ export function ProfileAccount() {
           </a>
           .
         </p>
+        <p className="mt-3 max-w-[65ch] text-[13px] leading-relaxed text-muted">
+          The anatomy drawn in the overload panel is traced from the Body Atlas
+          by{" "}
+          <a
+            href="https://www.figma.com/community/file/1320468164820924031"
+            target="_blank"
+            rel="noreferrer"
+            className="text-ink transition-colors duration-150 hover:text-muted"
+          >
+            Ryan Graves
+          </a>
+          , used under{" "}
+          <a
+            href="https://creativecommons.org/licenses/by/4.0/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-ink transition-colors duration-150 hover:text-muted"
+          >
+            CC BY 4.0
+          </a>
+          . Fascicle counts and pennation angles come from published cadaveric
+          measurements, not from the drawing.
+        </p>
       </section>
 
       <AvatarEditor

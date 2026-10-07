@@ -1,4 +1,5 @@
 import type { Exercise } from "../db/db";
+import { isCableStation, type CableAttachmentId } from "../lib/cableAttachment";
 import {
   equipmentForExercise,
   exerciseLabelForMethod,
@@ -22,6 +23,7 @@ import {
   BarWeightControl,
 } from "./weight/BarbellPicker";
 import { DumbbellPicker } from "./weight/DumbbellPicker";
+import { CableAttachmentPicker } from "./weight/CableAttachmentPicker";
 import { GymMachinePicker } from "./weight/GymMachinePicker";
 import { LoadInstrument } from "./weight/LoadInstrument";
 
@@ -37,6 +39,7 @@ interface TodayExerciseStageProps {
   onManual: (value: number) => void;
   onBar: (bar: number, plates: number[]) => void;
   onLaterality: () => void;
+  onAttachment: (id: CableAttachmentId) => void;
 }
 
 export function exerciseStageTitle(exercise: Exercise, draft: StageDraft) {
@@ -55,6 +58,7 @@ export function TodayExerciseStage({
   onManual,
   onBar,
   onLaterality,
+  onAttachment,
 }: TodayExerciseStageProps) {
   const equipment = equipmentForExercise(exercise);
   const modes = inputModesForEquipment(equipment);
@@ -74,6 +78,7 @@ export function TodayExerciseStage({
   );
   const manualLaterality = supportsLaterality("manual", equipment);
   const machine = gymMachineFor(exercise);
+  const cable = isCableStation(exercise);
 
   return (
     <LoadInstrument
@@ -175,7 +180,16 @@ export function TodayExerciseStage({
           qualifierAria: manualLaterality
             ? `${lateralityLabel}. Switch to ${lateralityNextLabel}`
             : undefined,
-          stage: machine ? (
+          stage: cable ? (
+            <CableAttachmentPicker
+              attachment={draft.cableAttachment}
+              unit={unit}
+              value={draft.manualWeight}
+              live={live}
+              onChange={onManual}
+              onAttachment={onAttachment}
+            />
+          ) : machine ? (
             <GymMachinePicker
               machine={machine}
               unit={unit}

@@ -1,6 +1,55 @@
 import { type ReactNode } from "react";
 import type { Exercise, SetLog } from "../db/db";
 
+interface LoggedSetLedgerProps {
+  logs: SetLog[];
+  formatSet: (log: SetLog) => string;
+  onUndoLast: () => void;
+  /** The last logged action was a drop on the current set. */
+  undoLastHasDrop?: boolean;
+}
+
+/**
+ * Sets already logged for the exercise in front. Earlier sets are quiet
+ * figures; the latest stays bright, with undo on the last action.
+ */
+export function LoggedSetLedger({
+  logs,
+  formatSet,
+  onUndoLast,
+  undoLastHasDrop = false,
+}: LoggedSetLedgerProps) {
+  if (logs.length === 0) return null;
+  const last = logs[logs.length - 1]!;
+  const lastLabel = formatSet(last);
+  const undoWord = undoLastHasDrop ? "Undo drop" : "Undo";
+
+  return (
+    <div className="set-ledger tnum" role="group" aria-label="Logged sets">
+      {logs.slice(0, -1).map((set) => (
+        <span key={set.id} className="set-ledger-item">
+          {formatSet(set)}
+        </span>
+      ))}
+      <button
+        type="button"
+        className="set-ledger-undo"
+        onClick={onUndoLast}
+        aria-label={
+          undoLastHasDrop
+            ? `Undo last drop on ${lastLabel}`
+            : `Undo ${lastLabel}`
+        }
+      >
+        <span key={`${last.id}:${lastLabel}`} className="set-ledger-latest fade-in" aria-hidden="true">
+          {lastLabel}
+        </span>
+        <span className="set-ledger-undo-word">{undoWord}</span>
+      </button>
+    </div>
+  );
+}
+
 interface TodayExercisePageProps {
   exercise: Exercise;
   logged: SetLog[];

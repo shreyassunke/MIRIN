@@ -201,6 +201,57 @@ export function headMaterial() {
   });
 }
 
+/** Polished cable chrome. Mirror than the Olympic shaft; still grayscale. */
+export function polishMaterial() {
+  return remember("cable-chrome", () => {
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#e4e4e8"),
+      metalness: 0.94,
+      roughness: 0.16,
+      envMapIntensity: 1.3,
+    });
+  });
+}
+
+function gripRibMap(id: string, crest: string, groove: string) {
+  return canvasTex(
+    id,
+    32,
+    256,
+    (ctx, w, h) => {
+      ctx.fillStyle = groove;
+      ctx.fillRect(0, 0, w, h);
+      const bands = 16;
+      const band = h / bands;
+      for (let i = 0; i < bands; i++) {
+        const y = i * band;
+        ctx.fillStyle = crest;
+        ctx.fillRect(0, y + band * 0.18, w, band * 0.46);
+      }
+    },
+    id.endsWith("albedo") ? THREE.SRGBColorSpace : THREE.NoColorSpace,
+  );
+}
+
+/** Molded rings on a cable grip. The photo's rubber is ribbed, not knurled. */
+export function gripMaterial() {
+  return remember("cable-grip", () => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#101010"),
+      metalness: 0.02,
+      roughness: 0.55,
+      envMapIntensity: 0.42,
+    });
+    const albedo = gripRibMap("grip-rib-albedo", "#3a3a3a", "#0c0c0c").clone();
+    albedo.wrapS = THREE.RepeatWrapping;
+    albedo.wrapT = THREE.RepeatWrapping;
+    albedo.needsUpdate = true;
+    mat.map = albedo;
+    assignBump(mat, gripRibMap("grip-rib-bump", "#ffffff", "#1a1a1a"), 1, 1, 0.85);
+    return mat;
+  });
+}
+
 export function plateMaterial(hex: string) {
   return remember(`urethane2:${hex}`, () => {
     // Competition bumper: dense coloured urethane, not chrome and not glass.
