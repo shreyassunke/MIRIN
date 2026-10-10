@@ -1,3 +1,10 @@
+# Fiber volumes — `fibers/*.glb`
+
+Reduced BodyParts3D 4.0 muscle elements (Database Center for Life Science)
+with Laplacian origin-to-insertion fascicle paths baked beside each shell.
+License: see `fibers/LICENSE.txt` and `src/lib/LICENSE-fibers.txt`.
+Attribution is on Profile → Account.
+
 # Anatomical and figure models
 
 ## Male physique — `male-body.glb`

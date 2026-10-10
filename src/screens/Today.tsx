@@ -1231,7 +1231,7 @@ export function Today() {
       )}
 
       {activeExercise && activeDraft && (
-        <div className="mt-6">
+        <div className="mt-6 mb-24 md:mb-0">
           <OverloadPanel
             exercise={activeExercise}
             draft={activeDraft}

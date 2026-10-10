@@ -1,0 +1,19 @@
+BodyParts3D muscle shells in public/models/fibers
+
+Source: BodyParts3D / Anatomography 4.0
+Database Center for Life Science, ROIS
+Mitsuhashi et al., Nucleic Acids Res. 2009. doi:10.1093/nar/gkn613
+https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html
+
+Official license page recorded 2025-02-27:
+https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html
+
+DBCLS permits access, redistribution, and derivative works of the
+database provided the source is attributed. Uses outside that grant
+require a separate license from the Database Center for Life Science.
+Attribution is displayed on Profile → Account.
+
+Fiber directions inside each shell are a Laplacian origin-to-insertion
+field reconstructed on that geometry (Choi & Blemker, PLOS ONE 2013;
+Alvar v17, Kangasmaa et al., CC BY-SA 4.0). The Alvar HDF5 is not
+shipped.

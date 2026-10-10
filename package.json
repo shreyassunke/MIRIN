@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "build:exercises": "node scripts/build-exercise-library.mjs",
+    "build:fibers": "node scripts/build-fiber-volumes.mjs",
     "add:form-video": "node scripts/add-form-video.mjs",
     "verify:form-videos": "node scripts/verify-form-videos.mjs",
     "verify:barbell": "node scripts/verify-barbell.mjs",

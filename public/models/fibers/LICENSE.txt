@@ -1,0 +1,8 @@
+Muscle shells: BodyParts3D 4.0, Database Center for Life Science.
+Official license recorded 2025-02-27:
+https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html
+Attribution required on redistribution and derivatives.
+
+Fiber paths: Laplacian origin-to-insertion reconstruction on those
+meshes (Choi & Blemker 2013; Alvar v17, CC BY-SA 4.0).
+See src/lib/LICENSE-fibers.txt.

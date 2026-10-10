@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { buildPlate } from "../../lib/anatomy";
 import {
   FIBER_CLASS_LABEL,
@@ -7,6 +7,12 @@ import {
   type FiberClass,
 } from "../../lib/fibers";
 import type { RegionId } from "../../lib/muscleRegions";
+import { ChunkErrorBoundary, hasWebGL } from "../weight/three/fallback";
+
+const loadFiberField3D = () =>
+  import("./FiberField3D").then((m) => ({ default: m.FiberField3D }));
+const FiberField3D = lazy(loadFiberField3D);
+void loadFiberField3D();
 
 const TONE: Record<FiberClass, string> = {
   I: "var(--fiber-i)",
@@ -33,11 +39,44 @@ interface FiberFieldProps {
 }
 
 /**
+ * The targeted muscle as a 3D volume, with its own fascicles lit in
+ * recruitment order. Without WebGL the 2D plate remains.
+ */
+export function FiberField(props: FiberFieldProps) {
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(() => !hasWebGL());
+  const plate = <FiberPlate {...props} />;
+
+  useEffect(() => {
+    setReady(false);
+  }, [props.region, props.emphasis]);
+
+  if (failed) return plate;
+
+  return (
+    <ChunkErrorBoundary fallback={plate}>
+      <div className="fiber-field">
+        {!ready && plate}
+        <div className={ready ? "h-full" : "pointer-events-none absolute inset-0 opacity-0"}>
+          <Suspense fallback={null}>
+            <FiberField3D
+              {...props}
+              onReady={() => setReady(true)}
+              onFail={() => setFailed(true)}
+            />
+          </Suspense>
+        </div>
+      </div>
+    </ChunkErrorBoundary>
+  );
+}
+
+/**
  * The targeted muscle as the anatomical plate draws it, with its own
  * fascicles lit in recruitment order. Neighbours stay in the window so the
  * muscle is placed on the body rather than floating.
  */
-export function FiberField({
+export function FiberPlate({
   region,
   emphasis,
   stageOnset,
@@ -237,9 +276,7 @@ export function FiberLegend({ deepest }: { deepest: FiberClass | null }) {
               role="tooltip"
               data-open={shown ? "true" : "false"}
               className="fiber-note"
-              ref={(node) => {
-                if (shown) noteRef.current = node;
-              }}
+              ref={shown ? noteRef : undefined}
             >
               {FIBER_CLASS_NOTE[klass]}
             </p>

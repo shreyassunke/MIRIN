@@ -190,6 +190,29 @@ export function ProfileAccount() {
           . Fascicle counts and pennation angles come from published cadaveric
           measurements, not from the drawing.
         </p>
+        <p className="mt-3 max-w-[65ch] text-[13px] leading-relaxed text-muted">
+          The 3D muscle shells are from{" "}
+          <a
+            href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html"
+            target="_blank"
+            rel="noreferrer"
+            className="text-ink transition-colors duration-150 hover:text-muted"
+          >
+            BodyParts3D
+          </a>
+          {" "}
+          (Database Center for Life Science,{" "}
+          <a
+            href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html"
+            target="_blank"
+            rel="noreferrer"
+            className="text-ink transition-colors duration-150 hover:text-muted"
+          >
+            current database license
+          </a>
+          ). Fiber paths are a Laplacian origin-to-insertion field on those
+          meshes, following Choi and Blemker 2013 and the Alvar reconstruction.
+        </p>
       </section>
 
       <AvatarEditor

@@ -1034,6 +1034,46 @@ html[data-mode="light"] {
   background: var(--plate-ground);
 }
 
+.fiber-field {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.85;
+  border-radius: var(--radius-md);
+  background: var(--plate-ground);
+  overflow: hidden;
+}
+
+.fiber-field .fiber-plate {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.fiber-stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 8rem;
+  aspect-ratio: 1.85;
+  border-radius: var(--radius-md);
+  background: var(--plate-ground);
+  overflow: hidden;
+}
+
+.fiber-field .fiber-stage {
+  aspect-ratio: auto;
+  min-height: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.fiber-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* Neighbouring muscles. They place the belly on the body and nothing more. */
 .plate-near {
   fill: var(--plate-near);
