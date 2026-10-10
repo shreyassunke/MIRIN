@@ -1,0 +1,106 @@
+[
+  {
+    "exerciseId": "barbell-bench-press",
+    "muscles": [
+      {
+        "muscleId": "pectoralis_major_sternal",
+        "involvement": 0.8,
+        "role": "prime",
+        "source": "TODO",
+        "verified": false
+      },
+      {
+        "muscleId": "pectoralis_major_clavicular",
+        "involvement": 0.4,
+        "role": "synergist",
+        "source": "TODO",
+        "verified": false
+      },
+      {
+        "muscleId": "pectoralis_major_abdominal",
+        "involvement": 0.4,
+        "role": "synergist",
+        "source": "TODO",
+        "verified": false
+      }
+    ]
+  },
+  {
+    "exerciseId": "incline-barbell-press",
+    "muscles": [
+      {
+        "muscleId": "pectoralis_major_clavicular",
+        "involvement": 0.8,
+        "role": "prime",
+        "source": "TODO",
+        "verified": false
+      },
+      {
+        "muscleId": "pectoralis_major_sternal",
+        "involvement": 0.4,
+        "role": "synergist",
+        "source": "TODO",
+        "verified": false
+      },
+      {
+        "muscleId": "pectoralis_major_abdominal",
+        "involvement": 0.2,
+        "role": "stabilizer",
+        "source": "TODO",
+        "verified": false
+      }
+    ]
+  },
+  {
+    "exerciseId": "cable-fly",
+    "muscles": [
+      {
+        "muscleId": "pectoralis_major_sternal",
+        "involvement": 0.8,
+        "role": "prime",
+        "source": "TODO",
+        "verified": false
+      },
+      {
+        "muscleId": "pectoralis_major_abdominal",
+        "involvement": 0.4,
+        "role": "synergist",
+        "source": "TODO",
+        "verified": false
+      },
+      {
+        "muscleId": "pectoralis_major_clavicular",
+        "involvement": 0.2,
+        "role": "synergist",
+        "source": "TODO",
+        "verified": false
+      }
+    ]
+  },
+  {
+    "exerciseId": "pushups",
+    "muscles": [
+      {
+        "muscleId": "pectoralis_major_sternal",
+        "involvement": 0.6,
+        "role": "prime",
+        "source": "TODO",
+        "verified": false
+      },
+      {
+        "muscleId": "pectoralis_major_clavicular",
+        "involvement": 0.4,
+        "role": "synergist",
+        "source": "TODO",
+        "verified": false
+      },
+      {
+        "muscleId": "pectoralis_major_abdominal",
+        "involvement": 0.4,
+        "role": "synergist",
+        "source": "TODO",
+        "verified": false
+      }
+    ]
+  }
+]

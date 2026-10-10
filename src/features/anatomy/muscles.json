@@ -1,0 +1,44 @@
+[
+  {
+    "id": "pectoralis_major_clavicular",
+    "name": "Pectoralis major, clavicular head",
+    "region": "pectoralis_major_clavicular",
+    "meshId": "FMA34687",
+    "elementId": "FJ1447M",
+    "fiberTypeRatio": {
+      "I": 0.5,
+      "IIa": 0.3,
+      "IIx": 0.2,
+      "source": "TODO",
+      "verified": false
+    }
+  },
+  {
+    "id": "pectoralis_major_sternal",
+    "name": "Pectoralis major, sternal head",
+    "region": "pectoralis_major_sternal",
+    "meshId": "FMA34696",
+    "elementId": "FJ1464M",
+    "fiberTypeRatio": {
+      "I": 0.5,
+      "IIa": 0.3,
+      "IIx": 0.2,
+      "source": "TODO",
+      "verified": false
+    }
+  },
+  {
+    "id": "pectoralis_major_abdominal",
+    "name": "Pectoralis major, abdominal head",
+    "region": "pectoralis_major_abdominal",
+    "meshId": "FMA34699",
+    "elementId": "FJ1446M",
+    "fiberTypeRatio": {
+      "I": 0.5,
+      "IIa": 0.3,
+      "IIx": 0.2,
+      "source": "TODO",
+      "verified": false
+    }
+  }
+]
