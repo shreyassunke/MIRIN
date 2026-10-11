@@ -78,5 +78,265 @@
       "polarity": "midline",
       "anchors": "geometric-pca"
     }
+  },
+  "groups": {
+    "pectoralis_major": {
+      "members": [
+        "pectoralis_major_clavicular",
+        "pectoralis_major_sternal",
+        "pectoralis_major_abdominal"
+      ],
+      "viewBox": [
+        0,
+        0,
+        899.69,
+        1080.0
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "x",
+        "z"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "lateral"
+    },
+    "deltoid": {
+      "members": [
+        "deltoid_clavicular",
+        "deltoid_acromial",
+        "deltoid_spinal"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        941.33
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "distal"
+    },
+    "triceps_brachii": {
+      "members": [
+        "triceps_long",
+        "triceps_lateral",
+        "triceps_medial"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        423.82
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "distal"
+    },
+    "biceps_brachii": {
+      "members": [
+        "biceps_long",
+        "biceps_short",
+        "brachialis"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        369.23
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "distal"
+    },
+    "trapezius": {
+      "members": [
+        "trapezius_descending",
+        "trapezius_transverse",
+        "trapezius_ascending"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        449.53
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "lateral"
+    },
+    "quadriceps": {
+      "members": [
+        "vastus_lateralis",
+        "rectus_femoris",
+        "vastus_medialis"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        304.11
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "distal"
+    },
+    "hamstrings": {
+      "members": [
+        "biceps_femoris_long",
+        "biceps_femoris_short",
+        "semitendinosus",
+        "semimembranosus"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        315.59
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "distal"
+    },
+    "triceps_surae": {
+      "members": [
+        "gastrocnemius_medial",
+        "gastrocnemius_lateral",
+        "soleus"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        318.3
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "distal"
+    },
+    "gluteus_maximus": {
+      "members": [
+        "gluteus_maximus"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        634.82
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "lateral"
+    },
+    "forearm": {
+      "members": [
+        "brachioradialis",
+        "flexor_carpi_radialis"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        342.26
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "distal"
+    },
+    "erector_spinae": {
+      "members": [
+        "iliocostalis_lumborum",
+        "longissimus_thoracis",
+        "spinalis_thoracis"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        273.62
+      ],
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "proximal"
+    },
+    "latissimus_dorsi": {
+      "members": [
+        "latissimus_dorsi"
+      ],
+      "viewBox": [
+        0,
+        0,
+        746.04,
+        1080.0
+      ],
+      "viewAxis": "atlas",
+      "planeAxes": [
+        "x",
+        "y"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "lateral",
+      "source": "flutter-body-atlas"
+    },
+    "rectus_abdominis": {
+      "members": [
+        "rectus_abdominis_upper",
+        "rectus_abdominis_middle",
+        "rectus_abdominis_lower"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        296.93
+      ],
+      "viewAxis": "atlas",
+      "planeAxes": [
+        "x",
+        "y"
+      ],
+      "anchors": "shared-frame",
+      "tendon": "proximal",
+      "source": "flutter-body-atlas"
+    }
   }
 }

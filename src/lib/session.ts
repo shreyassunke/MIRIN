@@ -212,6 +212,32 @@ export function resolveSessionWarmupTargets(
   return session?.warmupTargets ?? day?.warmupTargets ?? {};
 }
 
+/** Remember today's implement. `undefined` clears it back to the programmed lift. */
+export async function setSessionVariation(
+  sessionId: string,
+  exerciseId: string,
+  variationId: string | undefined,
+): Promise<void> {
+  const session = await db.sessions.get(sessionId);
+  if (!session) throw new Error("Session not found");
+  await db.sessions.update(sessionId, {
+    variations: setRecordValue(session.variations, exerciseId, variationId),
+  });
+}
+
+/** Remember which station today's machine substitute is using. */
+export async function setSessionStation(
+  sessionId: string,
+  exerciseId: string,
+  station: string | undefined,
+): Promise<void> {
+  const session = await db.sessions.get(sessionId);
+  if (!session) throw new Error("Session not found");
+  await db.sessions.update(sessionId, {
+    stations: setRecordValue(session.stations, exerciseId, station),
+  });
+}
+
 export async function setSessionNote(
   sessionId: string,
   exerciseId: string,

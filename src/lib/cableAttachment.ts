@@ -3,8 +3,8 @@ import { gymMachineFor } from "./library";
 /**
  * The five pieces in a standard cable clip set. Proportions follow the
  * reference photo plus published hardware: Goplus straight bar 45 cm × 25 mm,
- * double-D handle 18.5 × 17.5 × 12 cm, rope 69 cm; FGO stirrup about
- * 18 × 12 cm and V-bar grip Ø 28 mm; York commercial grip Ø 35 mm. The photo's
+ * close-grip triangle ~24 × 12 cm with a welded flange, rope 69 cm; FGO stirrup
+ * about 18 × 12 cm and grip Ø 28–32 mm; York commercial grip Ø 35 mm. The photo's
  * molded grips sit between those, near 32 mm.
  */
 export const CABLE_ATTACHMENTS = [
@@ -25,7 +25,7 @@ export function cableAttachmentLabel(id: CableAttachmentId) {
   return CABLE_ATTACHMENTS.find((item) => item.id === id)?.label ?? id;
 }
 
-/** Lat pulldown, seated row, and every other cable exercise. */
+/** Clip-on cable work. The seated row station is the machine mesh. */
 export function isCableStation(exercise: {
   id: string;
   name: string;
@@ -33,9 +33,7 @@ export function isCableStation(exercise: {
   isCustom?: boolean;
 }) {
   const machine = gymMachineFor(exercise);
-  return (
-    machine === "lat-pulldown" || machine === "seated-row" || machine === "cable"
-  );
+  return machine === "lat-pulldown" || machine === "cable";
 }
 
 /**

@@ -1,31 +1,32 @@
 import { describe, expect, it } from "vitest";
-import sternalSvg from "../../../public/anatomy/svg/pectoralis_major_sternal.svg?raw";
+import pectoralSvg from "../../../public/anatomy/svg/pectoralis_major.svg?raw";
 import { contains, generateStrands, parseOutline, strandOn } from "./strands";
+
+const plates = import.meta.glob(
+  "../../../public/anatomy/svg/{pectoralis_major,deltoid,triceps_brachii,biceps_brachii,trapezius,quadriceps,hamstrings,triceps_surae,gluteus_maximus,forearm,erector_spinae,latissimus_dorsi,rectus_abdominis}.svg",
+  { query: "?raw", import: "default", eager: true },
+) as Record<string, string>;
 
 const ratio = { I: 0.5, IIa: 0.3, IIx: 0.2 };
 
 describe("generateStrands", () => {
   const ring: [number, number][] = [
     [0, 0],
-    [100, 0],
-    [100, 40],
+    [100, 10],
+    [100, 30],
     [0, 40],
   ];
 
   it("is stable for a muscle id and fills types in ratio order", () => {
     const first = generateStrands({
-      muscleId: "pectoralis_major_sternal",
+      muscleId: "pectoralis_major",
       ring,
-      origin: [4, 20],
-      insertion: [96, 20],
       ratio,
       count: 100,
     });
     const second = generateStrands({
-      muscleId: "pectoralis_major_sternal",
+      muscleId: "pectoralis_major",
       ring,
-      origin: [4, 20],
-      insertion: [96, 20],
       ratio,
       count: 100,
     });
@@ -42,8 +43,6 @@ describe("generateStrands", () => {
     const strands = generateStrands({
       muscleId: "box",
       ring,
-      origin: [4, 20],
-      insertion: [96, 20],
       ratio,
       count: 80,
     });
@@ -62,8 +61,6 @@ describe("generateStrands", () => {
     const strands = generateStrands({
       muscleId: "order",
       ring,
-      origin: [4, 20],
-      insertion: [96, 20],
       ratio,
       count: 90,
     });
@@ -84,33 +81,62 @@ describe("generateStrands", () => {
       generateStrands({
         muscleId: "none",
         ring: [],
-        origin: [0, 0],
-        insertion: [1, 0],
         ratio,
       }),
     ).toEqual([]);
   });
 });
 
+describe("muscle plates", () => {
+  it("fans every split muscle onto its tendon", () => {
+    expect(Object.keys(plates).length).toBe(13);
+    for (const [file, svg] of Object.entries(plates)) {
+      const paths = [...svg.matchAll(/\sid="([^"]+)"[^>]*\sd="([^"]+)"/g)];
+      const outline = paths.find((match) => match[1] === "outline")?.[2] ?? "";
+      const ring = parseOutline(outline);
+      const heads = paths
+        .filter((match) => match[1] !== "outline")
+        .map((match) => ({ id: match[1], ring: parseOutline(match[2]) }));
+      const strands = generateStrands({
+        muscleId: file,
+        ring,
+        heads,
+        ratio,
+        count: 80,
+      });
+      expect(strands.length, file).toBeGreaterThan(40);
+      expect(strands.filter((strand) => strand.head).length, file).toBeGreaterThan(20);
+      for (const head of heads) {
+        const placed = strands.filter((strand) => strand.head === head.id).length;
+        expect(placed, `${file} ${head.id}`).toBeGreaterThan(3);
+      }
+    }
+  });
+});
+
 describe("pectoralis outline", () => {
-  it("fans strands inside the exported sternal head", () => {
-    const d = sternalSvg.match(/\sd="([^"]+)"/)?.[1] ?? "";
-    const ring = parseOutline(d);
+  it("fans the whole muscle onto the lateral tendon", () => {
+    const paths = [...pectoralSvg.matchAll(/\sid="([^"]+)"[^>]*\sd="([^"]+)"/g)];
+    const outline = paths.find((match) => match[1] === "outline")?.[2] ?? "";
+    const ring = parseOutline(outline);
+    const heads = paths
+      .filter((match) => match[1] !== "outline")
+      .map((match) => ({ id: match[1], ring: parseOutline(match[2]) }));
     expect(ring.length).toBeGreaterThan(10);
+    expect(heads.length).toBe(3);
     const strands = generateStrands({
-      muscleId: "pectoralis_major_sternal",
+      muscleId: "pectoralis_major",
       ring,
-      origin: [45.28, 548.6],
-      insertion: [1040, 417.47],
+      heads,
       ratio,
-      count: 120,
+      count: 90,
     });
-    expect(strands.length).toBeGreaterThan(100);
-    const xs = strands.flatMap((strand) => strand.points.map((point) => point[0]));
-    const ringX = ring.map((point) => point[0]);
-    const outlineSpan = Math.max(...ringX) - Math.min(...ringX);
-    const covered = Math.max(...xs) - Math.min(...xs);
-    expect(covered / outlineSpan).toBeGreaterThan(0.85);
+    expect(strands.length).toBeGreaterThan(70);
+    const ends = strands.map((strand) => strand.points[strand.points.length - 1][0]);
+    const starts = strands.map((strand) => strand.points[0][0]);
+    expect(Math.min(...ends)).toBeGreaterThan(Math.min(...starts) + 200);
+    const tagged = new Set(strands.map((strand) => strand.head).filter(Boolean));
+    expect(tagged.size).toBeGreaterThan(1);
     let inside = 0;
     let total = 0;
     for (const strand of strands) {

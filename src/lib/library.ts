@@ -41,6 +41,8 @@ export interface ExerciseLibraryEntry {
   secondaryMuscles: string[];
   inputMethodHint: InputMethod;
   isCustom?: boolean;
+  /** Selectorized station, set when a custom exercise names one. */
+  station?: GymMachineId;
 }
 
 export const attachmentForEquipment = (equipment: string): AttachmentType => {
@@ -142,22 +144,124 @@ export type GymMachineId =
   | "leg-curl"
   | "pec-deck"
   | "leg-press"
-  | "calf-raise";
+  | "calf-raise"
+  | "t-bar-row"
+  | "leg-extension"
+  | "inner-thigh"
+  | "outer-thigh"
+  | "preacher"
+  | "seated-dip"
+  | "lateral-raise"
+  | "chest-press";
+
+const GYM_MACHINE_IDS: readonly GymMachineId[] = [
+  "lat-pulldown",
+  "cable",
+  "seated-row",
+  "leg-curl",
+  "pec-deck",
+  "leg-press",
+  "calf-raise",
+  "t-bar-row",
+  "leg-extension",
+  "inner-thigh",
+  "outer-thigh",
+  "preacher",
+  "seated-dip",
+  "lateral-raise",
+  "chest-press",
+];
+
+export function isGymMachineId(value: string): value is GymMachineId {
+  return (GYM_MACHINE_IDS as readonly string[]).includes(value);
+}
+
+/** Muscles a station trains, matching the library's primary and the ones it is built for. */
+const STATION_MUSCLES: Partial<Record<GymMachineId, readonly string[]>> = {
+  "chest-press": ["chest"],
+  "pec-deck": ["chest"],
+  "seated-dip": ["chest", "triceps"],
+  "lat-pulldown": ["lats", "middle back"],
+  "seated-row": ["lats", "middle back"],
+  "t-bar-row": ["lats", "middle back"],
+  "lateral-raise": ["shoulders"],
+  preacher: ["biceps"],
+  "leg-extension": ["quadriceps"],
+  "leg-curl": ["hamstrings"],
+  "leg-press": ["quadriceps", "glutes", "hamstrings", "calves"],
+  "calf-raise": ["calves"],
+  "inner-thigh": ["adductors"],
+  "outer-thigh": ["abductors", "glutes"],
+};
+
+const STATION_PICK_ORDER: readonly GymMachineId[] = [
+  "chest-press",
+  "pec-deck",
+  "seated-dip",
+  "lat-pulldown",
+  "seated-row",
+  "t-bar-row",
+  "lateral-raise",
+  "preacher",
+  "leg-extension",
+  "leg-curl",
+  "leg-press",
+  "calf-raise",
+  "inner-thigh",
+  "outer-thigh",
+];
+
+/** Stations to offer when a custom exercise names this muscle. */
+export function stationsForMuscle(muscle: string): GymMachineId[] {
+  const key = muscle.toLowerCase();
+  return STATION_PICK_ORDER.filter((id) => STATION_MUSCLES[id]?.includes(key));
+}
 
 /**
- * Which station sits under the number. Cable stations (lat pulldown, seated
- * row, everything else on a cable) are identified here and drawn as the
- * clip, not the machine. Lying leg curl is the seeded Leg Curl; seated and
- * standing curls stay bare. Leg press and calf raise match only machine
- * work, so barbell and Smith variants stay bare.
+ * Stations for this lift when the lifter switches onto a machine.
+ * A rear-delt fly shares the pec deck with chest flies, then the back
+ * stations. The library files those lifts under shoulders, which would
+ * otherwise offer only the lateral raise.
+ */
+export function stationsForExercise(exercise: {
+  id: string;
+  name: string;
+  muscleGroup?: string;
+}): GymMachineId[] {
+  const text = `${exercise.id} ${exercise.name}`.toLowerCase();
+  if (/rear[-\s]?delt|reverse\s*fly/.test(text)) {
+    return ["pec-deck", ...stationsForMuscle("lats")];
+  }
+  if (/face\s*pull|bent.?over\s*lateral/.test(text)) {
+    return stationsForMuscle("lats");
+  }
+  return exercise.muscleGroup ? stationsForMuscle(exercise.muscleGroup) : [];
+}
+
+/**
+ * Which station sits under the number. Selectorized stations are the mesh.
+ * Other cable work is the clip. Lying leg curl is the seeded Leg Curl; seated
+ * and standing curls stay bare. Plate-loaded and free-weight names match only
+ * when the lifter is actually on a machine, so barbell, dumbbell, and Smith
+ * variants keep their own instruments. A station saved on a custom
+ * exercise wins over the name, and only while the lifter is on a machine.
  */
 export function gymMachineFor(exercise: {
   id: string;
   name: string;
   equipment?: string;
   isCustom?: boolean;
+  station?: string;
 }): GymMachineId | null {
   const equipment = equipmentForExercise(exercise);
+  if (
+    exercise.station &&
+    isGymMachineId(exercise.station) &&
+    exercise.station !== "cable" &&
+    equipment === "machine"
+  ) {
+    return exercise.station;
+  }
   if (isLatPulldownMachine(exercise)) return "lat-pulldown";
   if (
     equipment === "cable" &&
@@ -167,9 +271,47 @@ export function gymMachineFor(exercise: {
   }
   if (equipment === "cable") return "cable";
   if (equipment === "machine" && !/\bsmith\b/i.test(exercise.name)) {
+    if (/\bchest press\b/i.test(exercise.name)) return "chest-press";
     if (/\bleg press\b/i.test(exercise.name)) return "leg-press";
     if (exercise.id === "calf-raise" || /\bstanding calf raises?\b/i.test(exercise.name)) {
       return "calf-raise";
+    }
+    if (exercise.id === "lying-t-bar-row" || /\bt[-\s]?bar rows?\b/i.test(exercise.name)) {
+      return "t-bar-row";
+    }
+    if (
+      exercise.id === "leg-extensions" ||
+      exercise.id === "single-leg-leg-extension" ||
+      /\bleg extensions?\b/i.test(exercise.name)
+    ) {
+      return "leg-extension";
+    }
+    if (
+      exercise.id === "thigh-adductor" ||
+      /\b(adductors?|adductions?|inner thighs?)\b/i.test(exercise.name)
+    ) {
+      return "inner-thigh";
+    }
+    if (
+      exercise.id === "thigh-abductor" ||
+      /\b(abductors?|abductions?|outer thighs?)\b/i.test(exercise.name)
+    ) {
+      return "outer-thigh";
+    }
+    if (exercise.id === "machine-preacher-curls" || /\bpreacher\b/i.test(exercise.name)) {
+      return "preacher";
+    }
+    if (
+      exercise.id === "dip-machine" ||
+      (/\bdips?\b/i.test(exercise.name) && !/\b(bench|ring|jerk|parallel)\b/i.test(exercise.name))
+    ) {
+      return "seated-dip";
+    }
+    if (
+      (exercise.id === "lateral-raise" || /\blateral raises?\b/i.test(exercise.name)) &&
+      !/\b(rear|lying|bent)\b/i.test(exercise.name)
+    ) {
+      return "lateral-raise";
     }
   }
   if (exercise.id === "leg-curl" || /\blying leg curls?\b/i.test(exercise.name)) {
@@ -273,13 +415,36 @@ const customToEntry = (exercise: Exercise): ExerciseLibraryEntry => {
     inputMethodHint:
       exercise.inputMethodHint ?? inputMethodForEquipment(equipment),
     isCustom: true,
+    station:
+      exercise.station && isGymMachineId(exercise.station)
+        ? exercise.station
+        : undefined,
   };
 };
 
 /** Static library plus the user's custom exercises, custom first. */
 export async function fullLibrary(): Promise<ExerciseLibraryEntry[]> {
-  const custom = await db.exercises.filter((e) => e.isCustom === true).toArray();
-  return [...custom.map(customToEntry), ...STATIC_LIBRARY];
+  const rows = await db.exercises.toArray();
+  const names = new Map(rows.map((row) => [row.id, row.name]));
+  const custom = rows.filter((row) => row.isCustom === true).map(customToEntry);
+  const library = STATIC_LIBRARY.map((entry) => {
+    const name = names.get(entry.id);
+    if (!name || name === entry.name) return entry;
+    const aliases = entry.aliases.includes(entry.name)
+      ? entry.aliases
+      : [entry.name, ...entry.aliases];
+    return { ...entry, name, aliases };
+  });
+  return [...custom, ...library];
+}
+
+/** Persists a new exercise title. Blank and unchanged names are ignored. */
+export async function renameExercise(id: string, name: string) {
+  const next = name.trim();
+  if (!next) return;
+  const row = await db.exercises.get(id);
+  if (!row || row.name === next) return;
+  await db.exercises.update(id, { name: next });
 }
 
 /**
@@ -301,6 +466,7 @@ export async function ensureExerciseRow(
     equipment: entry.equipment,
     inputMethodHint: entry.inputMethodHint,
     isCustom: entry.isCustom,
+    station: entry.station,
   });
   return entry.id;
 }
@@ -317,10 +483,15 @@ export async function createCustomExercise(input: {
   name: string;
   equipment: string;
   primaryMuscle: string;
+  station?: string;
 }): Promise<ExerciseLibraryEntry> {
   const base = `custom-${slug(input.name)}`;
   let id = base;
   for (let n = 2; await db.exercises.get(id); n++) id = `${base}-${n}`;
+  const station =
+    input.equipment === "machine" && input.station && isGymMachineId(input.station)
+      ? input.station
+      : undefined;
   const exercise: Exercise = {
     id,
     name: input.name.trim(),
@@ -329,6 +500,7 @@ export async function createCustomExercise(input: {
     equipment: input.equipment,
     inputMethodHint: inputMethodForEquipment(input.equipment),
     isCustom: true,
+    station,
   };
   await db.exercises.add(exercise);
   return customToEntry(exercise);

@@ -10,6 +10,8 @@ export interface Strand {
   type: FiberType;
   /** On when this type's recruitment is greater than rank. */
   rank: number;
+  /** Head this strand sits in, when the outline is split. */
+  head: string | null;
   points: Point[];
 }
 
@@ -87,56 +89,77 @@ export function contains(ring: Point[], point: Point, pad = 1.5): boolean {
   return pointInRing(ring, point) || nearRing(ring, point, pad);
 }
 
-function lineHit(origin: Point, dir: Point, a: Point, b: Point): number | null {
-  const sx = b[0] - a[0];
-  const sy = b[1] - a[1];
-  const den = dir[0] * sy - dir[1] * sx;
-  if (Math.abs(den) < 1e-8) return null;
-  const dx = a[0] - origin[0];
-  const dy = a[1] - origin[1];
-  const t = (dx * sy - dy * sx) / den;
-  const u = (dx * dir[1] - dy * dir[0]) / den;
-  if (u < -1e-4 || u > 1 + 1e-4) return null;
-  return t;
+function chain(ring: Point[], from: number, to: number): Point[] {
+  const out: Point[] = [];
+  for (let i = from; i !== to; i = (i + 1) % ring.length) {
+    out.push(ring[i]);
+    if (out.length > ring.length) break;
+  }
+  out.push(ring[to]);
+  return out;
+}
+
+function polylineLength(points: Point[]): number {
+  let length = 0;
+  for (let i = 1; i < points.length; i++) {
+    length += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+  }
+  return length;
+}
+
+/** Point at a fraction of the arc length, 0 at the first vertex and 1 at the last. */
+function pointAt(points: Point[], u: number): Point {
+  const total = polylineLength(points);
+  if (total < 1 || points.length === 0) return points[0] ?? [0, 0];
+  let walked = 0;
+  const target = clamp(u, 0, 1) * total;
+  for (let i = 1; i < points.length; i++) {
+    const step = Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+    if (walked + step >= target || i === points.length - 1) {
+      const t = step > 0 ? (target - walked) / step : 0;
+      return lerp(points[i - 1], points[i], clamp(t, 0, 1));
+    }
+    walked += step;
+  }
+  return points[points.length - 1];
 }
 
 /**
- * The slice of the outline through `origin` along `dir`.
- * A grazing notch (the lateral tendon step) is joined back into one span
- * so a fiber does not jump across a one-pixel gap. Larger gaps stay open.
+ * A radiated muscle: the short lateral arc is the tendon, and the rest of
+ * the border is the origin. Both arcs run from the same corner to the same
+ * corner, so pairing by arc length does not cross.
  */
-function chord(ring: Point[], origin: Point, dir: Point): [Point, Point] | null {
-  const hits: number[] = [];
-  for (let i = 0; i < ring.length; i++) {
-    const t = lineHit(origin, dir, ring[i], ring[(i + 1) % ring.length]);
-    if (t == null) continue;
-    if (hits.length === 0 || Math.abs(t - hits[hits.length - 1]) > 0.4) hits.push(t);
-  }
-  hits.sort((a, b) => a - b);
-  const unique = hits.filter((t, i) => i === 0 || t - hits[i - 1] > 0.4);
-  const spans: [number, number][] = [];
-  for (let i = 0; i + 1 < unique.length; i += 2) spans.push([unique[i], unique[i + 1]]);
-  if (spans.length === 0) return null;
-  const extent = unique[unique.length - 1] - unique[0];
-  const join = Math.max(12, extent * 0.08);
-  const merged: [number, number][] = [[spans[0][0], spans[0][1]]];
-  for (let i = 1; i < spans.length; i++) {
-    const prev = merged[merged.length - 1];
-    if (spans[i][0] - prev[1] <= join) prev[1] = Math.max(prev[1], spans[i][1]);
-    else merged.push([spans[i][0], spans[i][1]]);
-  }
-  let best = merged[0];
-  let bestDist = Infinity;
-  for (const span of merged) {
-    const containsOrigin = span[0] <= 0.4 && span[1] >= -0.4;
-    const dist = containsOrigin ? 0 : Math.min(Math.abs(span[0]), Math.abs(span[1]));
-    if (dist < bestDist) {
-      best = span;
-      bestDist = dist;
+export function attachmentArcs(ring: Point[]): { origin: Point[]; insertion: Point[] } | null {
+  if (ring.length < 4) return null;
+  let pole = 0;
+  let minX = ring[0][0];
+  let maxX = ring[0][0];
+  for (let i = 1; i < ring.length; i++) {
+    if (ring[i][0] > maxX) {
+      maxX = ring[i][0];
+      pole = i;
     }
+    if (ring[i][0] < minX) minX = ring[i][0];
   }
-  const at = (t: number): Point => [origin[0] + dir[0] * t, origin[1] + dir[1] * t];
-  return [at(best[0]), at(best[1])];
+  const cut = maxX - (maxX - minX) * 0.1;
+  const count = ring.length;
+  let lo = pole;
+  let hi = pole;
+  while (ring[(lo - 1 + count) % count][0] >= cut) {
+    const next = (lo - 1 + count) % count;
+    if (next === hi) break;
+    lo = next;
+  }
+  while (ring[(hi + 1) % count][0] >= cut) {
+    const next = (hi + 1) % count;
+    if (next === lo) break;
+    hi = next;
+  }
+  const insertion = chain(ring, lo, hi);
+  const origin = chain(ring, hi, lo);
+  if (polylineLength(insertion) > polylineLength(origin)) return null;
+  origin.reverse();
+  return { origin, insertion };
 }
 
 function lerp(a: Point, b: Point, t: number): Point {
@@ -163,29 +186,77 @@ function mixTypes(count: number, ratio: Record<FiberType, number>, rng: () => nu
   return types;
 }
 
+function centroid(ring: Point[]): Point {
+  let twice = 0;
+  let x = 0;
+  let y = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const next = ring[(i + 1) % ring.length];
+    const cross = ring[i][0] * next[1] - next[0] * ring[i][1];
+    twice += cross;
+    x += (ring[i][0] + next[0]) * cross;
+    y += (ring[i][1] + next[1]) * cross;
+  }
+  if (Math.abs(twice) < 1e-6) return ring[0] ?? [0, 0];
+  return [x / (3 * twice), y / (3 * twice)];
+}
+
+function fanCurve(from: Point, to: Point, center: Point, bow: number, ring: Point[]): Point[] {
+  const mid = lerp(from, to, 0.5);
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const length = Math.hypot(dx, dy) || 1;
+  const px = -dy / length;
+  const py = dx / length;
+  const sign = px * (center[0] - mid[0]) + py * (center[1] - mid[1]) >= 0 ? 1 : -1;
+  const control: Point = [mid[0] + px * sign * bow, mid[1] + py * sign * bow];
+  const bowed = contains(ring, control, 2);
+  const steps = [0, 0.22, 0.5, 0.78, 1];
+  return steps.map((t) => {
+    if (!bowed) return lerp(from, to, t);
+    const u = 1 - t;
+    return [
+      u * u * from[0] + 2 * u * t * control[0] + t * t * to[0],
+      u * u * from[1] + 2 * u * t * control[1] + t * t * to[1],
+    ];
+  });
+}
+
+function headAt(point: Point, heads: { id: string; ring: Point[] }[]): string | null {
+  let found: string | null = null;
+  let area = Infinity;
+  for (const head of heads) {
+    if (!pointInRing(head.ring, point)) continue;
+    const size = Math.abs(
+      head.ring.reduce((sum, corner, index) => {
+        const next = head.ring[(index + 1) % head.ring.length];
+        return sum + corner[0] * next[1] - next[0] * corner[1];
+      }, 0),
+    );
+    if (size < area) {
+      area = size;
+      found = head.id;
+    }
+  }
+  return found;
+}
+
 /**
- * Strands fan from the origin side of the outline to the insertion side.
- * Each one follows the outline's width, so a tapering head converges.
- * The scatter is seeded by muscle id.
+ * Fascicles of a radiated muscle. Each runs from the long origin border to
+ * the short lateral tendon, in order, so neighbours do not cross.
+ * The scatter of type and bow is seeded by muscle id.
  */
-export function generateStrands(args: {
-  muscleId: string;
-  ring: Point[];
-  origin: Point;
-  insertion: Point;
-  ratio: Record<FiberType, number>;
-  count?: number;
-}): Strand[] {
-  const { ring, origin, insertion } = args;
-  const count = args.count ?? STRAND_COUNT;
-  if (ring.length < 3 || count <= 0) return [];
-  const rng = mulberry32(seedFrom(args.muscleId));
-  const axis: Point = [insertion[0] - origin[0], insertion[1] - origin[1]];
-  const length = Math.hypot(axis[0], axis[1]);
-  if (length < 1) return [];
-  const dir: Point = [axis[0] / length, axis[1] / length];
-  const perp: Point = [-dir[1], dir[0]];
-  const types = mixTypes(count, args.ratio, rng);
+function fanRing(
+  muscleId: string,
+  ring: Point[],
+  heads: { id: string; ring: Point[] }[],
+  ratio: Record<FiberType, number>,
+  count: number,
+): Strand[] {
+  const arcs = attachmentArcs(ring);
+  if (!arcs || count <= 0) return [];
+  const rng = mulberry32(seedFrom(muscleId));
+  const types = mixTypes(count, ratio, rng);
   const ranks = new Map<FiberType, number>([
     ["I", 0],
     ["IIa", 0],
@@ -193,43 +264,99 @@ export function generateStrands(args: {
   ]);
   const totals = { I: 0, IIa: 0, IIx: 0 };
   for (const type of types) totals[type] += 1;
-
-  let minAlong = Infinity;
-  let maxAlong = -Infinity;
-  for (const point of ring) {
-    const t = (point[0] - origin[0]) * dir[0] + (point[1] - origin[1]) * dir[1];
-    if (t < minAlong) minAlong = t;
-    if (t > maxAlong) maxAlong = t;
-  }
-  const span = maxAlong - minAlong;
-  const inset = clamp(span * 0.02, 4, span * 0.08);
-  const stations = [0, 0.14, 0.3, 0.5, 0.7, 0.86, 1].map(
-    (u) => minAlong + inset + (span - inset * 2) * u,
-  );
-  const slices = stations.map((t) => {
-    const at: Point = [origin[0] + dir[0] * t, origin[1] + dir[1] * t];
-    return chord(ring, at, perp);
-  });
-
+  const center = centroid(ring);
   const strands: Strand[] = [];
   for (let i = 0; i < count; i++) {
     const type = types[i] ?? "I";
     const seen = ranks.get(type) ?? 0;
     ranks.set(type, seen + 1);
-    const u = clamp((i + 0.5) / count + (rng() - 0.5) * 0.03, 0.04, 0.96);
-    const bow = (rng() - 0.5) * length * 0.035;
-    const points: Point[] = [];
-    slices.forEach((slice, index) => {
-      if (!slice) return;
-      const along = lerp(slice[0], slice[1], u);
-      const point = lerp(along, [along[0] + perp[0] * bow, along[1] + perp[1] * bow], index === 2 ? 1 : 0.35);
-      points.push(contains(ring, point, 2) ? point : along);
-    });
+    const u = (i + 0.5) / count;
+    const from = pointAt(arcs.origin, 0.02 + u * 0.96);
+    const to = pointAt(arcs.insertion, 0.12 + u * 0.76);
+    const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    if (length < 8) continue;
+    const bow = length * (0.045 + rng() * 0.03);
+    const points = fanCurve(from, to, center, bow, ring).filter((point) =>
+      contains(ring, point, 3),
+    );
     if (points.length < 2) continue;
     const total = totals[type] || 1;
-    strands.push({ type, rank: seen / total, points });
+    const mid = points[Math.floor(points.length / 2)];
+    strands.push({
+      type,
+      rank: seen / total,
+      head: headAt(mid, heads),
+      points,
+    });
   }
   return strands;
+}
+
+export function generateStrands(args: {
+  muscleId: string;
+  ring: Point[];
+  heads?: { id: string; ring: Point[] }[];
+  ratio: Record<FiberType, number>;
+  /** Per-head composition. Geometry stays on `ratio`; only the ink changes. */
+  headRatios?: Readonly<Record<string, Record<FiberType, number>>>;
+  count?: number;
+}): Strand[] {
+  const count = args.count ?? STRAND_COUNT;
+  const heads = args.heads ?? [];
+  const strands = fanRing(args.muscleId, args.ring, heads, args.ratio, count);
+  // A separate belly the union fan never crosses (the two forearm muscles)
+  // still gets fascicles. A head already inside the outline keeps only the
+  // strands that stay in that outline.
+  for (const head of heads) {
+    const placed = strands.filter((strand) => strand.head === head.id).length;
+    if (placed >= 4) continue;
+    const extra = fanRing(`${args.muscleId}:${head.id}`, head.ring, [head], args.ratio, count);
+    const home = centroid(head.ring);
+    if (!contains(args.ring, home, 6)) {
+      strands.push(...extra);
+      continue;
+    }
+    const kept = extra.filter((strand) =>
+      strand.points.every((point) => contains(args.ring, point, 4)),
+    );
+    strands.push(...(kept.length >= 4 ? kept : extra));
+  }
+  if (args.headRatios) applyHeadRatios(strands, args.muscleId, args.ratio, args.headRatios);
+  return strands;
+}
+
+/** Recolour each head from its own pool. A separate seed leaves the curves put. */
+function applyHeadRatios(
+  strands: Strand[],
+  muscleId: string,
+  fallback: Record<FiberType, number>,
+  headRatios: Readonly<Record<string, Record<FiberType, number>>>,
+) {
+  const groups = new Map<string, Strand[]>();
+  for (const strand of strands) {
+    const key = strand.head ?? "";
+    const list = groups.get(key) ?? [];
+    list.push(strand);
+    groups.set(key, list);
+  }
+  for (const [head, group] of groups) {
+    const ratio = headRatios[head] ?? fallback;
+    const types = mixTypes(group.length, ratio, mulberry32(seedFrom(`${muscleId}:${head}`)));
+    const seen = new Map<FiberType, number>([
+      ["I", 0],
+      ["IIa", 0],
+      ["IIx", 0],
+    ]);
+    const totals = { I: 0, IIa: 0, IIx: 0 };
+    for (const type of types) totals[type] += 1;
+    group.forEach((strand, index) => {
+      const type = types[index] ?? "I";
+      const count = seen.get(type) ?? 0;
+      seen.set(type, count + 1);
+      strand.type = type;
+      strand.rank = count / (totals[type] || 1);
+    });
+  }
 }
 
 export function strandPath(strand: Strand): string {

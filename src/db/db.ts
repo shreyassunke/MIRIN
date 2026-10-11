@@ -15,6 +15,8 @@ export interface Exercise {
   inputMethodHint?: InputMethod;
   /** True only for user-created exercises absent from the static library. */
   isCustom?: boolean;
+  /** Selectorized station chosen when a custom exercise is a machine. */
+  station?: string;
 }
 
 export interface DayTemplate {
@@ -78,6 +80,16 @@ export interface WorkoutSession {
   supersets?: string[][];
   /** Warm-up set counts for this session, keyed by exercise id. */
   warmupTargets?: Record<string, number>;
+  /**
+   * Implement used today, keyed by programmed exercise id. Absent means the
+   * programmed station. Never copied onto the day template.
+   */
+  variations?: Record<string, string>;
+  /**
+   * Selectorized station for today's machine substitute, keyed by exercise id.
+   * Honored only while the variation is a machine.
+   */
+  stations?: Record<string, string>;
 }
 
 export interface LoadBreakdown {
@@ -113,6 +125,13 @@ export interface SetLog {
   drops?: SetDrop[];
   /** True when this log is a warm-up, not a working set. */
   isWarmup?: boolean;
+  /**
+   * Set when this set was logged on a substitute implement. Absent on the
+   * programmed station, so next session's prefill can ignore the detour.
+   */
+  variationId?: string;
+  /** Ledger name for that substitute, e.g. "Pull-up". */
+  variationLabel?: string;
 }
 
 export interface ExercisePreference {

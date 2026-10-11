@@ -157,6 +157,30 @@ a,
   background: transparent;
 }
 
+/* Exercise title: the words are the field. The caret is the only chrome. */
+.exercise-title {
+  field-sizing: content;
+  width: auto;
+  max-width: 100%;
+  min-width: 1ch;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  caret-color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+}
+.exercise-title:focus,
+.exercise-title:focus-visible {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+
 /* The browser's own surfaces belong to the palette too. */
 ::selection {
   background: color-mix(in srgb, var(--color-accent) 32%, transparent);
@@ -1222,7 +1246,7 @@ html[data-mode="light"] {
 .strand-plate {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
 }
 
 .fiber-strands canvas {

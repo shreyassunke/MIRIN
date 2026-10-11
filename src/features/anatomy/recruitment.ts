@@ -12,6 +12,11 @@ export interface RecruitmentInput {
   repIndex: number;
   /** Reps still available after this one. 0 means this rep is maximal. */
   repsInReserve: number;
+  /**
+   * Share of the lift this head takes, when the caller already knows it.
+   * Omitted values still come from the exercise catalog.
+   */
+  involvement?: number;
 }
 
 /** Share of each fiber type that is on, from 0 to 1. Not a share of the pool. */
@@ -27,9 +32,10 @@ const clamp = (value: number, low: number, high: number) =>
 const unit = (value: number) =>
   Number.isFinite(value) ? clamp(value, 0, 1) : 0;
 
-function involvementFor(exerciseId: string, muscleId: string): number {
-  const exercise = exerciseCatalog.find((row) => row.exerciseId === exerciseId);
-  const match = exercise?.muscles.find((row) => row.muscleId === muscleId);
+function involvementFor(input: RecruitmentInput): number {
+  if (input.involvement != null) return unit(input.involvement);
+  const exercise = exerciseCatalog.find((row) => row.exerciseId === input.exerciseId);
+  const match = exercise?.muscles.find((row) => row.muscleId === input.muscleId);
   return unit(match?.involvement ?? 0);
 }
 
@@ -56,7 +62,7 @@ function fatigue(repIndex: number, repsInReserve: number): number {
  */
 export function effectiveEffort(input: RecruitmentInput): number {
   const load = unit(input.relativeLoad);
-  const cap = involvementFor(input.exerciseId, input.muscleId);
+  const cap = involvementFor(input);
   const seen = load * cap;
   return unit(seen + (cap - seen) * fatigue(input.repIndex, input.repsInReserve));
 }

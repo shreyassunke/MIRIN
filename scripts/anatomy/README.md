@@ -78,6 +78,12 @@ BodyParts3D, PowerShell:
 blender --background --python scripts/anatomy/export_outlines.py -- --source bodyparts3d --mesh-dir ".tmp-assets/bp3d/obj" --catalog "src/features/anatomy/muscles.json" --out "public/anatomy"
 ```
 
+The pectoralis is one fan, so its three heads are projected in a single frame. That step reads the OBJs directly and does not need Blender:
+
+```powershell
+python scripts/anatomy/export_outlines.py --compose pectoralis_major --mesh-dir ".tmp-assets/bp3d/obj" --catalog "src/features/anatomy/muscles.json" --out "public/anatomy"
+```
+
 If `blender` is not on `PATH`, call the executable instead, for example
 `& "C:\Program Files\Blender Foundation\Blender 4.2\blender.exe"` with the
 same arguments. Use the version that is actually installed.

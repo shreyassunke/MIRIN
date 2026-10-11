@@ -18,7 +18,10 @@ interface DumbbellPickerProps {
   value: number;
   laterality: Laterality;
   onChange: (value: number) => void;
-  onToggleLaterality: () => void;
+  /** Pair/single. Used when the stage tap is not opening the variation list. */
+  onToggleLaterality?: () => void;
+  /** Tap on the bell opens the variation list. */
+  onEdit?: () => void;
   live?: boolean;
   onSwipe?: (direction: -1 | 1) => void;
 }
@@ -43,10 +46,21 @@ function DumbbellIcon({
   pair: boolean;
   live?: boolean;
   onChange: (value: number) => void;
-  onToggleLaterality: () => void;
+  onToggleLaterality?: () => void;
+  onEdit?: () => void;
   onSwipe?: (direction: -1 | 1) => void;
 }) {
-  const fallback = <BellStageFallback />;
+  const onActivate = props.onEdit ?? props.onToggleLaterality;
+  const fallback = onActivate ? (
+    <button
+      type="button"
+      className="mx-auto h-36 w-full max-w-xs"
+      onClick={onActivate}
+      aria-label="Change variation"
+    />
+  ) : (
+    <BellStageFallback />
+  );
   if (!hasWebGL()) return fallback;
   return (
     <ChunkErrorBoundary fallback={fallback}>
@@ -57,7 +71,7 @@ function DumbbellIcon({
           pair={props.pair}
           live={live}
           onChange={props.onChange}
-          onTap={props.onToggleLaterality}
+          onTap={props.onEdit ?? props.onToggleLaterality}
           onSwipe={props.onSwipe}
         />
       </Suspense>
@@ -71,6 +85,7 @@ export function DumbbellPicker({
   laterality,
   onChange,
   onToggleLaterality,
+  onEdit,
   live = true,
   onSwipe,
 }: DumbbellPickerProps) {
@@ -91,7 +106,8 @@ export function DumbbellPicker({
       if (next !== value) onChange(next);
     } else if (event.key === " " || event.key === "Enter") {
       event.preventDefault();
-      onToggleLaterality();
+      if (onEdit) onEdit();
+      else onToggleLaterality?.();
     }
   };
 
@@ -104,14 +120,16 @@ export function DumbbellPicker({
       aria-valuemin={sizes[0]}
       aria-valuemax={sizes[sizes.length - 1]}
       aria-valuenow={value}
-      aria-valuetext={`${formatWeight(value)} ${unit}${loadCaption ? ` ${loadCaption}` : ""}, ${pair ? "pair" : "single"}`}
+      aria-valuetext={`${formatWeight(value)} ${unit}${loadCaption ? ` ${loadCaption}` : ""}, ${pair ? "pair" : "single"}. Activate to change variation`}
       onKeyDown={onKeyDown}
       className="outline-none"
     >
       <span className="sr-only">
-        {pair
-          ? "Pair. Activate to switch to single."
-          : "Single. Activate to switch to pair."}
+        {onEdit
+          ? "Activate to change variation."
+          : pair
+            ? "Pair. Activate to switch to single."
+            : "Single. Activate to switch to pair."}
       </span>
       <DumbbellIcon
         unit={unit}
@@ -119,6 +137,7 @@ export function DumbbellPicker({
         pair={pair}
         live={live}
         onChange={onChange}
+        onEdit={onEdit}
         onToggleLaterality={onToggleLaterality}
         onSwipe={onSwipe}
       />

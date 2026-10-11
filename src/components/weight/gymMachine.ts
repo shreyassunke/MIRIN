@@ -8,6 +8,14 @@ export const GYM_MACHINE_STAGE: Record<GymMachineId, string> = {
   "pec-deck": "mx-auto h-64 w-full max-w-sm",
   "leg-press": "mx-auto h-56 w-full max-w-sm",
   "calf-raise": "mx-auto h-64 w-full max-w-sm",
+  "t-bar-row": "mx-auto h-64 w-full max-w-sm",
+  "leg-extension": "mx-auto h-64 w-full max-w-sm",
+  "inner-thigh": "mx-auto h-64 w-full max-w-sm",
+  "outer-thigh": "mx-auto h-64 w-full max-w-sm",
+  preacher: "mx-auto h-56 w-full max-w-sm",
+  "seated-dip": "mx-auto h-64 w-full max-w-sm",
+  "lateral-raise": "mx-auto h-64 w-full max-w-sm",
+  "chest-press": "mx-auto h-64 w-full max-w-sm",
 };
 
 export const GYM_MACHINE_URL: Record<GymMachineId, string> = {
@@ -18,6 +26,14 @@ export const GYM_MACHINE_URL: Record<GymMachineId, string> = {
   "pec-deck": "/models/pec-deck.glb",
   "leg-press": "/models/leg-press.glb",
   "calf-raise": "/models/standing-calf-raise.glb",
+  "t-bar-row": "/models/t-bar-row.glb",
+  "leg-extension": "/models/leg-extension.glb",
+  "inner-thigh": "/models/inner-thigh.glb",
+  "outer-thigh": "/models/outer-thigh.glb",
+  preacher: "/models/preacher-curl.glb",
+  "seated-dip": "/models/seated-dip.glb",
+  "lateral-raise": "/models/lateral-raise.glb",
+  "chest-press": "",
 };
 
 export const GYM_MACHINE_LABEL: Record<GymMachineId, string> = {
@@ -28,4 +44,12 @@ export const GYM_MACHINE_LABEL: Record<GymMachineId, string> = {
   "pec-deck": "Pec deck",
   "leg-press": "Leg press",
   "calf-raise": "Standing calf raise",
+  "t-bar-row": "T-bar row",
+  "leg-extension": "Leg extension",
+  "inner-thigh": "Inner thigh",
+  "outer-thigh": "Outer thigh",
+  preacher: "Preacher curl",
+  "seated-dip": "Seated dip",
+  "lateral-raise": "Lateral raise",
+  "chest-press": "Plate-loaded chest press",
 };

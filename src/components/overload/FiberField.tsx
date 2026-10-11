@@ -12,7 +12,6 @@ import { ChunkErrorBoundary, hasWebGL } from "../weight/three/fallback";
 const loadFiberField3D = () =>
   import("./FiberField3D").then((m) => ({ default: m.FiberField3D }));
 const FiberField3D = lazy(loadFiberField3D);
-void loadFiberField3D();
 
 const TONE: Record<FiberClass, string> = {
   I: "var(--fiber-i)",

@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { Exercise, SetLog } from "../db/db";
 
 interface LoggedSetLedgerProps {
@@ -58,6 +58,7 @@ interface TodayExercisePageProps {
   overflow?: ReactNode;
   children?: ReactNode;
   title?: string;
+  onRename?: (name: string) => void;
 }
 
 export function TodayExercisePage({
@@ -68,8 +69,12 @@ export function TodayExercisePage({
   overflow,
   children,
   title,
+  onRename,
 }: TodayExercisePageProps) {
   const name = title ?? exercise.name;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(exercise.name);
+  const cancelEdit = useRef(false);
   const workingCount = logged.filter((set) => !set.isWarmup).length;
   const status = finished
     ? `Done · ${workingCount}`
@@ -100,9 +105,56 @@ export function TodayExercisePage({
                 </svg>
               </span>
             )}
-            <span className="truncate text-lg font-semibold tracking-tight">
-              {name}
-            </span>
+            {editing ? (
+              <input
+                type="text"
+                value={draft}
+                autoFocus
+                data-no-pager=""
+                aria-label="Exercise name"
+                onFocus={(e) => {
+                  const end = e.currentTarget.value.length;
+                  e.currentTarget.setSelectionRange(end, end);
+                }}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => {
+                  if (cancelEdit.current) {
+                    cancelEdit.current = false;
+                    setEditing(false);
+                    return;
+                  }
+                  const next = draft.trim();
+                  setEditing(false);
+                  if (next && next !== exercise.name) onRename?.(next);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    cancelEdit.current = true;
+                    setDraft(exercise.name);
+                    e.currentTarget.blur();
+                  }
+                }}
+                className="exercise-title h-11 max-w-full text-center text-lg font-semibold tracking-tight text-ink"
+              />
+            ) : (
+              <button
+                type="button"
+                data-no-pager=""
+                className="h-11 max-w-full min-w-0 truncate text-lg font-semibold tracking-tight [-webkit-tap-highlight-color:transparent]"
+                aria-label={`Rename ${exercise.name}`}
+                onClick={() => {
+                  setDraft(exercise.name);
+                  setEditing(true);
+                }}
+              >
+                {name}
+              </button>
+            )}
           </p>
           {status ? (
             <p className="tnum mt-1 text-[13px] text-muted">{status}</p>

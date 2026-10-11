@@ -1,15 +1,23 @@
 import { useMemo } from "react";
 import type { Exercise, SetLog } from "../../db/db";
 import { FiberStrands } from "../../features/anatomy/FiberStrands";
-import { openingRecruitment, primaryMuscle, useMusclePlate } from "../../features/anatomy/plate";
-import { emphasisBundle, muscleSpec } from "../../lib/anatomy";
+import {
+  fiberRatio,
+  headLabel,
+  headShade,
+  openingRecruitment,
+  plateIdForRegion,
+  primeInvolvement,
+  useGroupPlate,
+} from "../../features/anatomy/plate";
+import { muscleSpec } from "../../lib/anatomy";
 import { recruitmentFor } from "../../lib/fibers";
 import { regionForExercise } from "../../lib/muscleRegions";
 import { recommendNextSet, repRangeFor } from "../../lib/overload";
 import { stageTotal, type StageDraft } from "../../lib/stageDraft";
 import { type Unit } from "../../lib/units";
 import { defaultRepsFor, formatWeight } from "../../lib/workout";
-import { FiberField, FiberLegend } from "./FiberField";
+import { FiberLegend } from "./FiberField";
 
 interface OverloadPanelProps {
   exercise: Exercise;
@@ -40,8 +48,8 @@ export function OverloadPanel({
   onTake,
 }: OverloadPanelProps) {
   const region = regionForExercise(exercise);
-  const head = primaryMuscle(exercise.id);
-  const plate = useMusclePlate(head?.id ?? null);
+  const groupId = region ? plateIdForRegion(region) : null;
+  const plate = useGroupPlate(groupId);
   const fallbackReps = defaultRepsFor(dayTemplateId ?? "");
 
   const recommendation = useMemo(
@@ -59,7 +67,9 @@ export function OverloadPanel({
   if (!region) return null;
 
   const spec = muscleSpec(region);
-  const emphasis = emphasisBundle(region, exercise);
+  const shade = headShade(groupId ?? "", exercise.id, exercise.name, region);
+  const primeId = shade[0]?.muscleId ?? "";
+  const slowShare = primeId ? fiberRatio(primeId).I : spec.slowShare;
   const range = recommendation?.range ?? repRangeFor(prior, fallbackReps);
   const e1rm = recommendation?.e1rm ?? 0;
 
@@ -68,7 +78,7 @@ export function OverloadPanel({
     weight: stageWeight,
     reps: draft.reps,
     e1rm,
-    slowShare: spec.slowShare,
+    slowShare,
     repMax: range.max,
   });
   const target = recommendation
@@ -76,12 +86,11 @@ export function OverloadPanel({
         weight: recommendation.weight,
         reps: recommendation.reps,
         e1rm,
-        slowShare: spec.slowShare,
+        slowShare,
         repMax: range.max,
       })
     : stage;
 
-  const bundle = spec.bundles[emphasis].label;
   const reading = recommendation ? target : stage;
   const delta = percent(target.onset) - percent(stage.onset);
   const onStage =
@@ -89,29 +98,32 @@ export function OverloadPanel({
     recommendation.weight === stageWeight &&
     recommendation.reps === draft.reps;
 
-  const strandStage = head
+  const shadeMap = Object.fromEntries(shade.map((head) => [head.muscleId, head.weight]));
+  const headRatios = Object.fromEntries(shade.map((head) => [head.muscleId, fiberRatio(head.muscleId)]));
+  const involvement = primeId ? primeInvolvement(exercise.id, primeId) : 0.8;
+  const strandStage = openingRecruitment({
+    muscleId: primeId,
+    exerciseId: exercise.id,
+    weight: stageWeight,
+    reps: draft.reps,
+    e1rm,
+    repMax: range.max,
+    involvement,
+  });
+  const strandTarget = recommendation
     ? openingRecruitment({
-        muscleId: head.id,
+        muscleId: primeId,
         exerciseId: exercise.id,
-        weight: stageWeight,
-        reps: draft.reps,
+        weight: recommendation.weight,
+        reps: recommendation.reps,
         e1rm,
         repMax: range.max,
+        involvement,
       })
-    : null;
-  const strandTarget =
-    head && recommendation
-      ? openingRecruitment({
-          muscleId: head.id,
-          exerciseId: exercise.id,
-          weight: recommendation.weight,
-          reps: recommendation.reps,
-          e1rm,
-          repMax: range.max,
-        })
-      : strandStage;
+    : strandStage;
 
-  const anatomy = `${spec.label} · ${bundle}`;
+  const lead = primeId ? headLabel(primeId) : spec.label;
+  const anatomy = shade.length > 1 ? `${spec.label} · ${lead}` : spec.label;
   const drift =
     !recommendation || onStage
       ? null
@@ -149,36 +161,27 @@ export function OverloadPanel({
           `Log a set and the next one gets a target in the ${range.min}–${range.max} band.`}
       </p>
 
-      <div className="mt-3">
-        {head && plate && strandTarget && strandStage ? (
+      {plate ? (
+        <div className="mt-3">
           <FiberStrands
-            key={`${head.id}:${recommendation?.weight ?? stageWeight}:${recommendation?.reps ?? draft.reps}`}
-            muscleId={head.id}
+            key={`${groupId}:${shade.map((head) => head.muscleId + head.weight).join(",")}:${recommendation?.weight ?? stageWeight}:${recommendation?.reps ?? draft.reps}`}
+            muscleId={groupId ?? spec.label}
             outline={plate.outline}
             viewBox={plate.viewBox}
-            origin={plate.origin}
-            insertion={plate.insertion}
-            ratio={head.fiberTypeRatio}
+            heads={plate.heads}
+            shade={shadeMap}
+            ratio={fiberRatio(primeId)}
+            headRatios={headRatios}
             stage={strandStage}
             recruitment={strandTarget}
-            label={`${head.name}. Fiber strands colored by type.`}
+            label={
+              shade.length > 1
+                ? `${spec.label}. ${lead[0]?.toUpperCase() ?? ""}${lead.slice(1)} carries this set.`
+                : spec.label
+            }
           />
-        ) : head && plate === undefined ? (
-          <div className="fiber-field" aria-hidden="true" />
-        ) : (
-          <FiberField
-            region={region}
-            emphasis={emphasis}
-            // With no history there is nothing to have gained, so the plate
-            // simply reads the stage rather than sweeping every fibre alight.
-            stageOnset={recommendation ? stage.onset : reading.onset}
-            onset={reading.onset}
-            ceiling={reading.ceiling}
-            runKey={`${exercise.id}:${recommendation?.weight ?? stageWeight}:${recommendation?.reps ?? draft.reps}:${percent(stage.onset)}`}
-            label={`${spec.label}, ${bundle} fibres. ${percent(reading.onset)} percent of the pool under load from the opening rep, reaching ${reading.touched ? `type ${reading.touched}` : "nothing"} by the last.`}
-          />
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {/* Keyed to the opening rep, not the last: that is the half overload moves. */}
       <FiberLegend deepest={reading.deepest} />

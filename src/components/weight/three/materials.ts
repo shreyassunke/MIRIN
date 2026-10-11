@@ -233,7 +233,53 @@ function gripRibMap(id: string, crest: string, groove: string) {
   );
 }
 
-/** Molded rings on a cable grip. The photo's rubber is ribbed, not knurled. */
+/**
+ * Diamond knurl on the close-grip's rubber sleeves. Body-Solid's seated-row
+ * triangle calls this a #18 knurl; the ridges stay dark so the sleeve reads
+ * as rubber, not a steel handle.
+ */
+function rubberKnurlMap(id: string, ridge: string, valley: string) {
+  return canvasTex(
+    id,
+    64,
+    64,
+    (ctx, w, h) => {
+      ctx.fillStyle = ridge;
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = valley;
+      ctx.lineWidth = w * 0.09;
+      ctx.lineCap = "butt";
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(w, h);
+      ctx.moveTo(w, 0);
+      ctx.lineTo(0, h);
+      ctx.stroke();
+    },
+    id.endsWith("albedo") ? THREE.SRGBColorSpace : THREE.NoColorSpace,
+  );
+}
+
+export function rubberKnurlMaterial() {
+  return remember("cable-rubber-knurl", () => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color("#ffffff"),
+      metalness: 0.08,
+      roughness: 0.68,
+      envMapIntensity: 0.34,
+    });
+    const albedo = rubberKnurlMap("rubber-knurl-albedo", "#3e3e3e", "#101010").clone();
+    albedo.wrapS = THREE.RepeatWrapping;
+    albedo.wrapT = THREE.RepeatWrapping;
+    albedo.repeat.set(9, 6);
+    albedo.needsUpdate = true;
+    mat.map = albedo;
+    assignBump(mat, rubberKnurlMap("rubber-knurl-bump", "#d8d8d8", "#1a1a1a"), 9, 6, 0.38);
+    return mat;
+  });
+}
+
+/** Molded rings on a cable grip. The straight bar's rubber is ribbed, not knurled. */
 export function gripMaterial() {
   return remember("cable-grip", () => {
     const mat = new THREE.MeshStandardMaterial({

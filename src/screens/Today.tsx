@@ -12,7 +12,7 @@ import {
   DEFAULT_REST_SECONDS,
   formatSet,
   formatWeight,
-  lastSets,
+  lastNativeSets,
   newId,
   planFillFromLastTime,
 } from "../lib/workout";
@@ -29,15 +29,18 @@ import {
 import {
   ensureExerciseRow,
   equipmentForExercise,
+  isGymMachineId,
+  renameExercise,
   type ExerciseLibraryEntry,
 } from "../lib/library";
 import type { CableAttachmentId } from "../lib/cableAttachment";
+import { supportsLaterality, type Laterality } from "../lib/laterality";
 import {
-  convertLoadForLaterality,
-  loadSharing,
-  supportsLaterality,
-  type Laterality,
-} from "../lib/laterality";
+  choiceForDraft,
+  draftPatchForVariation,
+  variationById,
+  type VariationChoice,
+} from "../lib/variations";
 import {
   appendSessionExercise,
   removeSessionExercise,
@@ -46,6 +49,8 @@ import {
   resolveSessionWarmupTargets,
   setExerciseFinished,
   setSessionNote,
+  setSessionStation,
+  setSessionVariation,
   setSessionWarmupTarget,
   swapSessionExercise,
   toggleSessionSuperset,
@@ -128,6 +133,10 @@ interface TodayData {
   warmupTargets: Record<string, number>;
   /** Exercises the user called done; sets per exercise are otherwise unfixed. */
   finishedExerciseIds: string[];
+  /** Today's substitute implement, keyed by programmed exercise id. */
+  variations: Record<string, string>;
+  /** Today's machine station, keyed by programmed exercise id. */
+  stations: Record<string, string>;
   isRestDay: boolean;
   nextUp: { dayName: string; daysAway: number } | null;
 }
@@ -196,9 +205,7 @@ function useTodayData(): TodayData | undefined {
         : [];
       const prefills: Record<string, SetLog[]> = {};
       for (const exercise of exercises) {
-        prefills[exercise.id] = (await lastSets(exercise.id, open?.id)).filter(
-          (s) => !s.isWarmup,
-        );
+        prefills[exercise.id] = await lastNativeSets(exercise.id, open?.id);
       }
       const modePrefs: Record<string, InputMethod> = {};
       const lateralityPrefs: Record<string, Laterality> = {};
@@ -245,6 +252,8 @@ function useTodayData(): TodayData | undefined {
         supersets: resolveSessionSupersets(undefined, open),
         warmupTargets: resolveSessionWarmupTargets(undefined, open),
         finishedExerciseIds: open?.finishedExerciseIds ?? [],
+        variations: open?.variations ?? {},
+        stations: open?.stations ?? {},
         isRestDay: !open && exerciseIds.length === 0,
         nextUp: upcoming
           ? {
@@ -267,9 +276,7 @@ function useTodayData(): TodayData | undefined {
 
     const prefills: Record<string, SetLog[]> = {};
     for (const exercise of exercises) {
-      prefills[exercise.id] = (await lastSets(exercise.id, open?.id)).filter(
-        (s) => !s.isWarmup,
-      );
+      prefills[exercise.id] = await lastNativeSets(exercise.id, open?.id);
     }
 
     const modePrefs: Record<string, InputMethod> = {};
@@ -318,6 +325,8 @@ function useTodayData(): TodayData | undefined {
       supersets: resolveSessionSupersets(day, open),
       warmupTargets: resolveSessionWarmupTargets(day, open),
       finishedExerciseIds: open?.finishedExerciseIds ?? [],
+      variations: open?.variations ?? {},
+      stations: open?.stations ?? {},
       isRestDay: false,
       nextUp: null,
     };
@@ -441,6 +450,8 @@ export function Today() {
           lateralityPrefs: data.lateralityPrefs,
           cableAttachmentPrefs: data.cableAttachmentPrefs,
           warmupTargets: data.warmupTargets,
+          variations: data.variations,
+          stations: data.stations,
         }).next;
 
   useLayoutEffect(() => {
@@ -455,6 +466,8 @@ export function Today() {
         lateralityPrefs: data.lateralityPrefs,
         cableAttachmentPrefs: data.cableAttachmentPrefs,
         warmupTargets: data.warmupTargets,
+        variations: data.variations,
+        stations: data.stations,
       });
       return synced.changed ? synced.next : prev;
     });
@@ -615,6 +628,9 @@ export function Today() {
             mode: next,
             laterality: current.laterality,
             cableAttachment: current.cableAttachment,
+            variationId: current.variationId,
+            heldLoadLb: current.heldLoadLb,
+            station: current.station,
           },
         }),
       }));
@@ -622,28 +638,32 @@ export function Today() {
     void patchExercisePref(exerciseId, { preferredInputMethod: next });
   }
 
-  function setLateralityFor(next: Laterality, exerciseId: string) {
+  async function applyVariation(exerciseId: string, choice: VariationChoice) {
     if (!data) return;
     const current = viewDrafts[exerciseId];
-    if (!current || next === current.laterality) return;
     const exercise = data.exercises.find((item) => item.id === exerciseId);
-    const equipment = exercise ? equipmentForExercise(exercise) : "other";
-    const converted = convertLoadForLaterality(
-      stageTotal(current),
-      current.laterality,
-      next,
-      loadSharing(current.mode, equipment),
+    if (!current || !exercise) return;
+    const from = choiceForDraft(exercise, current);
+    if (from.id === choice.id) return;
+    const patch = draftPatchForVariation({
+      exercise,
+      from,
+      to: choice,
+      total: stageTotal(current),
+      heldLoadLb: current.heldLoadLb,
+      barWeight: current.barWeight,
       unit,
-    );
-    patchDraft(exerciseId, {
-      laterality: next,
-      ...(current.mode === "dumbbell"
-        ? { dumbbell: nearestDumbbell(converted, unit) }
-        : current.mode === "manual"
-          ? { manualWeight: converted }
-          : {}),
     });
-    void patchExercisePref(exerciseId, { preferredLaterality: next });
+    patchDraft(exerciseId, patch);
+    const sessionId = await ensureSession();
+    await setSessionVariation(sessionId, exerciseId, patch.variationId ?? undefined);
+  }
+
+  async function applyStation(exerciseId: string, station: string) {
+    if (!isGymMachineId(station)) return;
+    patchDraft(exerciseId, { station });
+    const sessionId = await ensureSession();
+    await setSessionStation(sessionId, exerciseId, station);
   }
 
   function setAttachment(next: CableAttachmentId, exerciseId: string) {
@@ -660,7 +680,12 @@ export function Today() {
     inputMethod: InputMethod,
     loadBreakdown?: LoadBreakdown,
     setLateralityValue?: Laterality,
-    options?: { drops?: SetDrop[]; forceWorking?: boolean },
+    options?: {
+      drops?: SetDrop[];
+      forceWorking?: boolean;
+      variationId?: string;
+      variationLabel?: string;
+    },
   ) {
     const sessionId = await ensureSession();
     const session = await db.sessions.get(sessionId);
@@ -683,6 +708,8 @@ export function Today() {
       drops: options?.drops,
       isWarmup: isWarmup || undefined,
       swappedFromExerciseId: session?.exerciseSwapOrigins?.[exerciseId],
+      variationId: options?.variationId,
+      variationLabel: options?.variationLabel,
     });
     setFinishArmed(false);
     // A logged set reopens an exercise that was called done.
@@ -797,7 +824,13 @@ export function Today() {
             }
           : undefined;
       const exercise = data?.exercises.find((e) => e.id === exerciseId);
-      const equipment = exercise ? equipmentForExercise(exercise) : "other";
+      const equipment = exercise
+        ? (variationById(exercise, draft.variationId)?.equipment ??
+          equipmentForExercise(exercise))
+        : "other";
+      const variation = exercise
+        ? variationById(exercise, draft.variationId)
+        : null;
       await logSet(
         exerciseId,
         toCanonical(stageTotal(draft), unit),
@@ -805,6 +838,9 @@ export function Today() {
         draft.mode,
         breakdown,
         supportsLaterality(draft.mode, equipment) ? draft.laterality : undefined,
+        variation
+          ? { variationId: variation.id, variationLabel: variation.label }
+          : undefined,
       );
     } finally {
       loggingRef.current = false;
@@ -985,6 +1021,7 @@ export function Today() {
                 finished={finished}
                 inSuperset={grouped}
                 title={displayName}
+                onRename={(next) => void renameExercise(exercise.id, next)}
                 overflow={
                   <ItemOverflow
                     label={`${displayName} options`}
@@ -1105,15 +1142,9 @@ export function Today() {
                     onBar={(bar, plates) =>
                       patchDraft(exercise.id, { barWeight: bar, plates })
                     }
-                    onLaterality={() =>
-                      setLateralityFor(
-                        draft.laterality === "bilateral"
-                          ? "unilateral"
-                          : "bilateral",
-                        exercise.id,
-                      )
-                    }
                     onAttachment={(next) => setAttachment(next, exercise.id)}
+                    onVariation={(choice) => void applyVariation(exercise.id, choice)}
+                    onStation={(id) => void applyStation(exercise.id, id)}
                   />
                 ) : null}
               </TodayExercisePage>

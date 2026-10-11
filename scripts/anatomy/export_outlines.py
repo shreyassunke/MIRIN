@@ -57,6 +57,10 @@ def cli_args(argv: list[str]) -> argparse.Namespace:
         argv = argv[1:]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-check", action="store_true")
+    parser.add_argument(
+        "--compose",
+        help="Write one shared-frame outline for this muscle group. BodyParts3D OBJ only.",
+    )
     parser.add_argument("--source", choices=("bodyparts3d", "z-anatomy"))
     parser.add_argument("--mesh-dir", type=Path)
     parser.add_argument("--catalog", type=Path)
@@ -81,13 +85,11 @@ def cli_args(argv: list[str]) -> argparse.Namespace:
     )
     args = parser.parse_args(argv)
     if not args.self_check:
-        missing = [
-            name
-            for name in ("source", "catalog", "out")
-            if getattr(args, name) is None
-        ]
-        if args.source == "bodyparts3d" and args.mesh_dir is None:
-            missing.append("mesh-dir")
+        required = ("catalog", "out") if args.compose else ("source", "catalog", "out")
+        missing = [name for name in required if getattr(args, name) is None]
+        if args.compose or args.source == "bodyparts3d":
+            if args.mesh_dir is None:
+                missing.append("mesh-dir")
         if missing:
             parser.error("missing " + ", ".join("--" + name for name in missing))
     return args
@@ -636,6 +638,222 @@ def find_z_anatomy(muscle, rename: str | None):
     return best
 
 
+# tendon is the shared insertion, placed on the right so the strand fan
+# runs origin → tendon the way the pectoralis plate does.
+# lateral: away from the midline. distal: toward the feet (Z-up).
+# proximal: toward the head, for muscles whose insertion is superior.
+GROUPS = {
+    "pectoralis_major": {
+        "tendon": "lateral",
+        "members": (
+            "pectoralis_major_clavicular",
+            "pectoralis_major_sternal",
+            "pectoralis_major_abdominal",
+        ),
+    },
+    "deltoid": {
+        "tendon": "distal",
+        "members": ("deltoid_clavicular", "deltoid_acromial", "deltoid_spinal"),
+    },
+    "triceps_brachii": {
+        "tendon": "distal",
+        "members": ("triceps_long", "triceps_lateral", "triceps_medial"),
+    },
+    "biceps_brachii": {
+        "tendon": "distal",
+        "members": ("biceps_long", "biceps_short", "brachialis"),
+    },
+    "trapezius": {
+        "tendon": "lateral",
+        "members": ("trapezius_descending", "trapezius_transverse", "trapezius_ascending"),
+    },
+    "quadriceps": {
+        "tendon": "distal",
+        "members": ("vastus_lateralis", "rectus_femoris", "vastus_medialis"),
+    },
+    "hamstrings": {
+        "tendon": "distal",
+        "members": (
+            "biceps_femoris_long",
+            "biceps_femoris_short",
+            "semitendinosus",
+            "semimembranosus",
+        ),
+    },
+    "triceps_surae": {
+        "tendon": "distal",
+        "members": ("gastrocnemius_medial", "gastrocnemius_lateral", "soleus"),
+    },
+    "gluteus_maximus": {
+        "tendon": "lateral",
+        "members": ("gluteus_maximus",),
+    },
+    "forearm": {
+        "tendon": "distal",
+        "members": ("brachioradialis", "flexor_carpi_radialis"),
+    },
+    "erector_spinae": {
+        "tendon": "proximal",
+        "members": ("iliocostalis_lumborum", "longissimus_thoracis", "spinalis_thoracis"),
+    },
+}
+
+
+def path_from_rings(rings, epsilon, project):
+    rings = sorted(rings, key=lambda pts: abs(shoelace(pts)), reverse=True)
+    if not rings:
+        return ""
+    outer = abs(shoelace(rings[0]))
+    kept = [rings[0]]
+    for ring in rings[1:]:
+        if abs(shoelace(ring)) >= outer * 0.02:
+            kept.append(ring)
+    commands = []
+    for index, ring in enumerate(kept):
+        simplified = simplify_ring(ring, epsilon)
+        area = shoelace(simplified)
+        if (index == 0 and area < 0) or (index > 0 and area > 0):
+            simplified = list(reversed(simplified))
+        mapped = [project(x, y) for x, y in simplified]
+        head, *rest = mapped
+        parts = [f"M {head[0]:.2f} {head[1]:.2f}"]
+        parts.extend(f"L {x:.2f} {y:.2f}" for x, y in rest)
+        parts.append("Z")
+        commands.append(" ".join(parts))
+    return " ".join(commands)
+
+
+def compose_surfaces(parts, tolerance: float, tendon: str = "lateral"):
+    """One orthographic frame for every head, so they stack as one muscle."""
+    all_verts = [vertex for part in parts for vertex in part["verts"]]
+    _lo, _hi, size = extents(all_verts)
+    view_axis = min(range(3), key=lambda axis: size[axis])
+    # Horizontal is the line of pull, so the tendon sits at the right.
+    # Lateral insertions use the left-right axis. Limb insertions use height:
+    # BodyParts3D is Z-up, so distal is the low end of that axis.
+    side = laterality_axis(all_verts, view_axis)
+    vertical = next(axis for axis in range(3) if axis not in (view_axis, side))
+    if tendon == "lateral" or side is None:
+        ax_x, ax_y = (side if side is not None else 0), vertical
+        sign_x = 1
+    else:
+        # Z-up. The line of pull is height, not whichever axis missed the
+        # midline test. A midline muscle (erectors) otherwise stands on end.
+        ax_x = 2 if view_axis != 2 else vertical
+        ax_y = next(axis for axis in range(3) if axis not in (view_axis, ax_x))
+        sign_x = -1 if tendon == "distal" else 1
+    planes = [[(sign_x * v[ax_x], v[ax_y]) for v in part["verts"]] for part in parts]
+    flat = [point for plane in planes for point in plane]
+    min_x = min(point[0] for point in flat)
+    max_x = max(point[0] for point in flat)
+    min_y = min(point[1] for point in flat)
+    max_y = max(point[1] for point in flat)
+    span_x = max(max_x - min_x, 1e-9)
+    span_y = max(max_y - min_y, 1e-9)
+    scale = LONG_SIDE / max(span_x, span_y)
+    pixel = max(span_x, span_y) / RASTER
+    epsilon = max(tolerance * max(span_x, span_y), pixel * 1.25)
+
+    def project(x, y):
+        return ((x - min_x) * scale + PAD, (max_y - y) * scale + PAD)
+
+    union_plane = []
+    union_faces = []
+    for part, plane in zip(parts, planes):
+        offset = len(union_plane)
+        union_plane.extend(plane)
+        union_faces.extend([index + offset for index in face] for face in part["faces"])
+    outline = path_from_rings(
+        projected_rings(union_plane, union_faces, min_x, min_y, span_x, span_y),
+        epsilon,
+        project,
+    )
+    heads = {}
+    for part, plane in zip(parts, planes):
+        heads[part["id"]] = path_from_rings(
+            projected_rings(plane, part["faces"], min_x, min_y, span_x, span_y),
+            epsilon,
+            project,
+        )
+    width = span_x * scale + PAD * 2
+    height = span_y * scale + PAD * 2
+    return {
+        "d": outline,
+        "heads": heads,
+        "viewWidth": round(width, 2),
+        "viewHeight": round(height, 2),
+        "viewAxis": AXIS[view_axis],
+        "planeAxes": [AXIS[ax_x], AXIS[ax_y]],
+    }
+
+
+def write_group_svg(path: Path, group_id: str, source: str, composed: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    width = composed["viewWidth"]
+    height = composed["viewHeight"]
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        (
+            f"<!-- Derivative outline of {group_id} from {source}. "
+            "See ../LICENSES.md. Not a measurement. -->"
+        ),
+        (
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'viewBox="0 0 {width:.2f} {height:.2f}" '
+            f'data-muscle-id="{group_id}" data-source="{source}">'
+        ),
+        f'  <path id="outline" fill="none" stroke="#000" d="{composed["d"]}" />',
+    ]
+    for head_id, d in composed["heads"].items():
+        lines.append(
+            f'  <path id="{head_id}" data-role="head" fill="none" stroke="none" d="{d}" />'
+        )
+    lines.append("</svg>")
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def compose_group(args) -> int:
+    spec = GROUPS.get(args.compose)
+    if not spec:
+        print(f"unknown group {args.compose}")
+        return 1
+    members = spec["members"]
+    catalog = {muscle["id"]: muscle for muscle in load_catalog(args.catalog)}
+    parts = []
+    for muscle_id in members:
+        muscle = catalog[muscle_id]
+        path = mesh_path(args.mesh_dir, muscle["elementId"])
+        if path is None:
+            print(f"missing {muscle['elementId']}.obj")
+            return 1
+        verts, faces = parse_obj(path)
+        parts.append({"id": muscle_id, "verts": verts, "faces": faces})
+        print(f"{muscle_id}: {path.name}")
+    composed = compose_surfaces(parts, args.tolerance, spec.get("tendon", "lateral"))
+    if not composed["d"] or any(not d for d in composed["heads"].values()):
+        print("compose produced an empty outline")
+        return 1
+    svg_path = args.out / "svg" / f"{args.compose}.svg"
+    write_group_svg(svg_path, args.compose, "bodyparts3d", composed)
+    anchors_path = args.out / "anchors.json"
+    payload = {}
+    if anchors_path.exists():
+        payload = json.loads(anchors_path.read_text(encoding="utf-8"))
+    groups = payload.setdefault("groups", {})
+    groups[args.compose] = {
+        "members": list(members),
+        "viewBox": [0, 0, composed["viewWidth"], composed["viewHeight"]],
+        "viewAxis": composed["viewAxis"],
+        "planeAxes": composed["planeAxes"],
+        "anchors": "shared-frame",
+        "tendon": spec.get("tendon", "lateral"),
+    }
+    anchors_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {svg_path}")
+    return 0
+
+
 def export_all(args):
     import bpy
 
@@ -651,6 +869,8 @@ def export_all(args):
     errors = []
     svg_dir = args.out / "svg"
     for muscle in catalog:
+        if muscle.get("elementId") == "atlas":
+            continue
         try:
             if args.source == "bodyparts3d":
                 path = mesh_path(args.mesh_dir, muscle["elementId"])
@@ -711,8 +931,10 @@ def export_all(args):
 
 def main(argv: list[str]) -> int:
     args = cli_args(argv)
-    if args.self_check and args.source is None:
+    if args.self_check and args.source is None and not args.compose:
         return 0 if self_check() else 1
+    if args.compose:
+        return compose_group(args)
     return export_all(args)
 
 

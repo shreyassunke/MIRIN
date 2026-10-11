@@ -30,12 +30,23 @@ interface BarbellPickerProps {
   barWeight: number; // display unit
   plates: number[]; // per side, display unit, sorted descending
   onChange: (barWeight: number, plates: number[]) => void;
+  /** A tap on the bar, missing the plates, opens the variation list. */
+  onEdit?: () => void;
 }
 
 const BAR_STAGE_H = 104;
 
-function BarStageFallback() {
-  return <div className="w-full" style={{ height: BAR_STAGE_H }} />;
+function BarStageFallback({ onEdit }: { onEdit?: () => void }) {
+  if (!onEdit) return <div className="w-full" style={{ height: BAR_STAGE_H }} />;
+  return (
+    <button
+      type="button"
+      className="w-full"
+      style={{ height: BAR_STAGE_H }}
+      onClick={onEdit}
+      aria-label="Change variation"
+    />
+  );
 }
 
 function LoadedBar({
@@ -47,8 +58,9 @@ function LoadedBar({
   onRemove: (index: number) => void;
   live?: boolean;
   onSwipe?: (direction: -1 | 1) => void;
+  onEdit?: () => void;
 }) {
-  const fallback = <BarStageFallback />;
+  const fallback = <BarStageFallback onEdit={props.onEdit} />;
   if (!hasWebGL()) return fallback;
   return (
     <ChunkErrorBoundary fallback={fallback}>
@@ -372,6 +384,7 @@ export function BarbellPicker({
   onChange,
   live = true,
   onSwipe,
+  onEdit,
 }: BarbellPickerProps & {
   live?: boolean;
   onSwipe?: (direction: -1 | 1) => void;
@@ -390,6 +403,7 @@ export function BarbellPicker({
         onRemove={removePlate}
         live={live}
         onSwipe={onSwipe}
+        onEdit={onEdit}
       />
     </div>
   );

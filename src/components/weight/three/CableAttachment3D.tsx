@@ -20,6 +20,8 @@ interface CableAttachment3DProps {
   value: number;
   onChange: (value: number) => void;
   live?: boolean;
+  /** A tap on the clip, short of a drag, opens the variation list. */
+  onEdit?: () => void;
 }
 
 export function CableAttachment3D({
@@ -28,6 +30,7 @@ export function CableAttachment3D({
   value,
   onChange,
   live = true,
+  onEdit,
 }: CableAttachment3DProps) {
   const valueRef = useRef(value);
   const unitRef = useRef(unit);
@@ -65,6 +68,7 @@ export function CableAttachment3D({
     pose: CABLE_CAM,
     onStep: stepBy,
     stepAxis: "y",
+    onTap: onEdit ? () => onEdit() : undefined,
     live,
     symmetricLights: true,
   });
@@ -80,8 +84,23 @@ export function CableAttachment3D({
       ref={hostRef}
       className={`${STAGE} cursor-ns-resize`}
       style={{ touchAction: "none" }}
-      role="img"
-      aria-label={`${cableAttachmentLabel(attachment)} cable attachment`}
+      role={onEdit ? "button" : "img"}
+      tabIndex={onEdit ? 0 : undefined}
+      onKeyDown={
+        onEdit
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onEdit();
+              }
+            }
+          : undefined
+      }
+      aria-label={
+        onEdit
+          ? `${cableAttachmentLabel(attachment)} cable attachment. Activate to change variation`
+          : `${cableAttachmentLabel(attachment)} cable attachment`
+      }
       data-cable-attachment={attachment}
       {...pointer}
     />

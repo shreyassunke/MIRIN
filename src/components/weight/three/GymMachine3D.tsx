@@ -1,7 +1,5 @@
 import { useCallback, useRef } from "react";
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import type { GymMachineId } from "../../../lib/library";
 import { MANUAL_STEP, round2, type Unit } from "../../../lib/units";
 import {
@@ -9,22 +7,11 @@ import {
   GYM_MACHINE_STAGE,
   GYM_MACHINE_URL,
 } from "../gymMachine";
+import { createChestPressModel } from "./createChestPressModel";
+import { loadGymMachine } from "./loadGymMachine";
 import { frameMaterial } from "./materials";
 import { LAT_PULLDOWN_CAM } from "./scale";
 import { useWeightStage } from "./useWeightStage";
-
-const cache = new Map<string, Promise<GLTF>>();
-
-function loadMachine(url: string) {
-  const hit = cache.get(url);
-  if (hit) return hit;
-  const pending = new GLTFLoader().loadAsync(url).catch((err) => {
-    cache.delete(url);
-    throw err;
-  });
-  cache.set(url, pending);
-  return pending;
-}
 
 interface GymMachine3DProps {
   machine: GymMachineId;
@@ -32,6 +19,8 @@ interface GymMachine3DProps {
   value: number;
   onChange?: (value: number) => void;
   live?: boolean;
+  /** A tap on the station, short of a drag, opens the variation list. */
+  onEdit?: () => void;
 }
 
 export function GymMachine3D({
@@ -40,6 +29,7 @@ export function GymMachine3D({
   value,
   onChange,
   live = true,
+  onEdit,
 }: GymMachine3DProps) {
   const valueRef = useRef(value);
   const unitRef = useRef(unit);
@@ -58,7 +48,25 @@ export function GymMachine3D({
   const attach = useCallback((pivot: THREE.Group) => {
     let cancelled = false;
     let root: THREE.Object3D | null = null;
-    loadMachine(GYM_MACHINE_URL[machine])
+    const place = (object: THREE.Object3D) => {
+      if (cancelled) return;
+      root = object;
+      object.updateWorldMatrix(true, true);
+      const box = new THREE.Box3().setFromObject(object);
+      object.position.sub(box.getCenter(new THREE.Vector3()));
+      pivot.add(object);
+      fitRef.current();
+    };
+    if (machine === "chest-press") {
+      place(createChestPressModel());
+      return () => {
+        cancelled = true;
+        const dispose = root?.userData.dispose;
+        if (root) pivot.remove(root);
+        if (typeof dispose === "function") dispose();
+      };
+    }
+    loadGymMachine(GYM_MACHINE_URL[machine])
       .then((gltf) => {
         if (cancelled) return;
         root = gltf.scene.clone(true);
@@ -91,6 +99,7 @@ export function GymMachine3D({
     pose: LAT_PULLDOWN_CAM,
     onStep: onChange ? stepBy : undefined,
     stepAxis: "y",
+    onTap: onEdit ? () => onEdit() : undefined,
     live,
   });
   fitRef.current = fit;
@@ -101,8 +110,23 @@ export function GymMachine3D({
       ref={hostRef}
       className={stage}
       style={{ touchAction: onChange ? "none" : "pan-y" }}
-      role="img"
-      aria-label={GYM_MACHINE_LABEL[machine]}
+      role={onEdit ? "button" : "img"}
+      tabIndex={onEdit ? 0 : undefined}
+      onKeyDown={
+        onEdit
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onEdit();
+              }
+            }
+          : undefined
+      }
+      aria-label={
+        onEdit
+          ? `${GYM_MACHINE_LABEL[machine]}. Activate to change variation`
+          : GYM_MACHINE_LABEL[machine]
+      }
       data-gym-machine={machine}
       {...pointer}
     />

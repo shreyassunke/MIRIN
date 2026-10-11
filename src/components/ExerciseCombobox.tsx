@@ -14,9 +14,13 @@ import {
   createCustomExercise,
   equipmentLabel,
   fullLibrary,
+  gymMachineFor,
   muscleLabel,
+  stationsForMuscle,
   type ExerciseLibraryEntry,
+  type GymMachineId,
 } from "../lib/library";
+import { MachineStationPicker, STATION_LABEL } from "./MachineStationPicker";
 import { useDismissOnPointerOutside } from "../hooks/useDismissOnPointerOutside";
 
 const MAX_RESULTS = 12;
@@ -53,8 +57,28 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
   const [name, setName] = useState(initialName);
   const [equipment, setEquipment] = useState<string>("dumbbell");
   const [muscle, setMuscle] = useState<string>("chest");
+  const [station, setStation] = useState<GymMachineId | null>(null);
+  const [stationTouched, setStationTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const canSave = name.trim().length > 0 && !saving;
+
+  useEffect(() => {
+    if (equipment !== "machine") return;
+    const choices = stationsForMuscle(muscle);
+    const stillValid = station != null && choices.includes(station);
+    if (stationTouched && stillValid) return;
+    const guessed = gymMachineFor({
+      id: "custom",
+      name,
+      equipment: "machine",
+      isCustom: true,
+    });
+    const guessOk =
+      guessed && guessed !== "cable" && choices.includes(guessed) ? guessed : null;
+    const next = guessOk ?? (choices.length === 1 ? choices[0] : null);
+    if (stationTouched && !stillValid) setStationTouched(false);
+    if (station !== next) setStation(next);
+  }, [equipment, name, muscle, station, stationTouched]);
 
   const selectClass =
     "h-11 w-full rounded-md border border-hairline bg-bg px-3 text-base text-ink focus:border-muted";
@@ -111,6 +135,21 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
             </select>
           </label>
         </div>
+        {equipment === "machine" && stationsForMuscle(muscle).length > 0 && (
+          <div>
+            <span className="mb-1.5 block text-[13px] font-medium text-muted">
+              Station
+            </span>
+            <MachineStationPicker
+              muscle={muscle}
+              value={station}
+              onChange={(id) => {
+                setStationTouched(true);
+                setStation(id);
+              }}
+            />
+          </div>
+        )}
       </div>
       <div className="mt-4 flex gap-2">
         <button
@@ -122,6 +161,7 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
               name,
               equipment,
               primaryMuscle: muscle,
+              station: equipment === "machine" ? (station ?? undefined) : undefined,
             });
             onCreate(entry);
           }}
@@ -309,7 +349,8 @@ export function ExerciseCombobox({
                     {entry.name}
                   </span>
                   <span className="block text-[13px] text-muted">
-                    {equipmentLabel(entry.equipment)}
+                    {(entry.station && STATION_LABEL[entry.station]) ||
+                      equipmentLabel(entry.equipment)}
                     {entry.primaryMuscles[0] &&
                       ` — ${muscleLabel(entry.primaryMuscles[0])}`}
                     {entry.isCustom && " — Custom"}

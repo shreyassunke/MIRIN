@@ -1,7 +1,13 @@
 import * as THREE from "three";
 import type { CableAttachmentId } from "../../../lib/cableAttachment";
 import { CABLE_ATTACHMENTS } from "../../../lib/cableAttachment";
-import { addContactShadow, gripMaterial, headMaterial, polishMaterial } from "./materials";
+import {
+  addContactShadow,
+  gripMaterial,
+  headMaterial,
+  polishMaterial,
+  rubberKnurlMaterial,
+} from "./materials";
 import { alongX } from "./scale";
 
 /**
@@ -10,7 +16,8 @@ import { alongX } from "./scale";
  * Built from the reference photo (chrome, ribbed black grips, vertical
  * eyelets, braided rope with solid balls) and published sizes:
  * straight bar ~45 cm × Ø25 mm shaft, molded grips ~Ø32 mm;
- * close-grip row handle ~17.5 × 12 cm; rope ~69 cm shown in its resting U;
+ * close-grip triangle ~24 × 12 cm, parallel grips, welded flange;
+ * rope ~69 cm shown in its resting U;
  * stirrup ~14 × 10 cm. Swivel tooth counts and the hidden side of each
  * knuckle are approximate; one photo cannot show them.
  */
@@ -290,23 +297,117 @@ function roundedFrame(
   }
 }
 
+/**
+ * Welded flange for the close-grip triangle. Outline is the face-on plate
+ * in the reference photos: wide, shallow, one carabiner hole. Local Y is up
+ * from the bottom edge. The hole axis faces the camera.
+ */
+function flangePlate(owned: THREE.BufferGeometry[]) {
+  const shape = new THREE.Shape();
+  const outline: [number, number][] = [
+    [-2.7, 0],
+    [-4.85, 0.62],
+    [-5.2, 1.95],
+    [-3.4, 3.72],
+    [3.4, 3.72],
+    [5.2, 1.95],
+    [4.85, 0.62],
+    [2.7, 0],
+  ];
+  shape.moveTo(outline[0][0], outline[0][1]);
+  for (let i = 1; i < outline.length; i++) shape.lineTo(outline[i][0], outline[i][1]);
+  shape.closePath();
+  const hole = new THREE.Path();
+  hole.absarc(0, 2.08, 0.8, 0, Math.PI * 2, true);
+  shape.holes.push(hole);
+  const thick = 0.7;
+  const geo = own(
+    owned,
+    new THREE.ExtrudeGeometry(shape, {
+      depth: thick,
+      bevelEnabled: true,
+      bevelThickness: 0.055,
+      bevelSize: 0.06,
+      bevelSegments: 2,
+      curveSegments: 22,
+    }),
+  );
+  geo.translate(0, 0, -thick / 2);
+  return geo;
+}
+
+/**
+ * One parallel grip: chrome ball caps, a short chrome neck, diamond-knurl
+ * rubber. Returns the tube weld, on the inner chrome just outboard of the
+ * inner ball.
+ */
+function parallelGrip(
+  parent: THREE.Object3D,
+  owned: THREE.BufferGeometry[],
+  chrome: THREE.Material,
+  rubber: THREE.Material,
+  sign: number,
+  y: number,
+) {
+  const ballR = 1.52;
+  const gripR = 1.42;
+  const inner = sign * 2.2;
+  const outer = sign * 10.35;
+  const dir = Math.sign(outer - inner) || 1;
+  add(
+    parent,
+    own(owned, new THREE.SphereGeometry(ballR, 28, 20)),
+    chrome,
+    new THREE.Vector3(inner, y, 0),
+  );
+  add(
+    parent,
+    own(owned, new THREE.SphereGeometry(ballR, 28, 20)),
+    chrome,
+    new THREE.Vector3(outer, y, 0),
+  );
+  const span = Math.abs(outer - inner);
+  add(
+    parent,
+    shaftGeo(owned, 0.92, span - ballR * 0.85),
+    chrome,
+    new THREE.Vector3((inner + outer) / 2, y, 0),
+  );
+  const rubberLen = 6.05;
+  const rubberCenter = (inner + outer) / 2 + dir * 1.15;
+  add(parent, gripGeo(owned, gripR, rubberLen), rubber, new THREE.Vector3(rubberCenter, y, 0));
+  // Tube lands on the inner third, so the sleeve hangs out past the weld.
+  return new THREE.Vector3(inner + dir * 3.45, y + 0.7, 0);
+}
+
+/**
+ * Close-grip row handle. Two parallel grips with precision-ground ball ends,
+ * round tube forming a triangle, and a flat welded flange — the piece in the
+ * reference photos, not a double-D frame with a swivel eye.
+ * About 24 cm across and 12 cm tall. Grip Ø ~28 mm, tube Ø ~13 mm.
+ */
 function closeGrip(owned: THREE.BufferGeometry[]) {
   const g = new THREE.Group();
   const chrome = chromeMat();
-  const rubber = gripMat();
-  const tube = 0.62;
-  roundedFrame(g, owned, 16.4, 13.2, tube);
-  for (const y of [2.35, -2.35]) {
-    add(g, gripGeo(owned, 1.18, 13.4), rubber, new THREE.Vector3(0, y, 0));
-    for (const x of [-7.15, 7.15]) {
-      add(g, shaftGeo(owned, 1.42, 0.42), chrome, new THREE.Vector3(x, y, 0));
-    }
-  }
-  const stemTop = new THREE.Vector3(0, 8.2, 0);
-  rod(g, owned, new THREE.Vector3(0, 6.6, 0), stemTop, 0.5, chrome);
-  eye(g, owned, new THREE.Vector3(0, 9.15, 0), 1.7, 0.68);
-  joint(g, owned, stemTop, 0.46);
-  shadow(g, 20, 8, -7.6);
+  const rubber = rubberKnurlMaterial();
+  const tubeR = 0.66;
+  const gripY = -5.15;
+  const plateY = 2.05;
+
+  const welds = [-1, 1].map((sign) =>
+    parallelGrip(g, owned, chrome, rubber, sign, gripY),
+  );
+  add(g, flangePlate(owned), chrome, new THREE.Vector3(0, plateY, 0));
+
+  welds.forEach((weld, index) => {
+    const sign = index === 0 ? -1 : 1;
+    const atPlate = new THREE.Vector3(sign * 2.15, plateY + 0.42, 0);
+    rod(g, owned, weld, atPlate, tubeR, chrome);
+    joint(g, owned, weld, 0.7);
+    joint(g, owned, atPlate, 0.64);
+  });
+
+  shadow(g, 22, 7, gripY - 1.72);
   return g;
 }
 

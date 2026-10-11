@@ -14,6 +14,8 @@ interface LoadedBar3DProps {
   onRemove: (index: number) => void;
   onSwipe?: (direction: -1 | 1) => void;
   live?: boolean;
+  /** A tap that misses every plate opens the variation list. */
+  onEdit?: () => void;
 }
 
 /** 44px plate hit so edge-on taps still land. */
@@ -86,14 +88,17 @@ export function LoadedBar3D({
   onRemove,
   onSwipe,
   live = true,
+  onEdit,
 }: LoadedBar3DProps) {
   const runtimeRef = useRef<BarbellRuntime | null>(null);
   const platesRef = useRef(plates);
   const unitRef = useRef(unit);
   const onRemoveRef = useRef(onRemove);
+  const onEditRef = useRef(onEdit);
   platesRef.current = plates;
   unitRef.current = unit;
   onRemoveRef.current = onRemove;
+  onEditRef.current = onEdit;
 
   const extraFrame = useCallback((now: number) => {
     return runtimeRef.current?.tick(now) ?? false;
@@ -111,6 +116,7 @@ export function LoadedBar3D({
         direct ??
         plateIndexFromScreen(ndc, camera, runtime.plateMeshes, rect);
       if (index != null) onRemoveRef.current(index);
+      else onEditRef.current?.();
     },
     [],
   );
@@ -156,8 +162,19 @@ export function LoadedBar3D({
         ref={hostRef}
         className={`w-full ${plates.length ? "cursor-pointer" : ""}`}
         style={{ height: 104, touchAction: "pan-y" }}
-        role="img"
-        aria-label={label}
+        role={onEdit ? "button" : "img"}
+        tabIndex={onEdit ? 0 : undefined}
+        onKeyDown={
+          onEdit
+            ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onEdit();
+                }
+              }
+            : undefined
+        }
+        aria-label={onEdit ? `${label}. Activate to change variation` : label}
         {...pointer}
       />
       <div className="sr-only">

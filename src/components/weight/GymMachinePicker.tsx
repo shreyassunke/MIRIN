@@ -15,6 +15,7 @@ interface GymMachinePickerProps {
   value: number;
   onChange: (value: number) => void;
   live?: boolean;
+  onEdit?: () => void;
 }
 
 export function GymMachinePicker({
@@ -23,8 +24,17 @@ export function GymMachinePicker({
   value,
   onChange,
   live = true,
+  onEdit,
 }: GymMachinePickerProps) {
-  const fallback = (
+  const fallback = onEdit ? (
+    <button
+      type="button"
+      className={GYM_MACHINE_STAGE[machine]}
+      data-gym-machine={machine}
+      onClick={onEdit}
+      aria-label="Change variation"
+    />
+  ) : (
     <div className={GYM_MACHINE_STAGE[machine]} data-gym-machine={machine} aria-hidden="true" />
   );
   if (!hasWebGL()) return fallback;
@@ -37,6 +47,7 @@ export function GymMachinePicker({
           value={value}
           live={live}
           onChange={onChange}
+          onEdit={onEdit}
         />
       </Suspense>
     </ChunkErrorBoundary>

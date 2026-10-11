@@ -25,6 +25,7 @@ import {
   type InputMethod,
   type Unit,
 } from "./units";
+import { convertLoadForVariation, nativeVariation, variationById } from "./variations";
 import {
   defaultInputMethodFor,
   defaultRepsFor,
@@ -45,6 +46,12 @@ export type StageDraft = {
   loggingWarmup: boolean;
   /** Clip on a cable station. Ignored for bar, bell, and selectorized machines. */
   cableAttachment: CableAttachmentId;
+  /** Null is the programmed station. A string is today's substitute. */
+  variationId: string | null;
+  /** Selectorized station while today's substitute is a machine. */
+  station: string | null;
+  /** Last external load in canonical pounds. Survives a bodyweight detour. */
+  heldLoadLb: number;
 };
 
 export function stageTotal(draft: StageDraft): number {
@@ -78,10 +85,17 @@ export function resolveStageDraft(args: {
   modePref?: InputMethod;
   lateralityPref?: Laterality;
   cableAttachmentPref?: string;
+  /** Today's substitute, from the session. Ignored when `carry` is present. */
+  sessionVariationId?: string | null;
+  /** Today's machine station, from the session. Ignored when `carry` is present. */
+  sessionStation?: string | null;
   carry?: {
     mode?: InputMethod;
     laterality?: Laterality;
     cableAttachment?: CableAttachmentId;
+    variationId?: string | null;
+    heldLoadLb?: number;
+    station?: string | null;
   };
 }): StageDraft {
   const { exercise, prior, unit } = args;
@@ -94,7 +108,11 @@ export function resolveStageDraft(args: {
     prior[prior.length - 1] ??
     todayWorking[todayWorking.length - 1];
 
-  const equipment = equipmentForExercise(exercise);
+  const variationId = args.carry
+    ? (args.carry.variationId ?? null)
+    : (args.sessionVariationId ?? null);
+  const sessionChoice = variationById(exercise, variationId);
+  const equipment = sessionChoice?.equipment ?? equipmentForExercise(exercise);
   const lastMethod = prior[prior.length - 1]?.inputMethod;
   const preferredMode = resolveInputMethod(
     equipment,
@@ -102,15 +120,15 @@ export function resolveStageDraft(args: {
       lastMethod ??
       defaultInputMethodFor(exercise.id, exercise.inputMethodHint),
   );
-  const mode = resolveInputMethod(
-    equipment,
-    args.carry?.mode ?? preferredMode,
-  );
-  const laterality =
-    args.carry?.laterality ??
-    prior[prior.length - 1]?.laterality ??
-    args.lateralityPref ??
-    defaultLaterality(exercise.name);
+  const mode = sessionChoice
+    ? sessionChoice.mode
+    : resolveInputMethod(equipment, args.carry?.mode ?? preferredMode);
+  const laterality = sessionChoice
+    ? sessionChoice.laterality
+    : (args.carry?.laterality ??
+      prior[prior.length - 1]?.laterality ??
+      args.lateralityPref ??
+      defaultLaterality(exercise.name));
 
   const workingLb =
     source?.weight ??
@@ -120,7 +138,7 @@ export function resolveStageDraft(args: {
   const rawDisplay = loggingWarmup
     ? warmupDisplayWeight(workingLb, warmupCount, unit)
     : toDisplay(workingLb, unit);
-  const weight = source
+  const programmedDisplay = source
     ? convertLoadForLaterality(
         rawDisplay,
         source.laterality ?? "bilateral",
@@ -129,6 +147,42 @@ export function resolveStageDraft(args: {
         unit,
       )
     : rawDisplay;
+  let weight = programmedDisplay;
+  let heldLoadLb =
+    args.carry?.heldLoadLb ??
+    (source && !source.variationId ? source.weight : toCanonical(programmedDisplay, unit));
+  if (sessionChoice) {
+    const same =
+      source?.variationId != null && source.variationId === sessionChoice.id;
+    if (same && source) {
+      weight = loggingWarmup ? rawDisplay : toDisplay(source.weight, unit);
+      if (sessionChoice.equipment !== "bodyweight") heldLoadLb = source.weight;
+    } else if (sessionChoice.equipment === "bodyweight") {
+      weight = 0;
+      heldLoadLb =
+        args.carry?.heldLoadLb ??
+        (source && !source.variationId ? source.weight : heldLoadLb);
+    } else {
+      const from = source?.variationId
+        ? (variationById(exercise, source.variationId) ?? nativeVariation(exercise))
+        : nativeVariation(exercise);
+      const baseLb =
+        from.equipment === "bodyweight"
+          ? (args.carry?.heldLoadLb ?? heldLoadLb)
+          : (source && !source.variationId ? source.weight : (args.carry?.heldLoadLb ?? heldLoadLb));
+      weight = convertLoadForVariation(
+        toDisplay(baseLb, unit),
+        from,
+        sessionChoice,
+        unit,
+        toDisplay(baseLb, unit),
+      );
+      if (loggingWarmup && weight > 0) {
+        weight = warmupDisplayWeight(toCanonical(weight, unit), warmupCount, unit);
+      }
+      heldLoadLb = toCanonical(weight, unit);
+    }
+  }
 
   const fallbackReps = defaultRepsFor(args.dayTemplateId ?? "");
   const reps = loggingWarmup
@@ -171,6 +225,9 @@ export function resolveStageDraft(args: {
       exercise,
       args.carry?.cableAttachment ?? args.cableAttachmentPref,
     ),
+    variationId: sessionChoice?.id ?? null,
+    station: (args.carry ? args.carry.station : args.sessionStation) ?? exercise.station ?? null,
+    heldLoadLb,
   };
 }
 
@@ -186,6 +243,8 @@ export function syncStageDrafts(
     lateralityPrefs: Record<string, Laterality>;
     cableAttachmentPrefs: Record<string, string>;
     warmupTargets: Record<string, number>;
+    variations: Record<string, string>;
+    stations: Record<string, string>;
   },
 ): { next: Record<string, StageDraft>; changed: boolean } {
   let changed = false;
@@ -210,11 +269,16 @@ export function syncStageDrafts(
       modePref: ctx.modePrefs[exercise.id],
       lateralityPref: ctx.lateralityPrefs[exercise.id],
       cableAttachmentPref: ctx.cableAttachmentPrefs[exercise.id],
+      sessionVariationId: ctx.variations[exercise.id] ?? null,
+      sessionStation: ctx.stations[exercise.id] ?? null,
       carry: current
         ? {
             mode: current.mode,
             laterality: current.laterality,
             cableAttachment: current.cableAttachment,
+            variationId: current.variationId,
+            heldLoadLb: current.heldLoadLb,
+            station: current.station,
           }
         : undefined,
     });

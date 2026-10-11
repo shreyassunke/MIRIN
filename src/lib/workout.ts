@@ -91,7 +91,12 @@ export const formatSet = (log: SetLog, display: (lb: number) => number) => {
     .map((s) => `${formatWeight(display(s.weight))}×${s.reps}`)
     .join(" → ");
   const labeled = log.isWarmup ? `W ${body}` : body;
-  return log.laterality === "unilateral" ? `${labeled} per side` : labeled;
+  const oneSideNamed = /one[- ]arm|one side/i.test(log.variationLabel ?? "");
+  const withSide =
+    log.laterality === "unilateral" && !oneSideNamed
+      ? `${labeled} per side`
+      : labeled;
+  return log.variationLabel ? `${log.variationLabel} ${withSide}` : withSide;
 };
 
 /** One set copied forward from a previous session, ready to insert. */
@@ -175,6 +180,23 @@ export async function exerciseHistory(
         .sort((a, b) => a.setNumber - b.setNumber),
     }));
   return opts.limit ? result.slice(0, opts.limit) : result;
+}
+
+/**
+ * Working sets from the newest session that used the programmed station.
+ * A substitute (pull-up logged under lat pulldown) does not become next
+ * time's remembered weight.
+ */
+export async function lastNativeSets(
+  exerciseId: string,
+  excludeSessionId?: string,
+): Promise<SetLog[]> {
+  const history = await exerciseHistory(exerciseId, { excludeSessionId });
+  for (const entry of history) {
+    const native = entry.sets.filter((set) => !set.isWarmup && !set.variationId);
+    if (native.length > 0) return native;
+  }
+  return [];
 }
 
 /** Most recent prior session's sets for an exercise (the prefill source). */

@@ -52,3 +52,15 @@ Two statements apply, and they are not the same document:
 Derivatives made from those OBJ files keep the share-alike obligation in the
 file header and the attribution the current page requires. This directory
 does not relicense them as CC BY-SA 4.0.
+
+## Flutter body atlas
+
+`svg/latissimus_dorsi.svg` and `svg/rectus_abdominis.svg` are sampled from
+the outlines in `src/lib/anatomy.generated.ts`. BodyParts3D 4.0 has no named
+element for either muscle.
+
+- Work: flutter-body-atlas anterior and posterior plates
+- Author: Ryan Graves
+- License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+- Source: https://www.figma.com/community/file/1320468164820924031
+- Deed: https://creativecommons.org/licenses/by/4.0/

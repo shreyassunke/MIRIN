@@ -34,13 +34,44 @@ app-facing yaw, and given one satin steel material on export.
 
 ## Seated cable row — `seated-cable-row.glb`
 
-[Seated Cable Indoor Row Machine](https://open3dmodel.com/3d-models/3d-model-seated-cable-indoor-row-machine_193566.html)
-(Open3dModel #193566, `.3ds`). License as listed: personal use or education.
+Open3dModel #43410 (`.3ds`, `B102.3DS`). License as listed: personal use or education.
+
+## Pec deck — `pec-deck.glb`
+
+Open3dModel #43491 (`.3ds`, `B124.3ds`). License as listed: personal use or education.
+
+## Leg extension — `leg-extension.glb`
+
+Open3dModel #43606 (`.3ds`, `B111.3ds`). License as listed: personal use or education.
+
+## Inner thigh — `inner-thigh.glb`
+
+Open3dModel #43933 (`.3ds`, TechnoGym M411). License as listed: personal use or education.
+
+## Outer thigh — `outer-thigh.glb`
+
+Open3dModel #44138 (`.3ds`, `sports0428_B115.3ds`). License as listed: personal use or education.
+
+## Preacher curl — `preacher-curl.glb`
+
+Open3dModel #44291 (`.3ds`, `sports0428_532.3ds`). License as listed: personal use or education.
+
+## Seated dip — `seated-dip.glb`
+
+Open3dModel #43464 (`.3ds`, `B133.3ds`). License as listed: personal use or education.
+
+## Lateral raise — `lateral-raise.glb`
+
+Open3dModel #43448 (`.3ds`, `B113.3ds`). License as listed: personal use or education.
 
 ## Leg press — `leg-press.glb`
 
 [Gym Leg Press Gym Machine](https://open3dmodel.com/3d-models/3d-model-gym-leg-press-gym-machine_194657.html)
 (Open3dModel #194657, `.3ds`). License as listed: personal use or education.
+
+## T-bar row — `t-bar-row.glb`
+
+Open3dModel #44122 (`.3ds`, `sports0428_B204.3ds`). License as listed: personal use or education.
 
 ## Standing calf raise — `standing-calf-raise.glb`
 

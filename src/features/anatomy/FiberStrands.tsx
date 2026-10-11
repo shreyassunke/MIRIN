@@ -21,9 +21,13 @@ interface FiberStrandsProps {
   muscleId: string;
   outline: string;
   viewBox: readonly [number, number, number, number];
-  origin: readonly [number, number];
-  insertion: readonly [number, number];
+  /** Head outlines in the same frame as `outline`. */
+  heads: readonly { id: string; outline: string }[];
+  /** Each head's share of this variant. 1 is the most activated region. */
+  shade: Readonly<Record<string, number>>;
   ratio: Record<FiberType, number>;
+  /** Composition of each head. Falls back to `ratio` for a head that has none. */
+  headRatios?: Readonly<Record<string, Record<FiberType, number>>>;
   /** Recruitment to show. The field eases here from `stage` when that is set. */
   recruitment: FiberRecruitment;
   /** Opening-rep recruitment of the logging draft, before this target. */
@@ -65,26 +69,32 @@ function paint(
   strand: Strand,
   shown: FiberRecruitment,
   alphas: { on: number; dim: number },
+  shade: Readonly<Record<string, number>>,
 ) {
+  const share = strand.head != null ? Math.min(1, Math.max(0, shade[strand.head] ?? 0)) : 0;
   const on = strandOn(strand, shown);
+  const emphasis = share * share;
+  const opacity = 0.12 + emphasis * (on ? alphas.on + 0.18 : alphas.on);
   return {
-    opacity: on ? alphas.on : alphas.dim,
-    width: on ? 1.45 : 0.7,
+    opacity,
+    width: 0.7 + emphasis * (on ? 1.05 : 0.45),
+    stroke: share >= 0.75 ? TONE[strand.type] : TONE.I,
   };
 }
 
 /**
- * One muscle head as fiber strands. The outline and anchors come from the
- * share-alike export. Color is the fiber class; dim strands are not recruited
- * at this recruitment. Above 600 strands the same field is drawn on canvas.
+ * One muscle as a fan of fascicles, origin border to tendon. A head's
+ * brightness is its share of this variant, most activated to least.
+ * Above 600 strands the same field is drawn on canvas.
  */
 export function FiberStrands({
   muscleId,
   outline,
   viewBox,
-  origin,
-  insertion,
+  heads,
+  shade,
   ratio,
+  headRatios,
   recruitment,
   stage,
   count = STRAND_COUNT,
@@ -114,16 +124,19 @@ export function FiberStrands({
       generateStrands({
         muscleId,
         ring: parseOutline(outline),
-        origin: [origin[0], origin[1]],
-        insertion: [insertion[0], insertion[1]],
+        heads: heads.map((head) => ({ id: head.id, ring: parseOutline(head.outline) })),
         ratio,
+        headRatios,
         count,
       }),
-    [muscleId, outline, origin, insertion, ratio, count],
+    [muscleId, outline, heads, ratio, headRatios, count],
   );
 
   const box = viewBox.join(" ");
-  const aspect = `${viewBox[2]} / ${Math.max(viewBox[3], 1)}`;
+  // Long bellies stay in proportion. The card stays between the erector column
+  // and a wide limb so every plate still reads at the same scale.
+  const natural = viewBox[2] / Math.max(viewBox[3], 1);
+  const aspect = `${Math.min(2.05, Math.max(natural, 0.68))}`;
 
   return (
     <div className="fiber-field fiber-strands" style={{ aspectRatio: aspect }}>
@@ -134,6 +147,7 @@ export function FiberStrands({
           viewBox={viewBox}
           shown={shown}
           alphas={alphas}
+          shade={shade}
           label={label}
         />
       ) : (
@@ -141,16 +155,16 @@ export function FiberStrands({
           <path className="plate-belly" d={outline} />
           <path className="plate-edge" d={outline} />
           {[...strands]
-            .sort((a, b) => Number(strandOn(a, shown)) - Number(strandOn(b, shown)))
+            .sort((a, b) => (shade[a.head ?? ""] ?? 0) - (shade[b.head ?? ""] ?? 0))
             .map((strand) => {
-              const ink = paint(strand, shown, alphas);
+              const ink = paint(strand, shown, alphas, shade);
               return (
                 <path
-                  key={`${strand.type}-${strand.rank}`}
+                  key={`${strand.head ?? "muscle"}-${strand.type}-${strand.rank}`}
                   className="fiber-strand"
                   d={strandPath(strand)}
                   style={{
-                    stroke: TONE[strand.type],
+                    stroke: ink.stroke,
                     opacity: ink.opacity,
                     strokeWidth: ink.width,
                   }}
@@ -169,6 +183,7 @@ function StrandCanvas({
   viewBox,
   shown,
   alphas,
+  shade,
   label,
 }: {
   strands: Strand[];
@@ -176,6 +191,7 @@ function StrandCanvas({
   viewBox: readonly [number, number, number, number];
   shown: FiberRecruitment;
   alphas: { on: number; dim: number };
+  shade: Readonly<Record<string, number>>;
   label: string;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -201,7 +217,7 @@ function StrandCanvas({
       const from =
         previous && previous.length === strands.length
           ? previous
-          : strands.map((strand) => paint(strand, shownRef.current, alphas).opacity);
+          : strands.map((strand) => paint(strand, shownRef.current, alphas, shade).opacity);
     const start = performance.now();
     let frame = 0;
 
@@ -227,13 +243,15 @@ function StrandCanvas({
       ctx.stroke(shape);
       const current = shownRef.current;
       strands.forEach((strand, index) => {
-        const target = paint(strand, current, alphas);
+        const target = paint(strand, current, alphas, shade);
         ctx.beginPath();
         strand.points.forEach((point, pointIndex) => {
           if (pointIndex === 0) ctx.moveTo(point[0], point[1]);
           else ctx.lineTo(point[0], point[1]);
         });
-        ctx.strokeStyle = tone(strand.type);
+        const colorType: FiberType =
+          target.stroke === TONE.IIa ? "IIa" : target.stroke === TONE.IIx ? "IIx" : "I";
+        ctx.strokeStyle = tone(colorType);
         ctx.globalAlpha = from[index] + (target.opacity - from[index]) * ease;
         ctx.lineWidth = target.width / scale;
         ctx.lineCap = "round";
@@ -243,14 +261,14 @@ function StrandCanvas({
       if (t < 1) frame = requestAnimationFrame(draw);
       else {
         drawn.current = strands.map((strand) =>
-          paint(strand, shownRef.current, alphas).opacity,
+          paint(strand, shownRef.current, alphas, shade).opacity,
         );
       }
     };
 
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [alphas, outline, shown.I, shown.IIa, shown.IIx, strands, viewBox]);
+  }, [alphas, outline, shade, shown.I, shown.IIa, shown.IIx, strands, viewBox]);
 
   return <canvas ref={ref} role="img" aria-label={label} />;
 }

@@ -6,10 +6,10 @@
     "meshId": "FMA34687",
     "elementId": "FJ1447M",
     "fiberTypeRatio": {
-      "I": 0.5,
-      "IIa": 0.3,
+      "I": 0.42,
+      "IIa": 0.38,
       "IIx": 0.2,
-      "source": "TODO",
+      "source": "Type I share is the pectoralis pool already used on this muscle (Johnson et al. 1973 and later samples). Type II is split 2:1 IIa:IIx, the same fast-pool split as fiberEdges, not a myosin-isoform count.",
       "verified": false
     }
   },
@@ -20,10 +20,10 @@
     "meshId": "FMA34696",
     "elementId": "FJ1464M",
     "fiberTypeRatio": {
-      "I": 0.5,
-      "IIa": 0.3,
+      "I": 0.42,
+      "IIa": 0.38,
       "IIx": 0.2,
-      "source": "TODO",
+      "source": "Type I share is the pectoralis pool already used on this muscle (Johnson et al. 1973 and later samples). Type II is split 2:1 IIa:IIx, the same fast-pool split as fiberEdges, not a myosin-isoform count.",
       "verified": false
     }
   },
@@ -34,10 +34,458 @@
     "meshId": "FMA34699",
     "elementId": "FJ1446M",
     "fiberTypeRatio": {
-      "I": 0.5,
-      "IIa": 0.3,
+      "I": 0.42,
+      "IIa": 0.38,
       "IIx": 0.2,
-      "source": "TODO",
+      "source": "Type I share is the pectoralis pool already used on this muscle (Johnson et al. 1973 and later samples). Type II is split 2:1 IIa:IIx, the same fast-pool split as fiberEdges, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "deltoid_clavicular",
+    "name": "Deltoid, clavicular part",
+    "region": "deltoid_clavicular",
+    "meshId": "FMA34681",
+    "elementId": "FJ1468M",
+    "fiberTypeRatio": {
+      "I": 0.55,
+      "IIa": 0.3,
+      "IIx": 0.15,
+      "source": "Type I share is the anterior deltoid pool on this muscle. Type II is split 2:1 IIa:IIx, the same fast-pool split as fiberEdges, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "deltoid_acromial",
+    "name": "Deltoid, acromial part",
+    "region": "deltoid_acromial",
+    "meshId": "FMA34683",
+    "elementId": "FJ1467M",
+    "fiberTypeRatio": {
+      "I": 0.53,
+      "IIa": 0.31,
+      "IIx": 0.16,
+      "source": "Type I share is the lateral deltoid pool on this muscle. Type II is split 2:1 IIa:IIx, the same fast-pool split as fiberEdges, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "deltoid_spinal",
+    "name": "Deltoid, spinal part",
+    "region": "deltoid_spinal",
+    "meshId": "FMA34685",
+    "elementId": "FJ1513M",
+    "fiberTypeRatio": {
+      "I": 0.56,
+      "IIa": 0.29,
+      "IIx": 0.15,
+      "source": "Type I share is the posterior deltoid pool on this muscle. Type II is split 2:1 IIa:IIx, the same fast-pool split as fiberEdges, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "triceps_long",
+    "name": "Triceps brachii, long head",
+    "region": "triceps_long",
+    "meshId": "FMA37700",
+    "elementId": "FJ1479M",
+    "fiberTypeRatio": {
+      "I": 0.4,
+      "IIa": 0.4,
+      "IIx": 0.2,
+      "source": "Elder, Bradbury and Roberts 1982: fast fibers were 55–65% in the long and lateral heads. 0.40 is the midpoint of that type I range. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "triceps_lateral",
+    "name": "Triceps brachii, lateral head",
+    "region": "triceps_lateral",
+    "meshId": "FMA37698",
+    "elementId": "FJ1477M",
+    "fiberTypeRatio": {
+      "I": 0.4,
+      "IIa": 0.4,
+      "IIx": 0.2,
+      "source": "Elder, Bradbury and Roberts 1982: fast fibers were 55–65% in the long and lateral heads. 0.40 is the midpoint of that type I range. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "triceps_medial",
+    "name": "Triceps brachii, medial head",
+    "region": "triceps_medial",
+    "meshId": "FMA37696",
+    "elementId": "FJ1480M",
+    "fiberTypeRatio": {
+      "I": 0.62,
+      "IIa": 0.25,
+      "IIx": 0.13,
+      "source": "Elder, Bradbury and Roberts 1982: the medial head was 61.5% slow fibers. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "biceps_long",
+    "name": "Biceps brachii, long head",
+    "region": "biceps_long",
+    "meshId": "FMA37687",
+    "elementId": "FJ1478M",
+    "fiberTypeRatio": {
+      "I": 0.42,
+      "IIa": 0.38,
+      "IIx": 0.2,
+      "source": "Johnson et al. 1973: biceps brachii surface mean 42.3% type I. Elder 1982 found no long-versus-short difference. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "biceps_short",
+    "name": "Biceps brachii, short head",
+    "region": "biceps_short",
+    "meshId": "FMA37685",
+    "elementId": "FJ1512M",
+    "fiberTypeRatio": {
+      "I": 0.42,
+      "IIa": 0.38,
+      "IIx": 0.2,
+      "source": "Johnson et al. 1973: biceps brachii surface mean 42.3% type I. Elder 1982 found no long-versus-short difference. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "brachialis",
+    "name": "Brachialis",
+    "region": "brachialis",
+    "meshId": "FMA37669",
+    "elementId": "FJ1486M",
+    "fiberTypeRatio": {
+      "I": 0.42,
+      "IIa": 0.38,
+      "IIx": 0.2,
+      "source": "No separate brachialis mean was used. The biceps brachii surface mean stands in (Johnson et al. 1973, 42.3% type I). Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "trapezius_descending",
+    "name": "Trapezius, descending part",
+    "region": "trapezius_descending",
+    "meshId": "FMA33587",
+    "elementId": "FJ1521M",
+    "fiberTypeRatio": {
+      "I": 0.54,
+      "IIa": 0.3,
+      "IIx": 0.16,
+      "source": "Type I share is the trapezius pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "trapezius_transverse",
+    "name": "Trapezius, transverse part",
+    "region": "trapezius_transverse",
+    "meshId": "FMA33585",
+    "elementId": "FJ1554M",
+    "fiberTypeRatio": {
+      "I": 0.54,
+      "IIa": 0.3,
+      "IIx": 0.16,
+      "source": "Type I share is the trapezius pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "trapezius_ascending",
+    "name": "Trapezius, ascending part",
+    "region": "trapezius_ascending",
+    "meshId": "FMA33583",
+    "elementId": "FJ1520M",
+    "fiberTypeRatio": {
+      "I": 0.54,
+      "IIa": 0.3,
+      "IIx": 0.16,
+      "source": "Type I share is the trapezius pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "vastus_lateralis",
+    "name": "Vastus lateralis",
+    "region": "vastus_lateralis",
+    "meshId": "FMA22431",
+    "elementId": "FJ1442M",
+    "fiberTypeRatio": {
+      "I": 0.4,
+      "IIa": 0.4,
+      "IIx": 0.2,
+      "source": "Elder, Bradbury and Roberts 1982: vastus lateralis fast fibers were 55–65%. 0.40 is the midpoint of that type I range. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "rectus_femoris",
+    "name": "Rectus femoris",
+    "region": "rectus_femoris",
+    "meshId": "FMA22430",
+    "elementId": "FJ1433M",
+    "fiberTypeRatio": {
+      "I": 0.48,
+      "IIa": 0.34,
+      "IIx": 0.18,
+      "source": "Type I share is the quadriceps pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "vastus_medialis",
+    "name": "Vastus medialis",
+    "region": "vastus_medialis",
+    "meshId": "FMA22432",
+    "elementId": "FJ1443M",
+    "fiberTypeRatio": {
+      "I": 0.48,
+      "IIa": 0.34,
+      "IIx": 0.18,
+      "source": "Type I share is the quadriceps pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "biceps_femoris_long",
+    "name": "Biceps femoris, long head",
+    "region": "biceps_femoris_long",
+    "meshId": "FMA45889",
+    "elementId": "FJ1395M",
+    "fiberTypeRatio": {
+      "I": 0.46,
+      "IIa": 0.36,
+      "IIx": 0.18,
+      "source": "Type I share is the hamstring pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "biceps_femoris_short",
+    "name": "Biceps femoris, short head",
+    "region": "biceps_femoris_short",
+    "meshId": "FMA45892",
+    "elementId": "FJ1444M",
+    "fiberTypeRatio": {
+      "I": 0.46,
+      "IIa": 0.36,
+      "IIx": 0.18,
+      "source": "Type I share is the hamstring pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "semitendinosus",
+    "name": "Semitendinosus",
+    "region": "semitendinosus",
+    "meshId": "FMA22359",
+    "elementId": "FJ1436M",
+    "fiberTypeRatio": {
+      "I": 0.46,
+      "IIa": 0.36,
+      "IIx": 0.18,
+      "source": "Type I share is the hamstring pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "semimembranosus",
+    "name": "Semimembranosus",
+    "region": "semimembranosus",
+    "meshId": "FMA22449",
+    "elementId": "FJ1435M",
+    "fiberTypeRatio": {
+      "I": 0.46,
+      "IIa": 0.36,
+      "IIx": 0.18,
+      "source": "Type I share is the hamstring pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "gastrocnemius_medial",
+    "name": "Gastrocnemius, medial head",
+    "region": "gastrocnemius_medial",
+    "meshId": "FMA45958",
+    "elementId": "FJ1397M",
+    "fiberTypeRatio": {
+      "I": 0.5,
+      "IIa": 0.33,
+      "IIx": 0.17,
+      "source": "Gastrocnemius is the mixed calf head. 0.50 type I is the round midpoint used where a head-specific autopsy mean was not in the sources read for this plate. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "gastrocnemius_lateral",
+    "name": "Gastrocnemius, lateral head",
+    "region": "gastrocnemius_lateral",
+    "meshId": "FMA45961",
+    "elementId": "FJ1394M",
+    "fiberTypeRatio": {
+      "I": 0.5,
+      "IIa": 0.33,
+      "IIx": 0.17,
+      "source": "Gastrocnemius is the mixed calf head. 0.50 type I is the round midpoint used where a head-specific autopsy mean was not in the sources read for this plate. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "soleus",
+    "name": "Soleus",
+    "region": "soleus",
+    "meshId": "FMA22559",
+    "elementId": "FJ1437M",
+    "fiberTypeRatio": {
+      "I": 0.76,
+      "IIa": 0.16,
+      "IIx": 0.08,
+      "source": "Elder, Bradbury and Roberts 1982: soleus was 76% slow fibers. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "gluteus_maximus",
+    "name": "Gluteus maximus",
+    "region": "gluteus_maximus",
+    "meshId": "FMA22329",
+    "elementId": "FJ1418M",
+    "fiberTypeRatio": {
+      "I": 0.52,
+      "IIa": 0.32,
+      "IIx": 0.16,
+      "source": "Type I share is the gluteus maximus pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "brachioradialis",
+    "name": "Brachioradialis",
+    "region": "brachioradialis",
+    "meshId": "FMA38487",
+    "elementId": "FJ1487M",
+    "fiberTypeRatio": {
+      "I": 0.5,
+      "IIa": 0.33,
+      "IIx": 0.17,
+      "source": "Type I share is the forearm pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "flexor_carpi_radialis",
+    "name": "Flexor carpi radialis",
+    "region": "flexor_carpi_radialis",
+    "meshId": "FMA38461",
+    "elementId": "FJ1496M",
+    "fiberTypeRatio": {
+      "I": 0.5,
+      "IIa": 0.33,
+      "IIx": 0.17,
+      "source": "Type I share is the forearm pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "iliocostalis_lumborum",
+    "name": "Iliocostalis lumborum",
+    "region": "iliocostalis_lumborum",
+    "meshId": "FMA22741",
+    "elementId": "FJ1527M",
+    "fiberTypeRatio": {
+      "I": 0.58,
+      "IIa": 0.28,
+      "IIx": 0.14,
+      "source": "Type I share is the erector spinae pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "longissimus_thoracis",
+    "name": "Longissimus thoracis",
+    "region": "longissimus_thoracis",
+    "meshId": "FMA22753",
+    "elementId": "FJ1535M",
+    "fiberTypeRatio": {
+      "I": 0.58,
+      "IIa": 0.28,
+      "IIx": 0.14,
+      "source": "Type I share is the erector spinae pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "spinalis_thoracis",
+    "name": "Spinalis thoracis",
+    "region": "spinalis_thoracis",
+    "meshId": "FMA22780",
+    "elementId": "FJ1544M",
+    "fiberTypeRatio": {
+      "I": 0.58,
+      "IIa": 0.28,
+      "IIx": 0.14,
+      "source": "Type I share is the erector spinae pool on this muscle. Type II is split 2:1 IIa:IIx, not a myosin-isoform count.",
+      "verified": false
+    }
+  },
+  {
+    "id": "latissimus_dorsi",
+    "name": "Latissimus dorsi",
+    "region": "latissimus_dorsi",
+    "meshId": "atlas",
+    "elementId": "atlas",
+    "fiberTypeRatio": {
+      "I": 0.5,
+      "IIa": 0.33,
+      "IIx": 0.17,
+      "source": "Type I share is the latissimus pool on this muscle. BodyParts3D 4.0 has no named latissimus element, so the outline is the atlas plate. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "rectus_abdominis_upper",
+    "name": "Rectus abdominis, upper",
+    "region": "rectus_abdominis_upper",
+    "meshId": "atlas",
+    "elementId": "atlas",
+    "fiberTypeRatio": {
+      "I": 0.55,
+      "IIa": 0.3,
+      "IIx": 0.15,
+      "source": "Type I share is the rectus abdominis pool on this muscle. BodyParts3D 4.0 has no named rectus element, so the outline is the atlas plate. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "rectus_abdominis_middle",
+    "name": "Rectus abdominis, middle",
+    "region": "rectus_abdominis_middle",
+    "meshId": "atlas",
+    "elementId": "atlas",
+    "fiberTypeRatio": {
+      "I": 0.55,
+      "IIa": 0.3,
+      "IIx": 0.15,
+      "source": "Type I share is the rectus abdominis pool on this muscle. BodyParts3D 4.0 has no named rectus element, so the outline is the atlas plate. Type II is split 2:1 IIa:IIx.",
+      "verified": false
+    }
+  },
+  {
+    "id": "rectus_abdominis_lower",
+    "name": "Rectus abdominis, lower",
+    "region": "rectus_abdominis_lower",
+    "meshId": "atlas",
+    "elementId": "atlas",
+    "fiberTypeRatio": {
+      "I": 0.55,
+      "IIa": 0.3,
+      "IIx": 0.15,
+      "source": "Type I share is the rectus abdominis pool on this muscle. BodyParts3D 4.0 has no named rectus element, so the outline is the atlas plate. Type II is split 2:1 IIa:IIx.",
       "verified": false
     }
   }
