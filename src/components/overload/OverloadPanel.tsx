@@ -138,25 +138,28 @@ export function OverloadPanel({
       aria-label={`Progressive overload for ${exercise.name}`}
       className="glass rounded-xl p-4"
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-[13px] font-medium text-muted">Next set</h2>
-        {recommendation ? (
-          <p className="tnum text-[20px] leading-none font-semibold text-ink">
-            {formatWeight(recommendation.weight)}
-            <span className="ml-1 text-[13px] font-medium text-muted">
-              {unit}
-            </span>
-            <span className="mx-1.5 text-[13px] font-medium text-muted">×</span>
-            {recommendation.reps}
-          </p>
-        ) : (
-          <p className="tnum text-[13px] font-medium text-muted">
-            {range.min}–{range.max} reps
-          </p>
-        )}
+      <div>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-[13px] font-medium text-muted">Next set</h2>
+          {recommendation ? (
+            <p className="tnum text-[20px] leading-none font-semibold text-ink">
+              {formatWeight(recommendation.weight)}
+              <span className="ml-1 text-[13px] font-medium text-muted">
+                {unit}
+              </span>
+              <span className="mx-1.5 text-[13px] font-medium text-muted">×</span>
+              {recommendation.reps}
+            </p>
+          ) : (
+            <p className="tnum text-[13px] font-medium text-muted">
+              {range.min}–{range.max} reps
+            </p>
+          )}
+        </div>
+        <p className="mt-1 text-[13px] font-medium leading-snug text-muted">{anatomy}</p>
       </div>
 
-      <p className="mt-1 text-[13px] leading-relaxed text-muted">
+      <p className="mt-2 text-[13px] leading-relaxed text-muted">
         {recommendation?.reason ??
           `Log a set and the next one gets a target in the ${range.min}–${range.max} band.`}
       </p>
@@ -192,7 +195,6 @@ export function OverloadPanel({
         </span>
         {drift && <span className="text-muted">, {drift}</span>}
       </p>
-      <p className="text-[13px] leading-relaxed text-muted">{anatomy}</p>
 
       {recommendation && !onStage && (
         <button
