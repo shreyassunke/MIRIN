@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Derivative outline of pectoralis_major_abdominal from bodyparts3d. See ../LICENSES.md. Not a measurement. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080.00 847.48" data-muscle-id="pectoralis_major_abdominal" data-source="bodyparts3d" data-mesh-id="FMA34699" data-element-id="FJ1446M">
+  <path id="outline" fill="none" stroke="#000" d="M 159.00 807.48 L 192.40 786.60 L 294.70 625.85 L 338.54 571.57 L 374.03 540.25 L 415.78 511.02 L 553.57 435.87 L 626.64 385.76 L 739.37 329.40 L 845.85 287.64 L 918.91 239.63 L 1017.04 124.80 L 1035.82 91.40 L 1042.09 58.00 L 1010.77 43.38 L 943.97 41.30 L 927.27 60.08 L 875.07 177.00 L 831.23 222.92 L 791.57 250.06 L 714.32 291.82 L 651.69 314.78 L 467.97 350.27 L 417.87 366.97 L 238.33 473.45 L 144.38 552.78 L 60.88 611.23 L 42.09 632.11 L 40.00 655.07 L 69.23 734.41 L 67.14 744.84 L 79.67 759.46 L 77.58 774.07 L 88.02 771.98 L 90.10 780.34 L 102.63 780.34 L 113.07 792.86 L 133.95 803.30 L 142.30 801.21 L 144.38 807.48 Z" />
+</svg>

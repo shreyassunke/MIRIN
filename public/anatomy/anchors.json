@@ -1,0 +1,82 @@
+{
+  "source": "bodyparts3d",
+  "anchors": "geometric-pca",
+  "note": "Origin and insertion are the ends of the mesh long axis in the orthographic view. The end nearer the midline is the origin. They are not dissection landmarks. See LICENSES.md.",
+  "muscles": {
+    "pectoralis_major_clavicular": {
+      "meshId": "FMA34687",
+      "elementId": "FJ1447M",
+      "viewAxis": "y",
+      "planeAxes": [
+        "x",
+        "z"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        684.06
+      ],
+      "origin": [
+        40.0,
+        115.6
+      ],
+      "insertion": [
+        1039.06,
+        642.87
+      ],
+      "polarity": "midline",
+      "anchors": "geometric-pca"
+    },
+    "pectoralis_major_sternal": {
+      "meshId": "FMA34696",
+      "elementId": "FJ1464M",
+      "viewAxis": "y",
+      "planeAxes": [
+        "x",
+        "z"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        1026.23
+      ],
+      "origin": [
+        45.28,
+        548.6
+      ],
+      "insertion": [
+        1040.0,
+        417.47
+      ],
+      "polarity": "midline",
+      "anchors": "geometric-pca"
+    },
+    "pectoralis_major_abdominal": {
+      "meshId": "FMA34699",
+      "elementId": "FJ1446M",
+      "viewAxis": "y",
+      "planeAxes": [
+        "z",
+        "x"
+      ],
+      "viewBox": [
+        0,
+        0,
+        1080.0,
+        847.48
+      ],
+      "origin": [
+        79.56,
+        772.83
+      ],
+      "insertion": [
+        1040.0,
+        59.61
+      ],
+      "polarity": "midline",
+      "anchors": "geometric-pca"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Derivative outline of pectoralis_major_clavicular from bodyparts3d. See ../LICENSES.md. Not a measurement. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080.00 684.06" data-muscle-id="pectoralis_major_clavicular" data-source="bodyparts3d" data-mesh-id="FMA34687" data-element-id="FJ1447M">
+  <path id="outline" fill="none" stroke="#000" d="M 1042.09 644.06 L 1037.91 625.27 L 1042.09 623.18 L 1006.60 510.45 L 998.25 458.25 L 983.63 429.03 L 933.53 389.36 L 802.00 262.01 L 728.94 203.56 L 662.13 161.80 L 474.24 76.21 L 434.57 49.07 L 409.52 40.72 L 394.91 46.98 L 374.03 40.72 L 369.85 49.07 L 353.15 55.33 L 334.36 46.98 L 323.92 49.07 L 315.57 38.63 L 328.10 42.81 L 332.28 55.33 L 313.49 46.98 L 319.75 59.51 L 286.35 57.42 L 284.26 65.77 L 221.63 59.51 L 215.37 65.77 L 202.84 61.59 L 198.66 67.86 L 186.14 63.68 L 175.70 67.86 L 156.91 57.42 L 140.21 57.42 L 117.24 72.03 L 90.10 67.86 L 79.67 86.65 L 56.70 97.09 L 40.00 113.79 L 40.00 120.05 L 94.28 143.01 L 242.51 180.59 L 449.19 251.57 L 783.22 403.97 L 852.11 451.99 L 977.37 585.60 L 1004.51 623.18 L 1006.60 635.71 L 1031.65 644.06 Z" />
+</svg>

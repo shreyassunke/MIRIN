@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import type { Exercise, SetLog } from "../../db/db";
+import { FiberStrands } from "../../features/anatomy/FiberStrands";
+import { openingRecruitment, primaryMuscle, useMusclePlate } from "../../features/anatomy/plate";
 import { emphasisBundle, muscleSpec } from "../../lib/anatomy";
 import { recruitmentFor } from "../../lib/fibers";
 import { regionForExercise } from "../../lib/muscleRegions";
@@ -38,6 +40,8 @@ export function OverloadPanel({
   onTake,
 }: OverloadPanelProps) {
   const region = regionForExercise(exercise);
+  const head = primaryMuscle(exercise.id);
+  const plate = useMusclePlate(head?.id ?? null);
   const fallbackReps = defaultRepsFor(dayTemplateId ?? "");
 
   const recommendation = useMemo(
@@ -85,6 +89,28 @@ export function OverloadPanel({
     recommendation.weight === stageWeight &&
     recommendation.reps === draft.reps;
 
+  const strandStage = head
+    ? openingRecruitment({
+        muscleId: head.id,
+        exerciseId: exercise.id,
+        weight: stageWeight,
+        reps: draft.reps,
+        e1rm,
+        repMax: range.max,
+      })
+    : null;
+  const strandTarget =
+    head && recommendation
+      ? openingRecruitment({
+          muscleId: head.id,
+          exerciseId: exercise.id,
+          weight: recommendation.weight,
+          reps: recommendation.reps,
+          e1rm,
+          repMax: range.max,
+        })
+      : strandStage;
+
   const anatomy = `${spec.label} · ${bundle}`;
   const drift =
     !recommendation || onStage
@@ -124,17 +150,34 @@ export function OverloadPanel({
       </p>
 
       <div className="mt-3">
-        <FiberField
-          region={region}
-          emphasis={emphasis}
-          // With no history there is nothing to have gained, so the plate
-          // simply reads the stage rather than sweeping every fibre alight.
-          stageOnset={recommendation ? stage.onset : reading.onset}
-          onset={reading.onset}
-          ceiling={reading.ceiling}
-          runKey={`${exercise.id}:${recommendation?.weight ?? stageWeight}:${recommendation?.reps ?? draft.reps}:${percent(stage.onset)}`}
-          label={`${spec.label}, ${bundle} fibres. ${percent(reading.onset)} percent of the pool under load from the opening rep, reaching ${reading.touched ? `type ${reading.touched}` : "nothing"} by the last.`}
-        />
+        {head && plate && strandTarget && strandStage ? (
+          <FiberStrands
+            key={`${head.id}:${recommendation?.weight ?? stageWeight}:${recommendation?.reps ?? draft.reps}`}
+            muscleId={head.id}
+            outline={plate.outline}
+            viewBox={plate.viewBox}
+            origin={plate.origin}
+            insertion={plate.insertion}
+            ratio={head.fiberTypeRatio}
+            stage={strandStage}
+            recruitment={strandTarget}
+            label={`${head.name}. Fiber strands colored by type.`}
+          />
+        ) : head && plate === undefined ? (
+          <div className="fiber-field" aria-hidden="true" />
+        ) : (
+          <FiberField
+            region={region}
+            emphasis={emphasis}
+            // With no history there is nothing to have gained, so the plate
+            // simply reads the stage rather than sweeping every fibre alight.
+            stageOnset={recommendation ? stage.onset : reading.onset}
+            onset={reading.onset}
+            ceiling={reading.ceiling}
+            runKey={`${exercise.id}:${recommendation?.weight ?? stageWeight}:${recommendation?.reps ?? draft.reps}:${percent(stage.onset)}`}
+            label={`${spec.label}, ${bundle} fibres. ${percent(reading.onset)} percent of the pool under load from the opening rep, reaching ${reading.touched ? `type ${reading.touched}` : "nothing"} by the last.`}
+          />
+        )}
       </div>
 
       {/* Keyed to the opening rep, not the last: that is the half overload moves. */}

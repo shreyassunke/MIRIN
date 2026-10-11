@@ -1215,9 +1215,39 @@ html[data-mode="light"] {
   translate: none;
 }
 
+.fiber-strands {
+  height: auto;
+}
+
+.strand-plate {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.fiber-strands canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Hairlines. Opacity and weight move when recruitment changes. */
+.fiber-strand {
+  fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  transition:
+    opacity 420ms var(--ease-out-expo),
+    stroke-width 420ms var(--ease-out-expo);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fiber-gained {
     stroke-dasharray: none;
     animation: none;
+  }
+
+  .fiber-strand {
+    transition: none;
   }
 }
