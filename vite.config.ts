@@ -12,6 +12,7 @@ export default defineConfig({
       includeAssets: ["logo.png", "manifest.webmanifest"],
       manifest: false, // use public/manifest.webmanifest
       workbox: {
+        importScripts: ["/sw-reload.js"],
         // App shell + assets cached on first visit; API calls N/A (client-only).
         globPatterns: ["**/*.{js,css,html,ico,png,woff2,webmanifest}"],
         globIgnores: ["**/three-*.js"],
