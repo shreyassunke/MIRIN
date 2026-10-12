@@ -92,7 +92,6 @@ export function OverloadPanel({
     : stage;
 
   const reading = recommendation ? target : stage;
-  const delta = percent(target.onset) - percent(stage.onset);
   const onStage =
     recommendation != null &&
     recommendation.weight === stageWeight &&
@@ -124,48 +123,47 @@ export function OverloadPanel({
 
   const lead = primeId ? headLabel(primeId) : spec.label;
   const anatomy = shade.length > 1 ? `${spec.label} · ${lead}` : spec.label;
-  const drift =
-    !recommendation || onStage
-      ? null
-      : delta > 0
-        ? `up ${delta} from the stage`
-        : delta < 0
-          ? `down ${-delta} from the stage`
-          : "level with the stage";
+  const prescription = recommendation ? (
+    <>
+      {formatWeight(recommendation.weight)}
+      <span className="ml-1.5 text-[13px] font-medium text-muted">{unit}</span>
+      <span className="mx-1.5 text-[13px] font-medium text-muted">×</span>
+      {recommendation.reps}
+    </>
+  ) : (
+    <>
+      {range.min}–{range.max}
+      <span className="ml-1.5 text-[13px] font-medium text-muted">reps</span>
+    </>
+  );
 
   return (
-    <section
-      aria-label={`Progressive overload for ${exercise.name}`}
-      className="glass rounded-xl p-4"
-    >
-      <div>
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[13px] font-medium text-muted">Next set</h2>
-          {recommendation ? (
-            <p className="tnum text-[20px] leading-none font-semibold text-ink">
-              {formatWeight(recommendation.weight)}
-              <span className="ml-1 text-[13px] font-medium text-muted">
-                {unit}
-              </span>
-              <span className="mx-1.5 text-[13px] font-medium text-muted">×</span>
-              {recommendation.reps}
-            </p>
-          ) : (
-            <p className="tnum text-[13px] font-medium text-muted">
-              {range.min}–{range.max} reps
-            </p>
-          )}
-        </div>
-        <p className="mt-1 text-[13px] font-medium leading-snug text-muted">{anatomy}</p>
-      </div>
+    <section aria-label={`Next set for ${exercise.name}`}>
+      {recommendation && !onStage ? (
+        <button
+          type="button"
+          onClick={() => onTake(recommendation.weight, recommendation.reps)}
+          className="flex min-h-11 w-full items-baseline justify-between gap-4 text-left"
+        >
+          <span className="tnum text-xl leading-none font-semibold tracking-tight text-ink">
+            {prescription}
+          </span>
+          <span className="text-[13px] font-medium text-ink">Take</span>
+        </button>
+      ) : (
+        <p className="tnum flex items-baseline text-xl leading-none font-semibold tracking-tight text-ink">
+          {prescription}
+        </p>
+      )}
 
-      <p className="mt-2 text-[13px] leading-relaxed text-muted">
+      <p className="mt-2 text-[13px] font-medium text-muted">{anatomy}</p>
+      <p className="mt-1 max-w-[40rem] text-[15px] leading-snug text-ink">
         {recommendation?.reason ??
-          `Log a set and the next one gets a target in the ${range.min}–${range.max} band.`}
+          `Log a set. The next target stays inside ${range.min}–${range.max}.`}
       </p>
 
       {plate ? (
-        <div className="mt-3">
+        <div className="mt-6">
           <FiberStrands
             key={`${groupId}:${shade.map((head) => head.muscleId + head.weight).join(",")}:${recommendation?.weight ?? stageWeight}:${recommendation?.reps ?? draft.reps}`}
             muscleId={groupId ?? spec.label}
@@ -177,34 +175,16 @@ export function OverloadPanel({
             headRatios={headRatios}
             stage={strandStage}
             recruitment={strandTarget}
-            label={
-              shade.length > 1
-                ? `${spec.label}. ${lead[0]?.toUpperCase() ?? ""}${lead.slice(1)} carries this set.`
-                : spec.label
-            }
+            label={`${anatomy}. ${percent(reading.onset)} percent under load from the first rep.`}
           />
         </div>
       ) : null}
 
-      {/* Keyed to the opening rep, not the last: that is the half overload moves. */}
-      <FiberLegend deepest={reading.deepest} />
-
-      <p className="mt-2 text-[13px] leading-relaxed">
-        <span className="tnum font-medium text-ink">
-          {percent(reading.onset)}% under load from rep one
-        </span>
-        {drift && <span className="text-muted">, {drift}</span>}
+      <p className="mt-4 text-[13px] leading-snug">
+        <span className="tnum font-medium text-ink">{percent(reading.onset)}%</span>
+        <span className="text-muted"> under load from the first rep</span>
       </p>
-
-      {recommendation && !onStage && (
-        <button
-          type="button"
-          onClick={() => onTake(recommendation.weight, recommendation.reps)}
-          className="glass-btn mt-4 h-12 w-full rounded-pill text-[15px] font-medium text-ink"
-        >
-          Take {formatWeight(recommendation.weight)}×{recommendation.reps}
-        </button>
-      )}
+      <FiberLegend deepest={reading.deepest} />
     </section>
   );
 }

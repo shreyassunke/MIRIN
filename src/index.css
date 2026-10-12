@@ -1182,7 +1182,7 @@ html[data-mode="light"] {
   border: 0;
   background: none;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.01em;
   line-height: 1.2;
@@ -1241,6 +1241,9 @@ html[data-mode="light"] {
 
 .fiber-strands {
   height: auto;
+  margin-inline: auto;
+  background: transparent;
+  border-radius: 0;
 }
 
 .strand-plate {

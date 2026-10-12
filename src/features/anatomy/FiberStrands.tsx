@@ -133,13 +133,19 @@ export function FiberStrands({
   );
 
   const box = viewBox.join(" ");
-  // Long bellies stay in proportion. The card stays between the erector column
-  // and a wide limb so every plate still reads at the same scale.
+  // The drawing keeps its own proportion and stops at 13rem, so the
+  // prescription above it stays the thing you read.
   const natural = viewBox[2] / Math.max(viewBox[3], 1);
-  const aspect = `${Math.min(2.05, Math.max(natural, 0.68))}`;
+  const aspect = Number.isFinite(natural) && natural > 0 ? natural : 1;
 
   return (
-    <div className="fiber-field fiber-strands" style={{ aspectRatio: aspect }}>
+    <div
+      className="fiber-field fiber-strands"
+      style={{
+        aspectRatio: String(aspect),
+        width: `min(100%, calc(13rem * ${aspect}))`,
+      }}
+    >
       {strands.length > CANVAS_STRAND_LIMIT ? (
         <StrandCanvas
           strands={strands}

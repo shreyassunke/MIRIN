@@ -112,7 +112,7 @@ export function recommendNextSet(args: {
         reps: range.min,
         range,
         e1rm,
-        reason: `Today: ${list(reps)}. Past ${range.max} at ${formatWeight(weight)}.`,
+        reason: `Today ${list(reps)}. Past ${range.max} at ${formatWeight(weight)}, so the load steps up.`,
       };
     }
     if (reference.reps < range.min) {
@@ -122,7 +122,7 @@ export function recommendNextSet(args: {
         reps: range.min,
         range,
         e1rm,
-        reason: `Today: ${list(reps)}. Under ${range.min}.`,
+        reason: `Today ${list(reps)}. Under ${range.min}, so the load steps down.`,
       };
     }
     return {
@@ -131,7 +131,7 @@ export function recommendNextSet(args: {
       reps: reference.reps,
       range,
       e1rm,
-      reason: `Today: ${list(reps)}. Hold the load and match it.`,
+      reason: `Today ${list(reps)}. Hold this load.`,
     };
   }
 
@@ -147,9 +147,9 @@ export function recommendNextSet(args: {
       reps: range.min,
       range,
       e1rm,
-      reason: `Last time: ${list(reps)}. ${
+      reason: `Last time ${list(reps)}. ${
         reps.length > 1 ? "Every set reached" : "That reached"
-      } ${range.max}.`,
+      } ${range.max}, so the load steps up.`,
     };
   }
   if (low < range.min) {
@@ -159,7 +159,7 @@ export function recommendNextSet(args: {
       reps: range.min,
       range,
       e1rm,
-      reason: `Last time: ${list(reps)}. A set fell under ${range.min}.`,
+      reason: `Last time ${list(reps)}. Short of ${range.min}, so the load steps down.`,
     };
   }
   const target = Math.min(high + 1, range.max);
@@ -171,7 +171,7 @@ export function recommendNextSet(args: {
     e1rm,
     reason:
       target > high
-        ? `Last time: ${list(reps)}. One more than ${high}.`
-        : `Last time: ${list(reps)}. Bring every set to ${range.max}.`,
+        ? `Last time ${list(reps)}. One more than ${high}.`
+        : `Last time ${list(reps)}. Bring every set to ${range.max}.`,
   };
 }
