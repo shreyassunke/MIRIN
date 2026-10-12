@@ -4,8 +4,6 @@ import { toLocalISODate } from "./rotation";
 /** First-open defaults — a typical training day, not a blank field. */
 export const DEFAULT_PROTEIN_G = 160;
 export const DEFAULT_CALORIES = 2400;
-export const PROTEIN_STEP = 5;
-export const CALORIE_STEP = 50;
 
 export function todayMacroKey(): string {
   return toLocalISODate(new Date());

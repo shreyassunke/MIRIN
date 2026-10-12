@@ -52,8 +52,8 @@ import {
 } from "../components/ItemOverflow";
 import { useDragReorder } from "../hooks/useDragReorder";
 
-const secondaryBtn =
-  "glass-btn h-11 rounded-pill px-4 text-sm font-medium text-ink";
+const quietBtn =
+  "text-[13px] font-medium text-muted transition-colors duration-150 ease-out-expo hover:text-ink";
 
 /** Two-tap destructive action: no modal, no accidental taps. */
 function ConfirmButton({
@@ -75,7 +75,7 @@ function ConfirmButton({
     <button
       type="button"
       onClick={() => (armed ? onConfirm() : setArmed(true))}
-      className={secondaryBtn}
+      className={armed ? "text-[13px] font-medium text-ink" : quietBtn}
     >
       {armed ? confirmLabel : label}
     </button>
@@ -141,7 +141,7 @@ function RotationEditor({ split, days, exercises }: RotationEditorProps) {
 
   return (
     <section>
-      <ol className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
+      <ol className="divide-y divide-hairline border-y border-hairline">
         {split.dayTemplateIds.map((dayTemplateId, index) => {
           const dragProps = getItemProps(index);
           const handleProps = getHandleProps(index);
@@ -179,29 +179,25 @@ function RotationEditor({ split, days, exercises }: RotationEditorProps) {
                       current === index ? null : index,
                     )
                   }
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md py-1.5 text-left transition-colors duration-150 hover:bg-surface-raised/40 motion-reduce:transition-none"
+                  className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left"
                 >
-                  <span className="tnum w-10 shrink-0 text-[13px] text-muted">
+                  <span className="tnum w-9 shrink-0 text-[13px] text-muted">
                     {labels ? labels[index] : index + 1}
                   </span>
                   <span
                     className={[
-                      "min-w-0 flex-1 truncate text-sm",
+                      "min-w-0 flex-1 truncate text-[15px]",
                       isRest ? "text-muted" : "font-medium text-ink",
                     ].join(" ")}
                   >
                     {dayName}
                     {isToday && (
-                      <span className="ml-2 font-medium text-muted">
-                        · Today
-                      </span>
+                      <span className="font-medium text-muted"> · Today</span>
                     )}
                   </span>
-                  {!isRest && exerciseCount > 0 && (
-                    <span className="tnum shrink-0 text-[13px] text-muted">
-                      {exerciseCount}
-                    </span>
-                  )}
+                  <span className="tnum w-6 shrink-0 text-right text-[13px] text-muted">
+                    {!isRest && exerciseCount > 0 ? exerciseCount : ""}
+                  </span>
                   <Chevron open={isOpen} />
                 </button>
                 <ItemOverflow
@@ -278,7 +274,7 @@ function RotationEditor({ split, days, exercises }: RotationEditorProps) {
                   {day && !isRest ? (
                     <DayExerciseList day={day} exercises={exercises} />
                   ) : (
-                    <p className="text-sm text-muted">Rest day — no exercises.</p>
+                    <p className="text-[15px] text-muted">Rest.</p>
                   )}
                 </div>
               )}
@@ -286,18 +282,18 @@ function RotationEditor({ split, days, exercises }: RotationEditorProps) {
           );
         })}
       </ol>
-      <div className="mt-3 flex gap-2">
+      <div className="mt-4 flex gap-5">
         <button
           type="button"
           onClick={() => void addDay(split)}
-          className={secondaryBtn}
+          className={quietBtn}
         >
           Add day
         </button>
         <button
           type="button"
           onClick={() => void addDay(split, { rest: true })}
-          className={secondaryBtn}
+          className={quietBtn}
         >
           Add rest day
         </button>
@@ -362,9 +358,7 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
   return (
     <div>
       {day.exerciseIds.length === 0 ? (
-        <p className="text-sm text-muted">
-          No exercises yet — add the first one below.
-        </p>
+        <p className="text-[15px] text-muted">No exercises yet.</p>
       ) : (
         <ul>
           {day.exerciseIds.map((exerciseId, index) => {
@@ -565,7 +559,7 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
+            className={quietBtn}
           >
             Add exercise
           </button>
@@ -579,6 +573,8 @@ interface SplitDetailProps {
   split: Split;
   days: Map<string, DayTemplate>;
   exercises: Map<string, Exercise>;
+  /** The picker already names the split when more than one exists. */
+  showTitle: boolean;
   onDeleted: () => void;
   onDuplicated: (id: string) => void;
 }
@@ -587,6 +583,7 @@ function SplitDetail({
   split,
   days,
   exercises,
+  showTitle,
   onDeleted,
   onDuplicated,
 }: SplitDetailProps) {
@@ -612,9 +609,9 @@ function SplitDetail({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+    <div>
+      {(showTitle || renaming) && (
+        <div className="mb-3">
           {renaming ? (
             <input
               type="text"
@@ -630,13 +627,13 @@ function SplitDetail({
                 }
               }}
               aria-label="Split name"
-              className="h-9 rounded-md border border-hairline bg-bg px-2 text-lg font-semibold text-ink focus:border-muted"
+              className="h-9 w-full bg-transparent text-lg font-semibold tracking-tight text-ink outline-none"
             />
           ) : (
             <button
               type="button"
               onClick={() => setRenaming(true)}
-              className="rounded-md text-left transition-colors duration-150 hover:text-muted"
+              className="rounded-md text-left"
               aria-label={`Rename ${split.name}`}
             >
               <h2 className="text-lg font-semibold tracking-tight">
@@ -645,77 +642,90 @@ function SplitDetail({
             </button>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {creating ? (
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const id = await createSplit(newName);
-                setCreating(false);
-                setNewName("");
-                onDuplicated(id);
-              }}
-              className="flex min-w-0 flex-1 flex-wrap gap-2"
-            >
-              <input
-                type="text"
-                value={newName}
-                autoFocus
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") setCreating(false);
-                }}
-                placeholder="Split name"
-                aria-label="New split name"
-                className="h-11 min-w-[10rem] flex-1 rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted focus:border-muted"
-              />
-              <button
-                type="submit"
-                disabled={!newName.trim()}
-                className="btn-primary h-11 rounded-pill bg-accent px-4 text-sm font-semibold text-bg hover:bg-ink disabled:opacity-40"
-              >
-                Create
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreating(false)}
-                className={secondaryBtn}
-              >
-                Cancel
-              </button>
-            </form>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setCreating(true)}
-                className={secondaryBtn}
-              >
-                Create new split
-              </button>
-              <button
-                type="button"
-                onClick={async () => onDuplicated(await duplicateSplit(split))}
-                className={secondaryBtn}
-              >
-                Duplicate
-              </button>
-              {!split.isDefault && (
-                <ConfirmButton
-                  label="Delete"
-                  confirmLabel="Delete split?"
-                  onConfirm={async () => {
-                    await deleteSplit(split);
-                    onDeleted();
-                  }}
-                />
-              )}
-            </>
-          )}
-        </div>
-      </div>
+      )}
+
+      {creating ? (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const id = await createSplit(newName);
+            setCreating(false);
+            setNewName("");
+            onDuplicated(id);
+          }}
+          className="mb-4 flex flex-wrap items-center gap-3"
+        >
+          <input
+            type="text"
+            value={newName}
+            autoFocus
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setCreating(false);
+            }}
+            placeholder="Split name"
+            aria-label="New split name"
+            className="h-11 min-w-[10rem] flex-1 rounded-md border border-hairline bg-transparent px-3 text-base text-ink placeholder:text-muted"
+          />
+          <button
+            type="submit"
+            disabled={!newName.trim()}
+            className="btn-primary h-11 rounded-pill px-5 text-sm font-semibold disabled:opacity-40"
+          >
+            Create
+          </button>
+          <button
+            type="button"
+            onClick={() => setCreating(false)}
+            className={quietBtn}
+          >
+            Cancel
+          </button>
+        </form>
+      ) : null}
 
       <RotationEditor split={split} days={days} exercises={exercises} />
+
+      {!creating && (
+        <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2">
+          {!showTitle && (
+            <button
+              type="button"
+              onClick={() => {
+                setNameDraft(split.name);
+                setRenaming(true);
+              }}
+              className={quietBtn}
+            >
+              Rename
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className={quietBtn}
+          >
+            New split
+          </button>
+          <button
+            type="button"
+            onClick={async () => onDuplicated(await duplicateSplit(split))}
+            className={quietBtn}
+          >
+            Duplicate
+          </button>
+          {!split.isDefault && (
+            <ConfirmButton
+              label="Delete"
+              confirmLabel="Delete split?"
+              onConfirm={async () => {
+                await deleteSplit(split);
+                onDeleted();
+              }}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -750,7 +760,7 @@ export function SplitEditor() {
   }, [blockedSplitId]);
 
   if (!data) {
-    return <p className="text-sm text-muted">Loading…</p>;
+    return <p className="text-[15px] text-muted">Loading…</p>;
   }
 
   const selected =
@@ -765,27 +775,29 @@ export function SplitEditor() {
       </header>
 
       {data.splits.length > 1 && (
-        <section className="mb-8">
-          <ul className="divide-y divide-hairline rounded-md border border-hairline bg-surface">
+        <section className="mb-8" aria-label="Splits">
+          <ul className="divide-y divide-hairline border-y border-hairline">
             {data.splits.map((split) => {
               const isSelected = split.id === selected?.id;
               return (
-                <li key={split.id} className="flex items-center gap-3 px-4 py-3">
+                <li key={split.id} className="flex min-h-14 items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setSelectedId(split.id)}
-                    className="min-w-0 flex-1 text-left"
+                    className="min-w-0 flex-1 py-3 text-left"
                     aria-current={isSelected ? "true" : undefined}
                   >
                     <span
                       className={[
-                        "block truncate text-sm font-semibold",
-                        isSelected ? "text-ink" : "text-muted",
+                        "block truncate text-[15px]",
+                        isSelected
+                          ? "font-semibold text-ink"
+                          : "font-medium text-muted",
                       ].join(" ")}
                     >
                       {split.name}
                       {split.isDefault && (
-                        <span className="ml-2 font-medium text-muted">
+                        <span className="ml-2 text-[13px] font-medium text-muted">
                           Default
                         </span>
                       )}
@@ -825,6 +837,7 @@ export function SplitEditor() {
           split={selected}
           days={data.days}
           exercises={data.exercises}
+          showTitle={data.splits.length <= 1}
           onDeleted={() => setSelectedId(null)}
           onDuplicated={(id) => setSelectedId(id)}
         />

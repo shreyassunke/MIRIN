@@ -62,6 +62,149 @@ export function formatDayHeading(isoDate: string): string {
   });
 }
 
+export function parseDateKey(key: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+export function addDays(date: Date, days: number): Date {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+/** Sunday of the local week that contains `date`. */
+export function startOfWeek(date: Date): Date {
+  return addDays(date, -date.getDay());
+}
+
+export function weekCells(anchor: Date): Date[] {
+  const start = startOfWeek(anchor);
+  return Array.from({ length: 7 }, (_, index) => addDays(start, index));
+}
+
+/** "October 11–17", or a cross-month span when the week breaks. */
+export function formatWeekLabel(start: Date, end: Date): string {
+  const sameMonth =
+    start.getMonth() === end.getMonth() &&
+    start.getFullYear() === end.getFullYear();
+  if (sameMonth) {
+    const month = start.toLocaleDateString(undefined, { month: "long" });
+    return `${month} ${start.getDate()}–${end.getDate()}`;
+  }
+  const left = start.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  const right = end.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  if (start.getFullYear() !== end.getFullYear()) {
+    return `${left}, ${start.getFullYear()} – ${right}, ${end.getFullYear()}`;
+  }
+  return `${left} – ${right}`;
+}
+
+export interface TrainingExercise {
+  exerciseId: string;
+  best: number;
+  sets: number;
+}
+
+export interface TrainingSession {
+  session: WorkoutSession;
+  dayName: string;
+  setCount: number;
+  exerciseCount: number;
+  exercises: TrainingExercise[];
+}
+
+export interface TrainingDay {
+  sessions: TrainingSession[];
+  /** A completed session, or any logged set. */
+  marked: boolean;
+  bestByExercise: Map<string, number>;
+}
+
+/** Every session grouped onto its local calendar day, newest first. */
+export function indexTrainingDays(
+  sessions: WorkoutSession[],
+  logs: SetLog[],
+  templates: DayTemplate[],
+): Map<string, TrainingDay> {
+  const dayNames = new Map(templates.map((day) => [day.id, day.name] as const));
+  const logsBySession = new Map<string, SetLog[]>();
+  for (const log of logs) {
+    const list = logsBySession.get(log.sessionId) ?? [];
+    list.push(log);
+    logsBySession.set(log.sessionId, list);
+  }
+
+  const byDate = new Map<string, TrainingDay>();
+  const ordered = [...sessions].sort((a, b) => b.date.localeCompare(a.date));
+  for (const session of ordered) {
+    const key = sessionDateKey(session);
+    const sessionLogs = logsBySession.get(session.id) ?? [];
+    const byExercise = new Map<string, TrainingExercise>();
+    for (const log of sessionLogs) {
+      const prev = byExercise.get(log.exerciseId);
+      if (prev) {
+        prev.sets += 1;
+        prev.best = Math.max(prev.best, log.weight);
+      } else {
+        byExercise.set(log.exerciseId, {
+          exerciseId: log.exerciseId,
+          best: log.weight,
+          sets: 1,
+        });
+      }
+    }
+
+    const day = byDate.get(key) ?? {
+      sessions: [],
+      marked: false,
+      bestByExercise: new Map<string, number>(),
+    };
+    day.marked = day.marked || session.completed || sessionLogs.length > 0;
+    for (const exercise of byExercise.values()) {
+      day.bestByExercise.set(
+        exercise.exerciseId,
+        Math.max(day.bestByExercise.get(exercise.exerciseId) ?? 0, exercise.best),
+      );
+    }
+    day.sessions.push({
+      session,
+      dayName: dayNames.get(session.dayTemplateId) ?? "Session",
+      setCount: sessionLogs.length,
+      exerciseCount: byExercise.size,
+      exercises: [...byExercise.values()],
+    });
+    byDate.set(key, day);
+  }
+  return byDate;
+}
+
+export function allTimeBests(logs: SetLog[]): Map<string, number> {
+  const best = new Map<string, number>();
+  for (const log of logs) {
+    best.set(log.exerciseId, Math.max(best.get(log.exerciseId) ?? 0, log.weight));
+  }
+  return best;
+}
+
 /** Sessions that fall on a local calendar day, newest first. */
 export async function sessionsForDate(
   dateKey: string,
