@@ -1,10 +1,11 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type SetLog, type WorkoutSession } from "../db/db";
 import { formatDate, setVolume } from "../lib/workout";
 import { toDisplay, type Unit } from "../lib/units";
 import { useUnit } from "../lib/settings";
+import { AxisScale, scaledWindow, scaleFromZoom } from "../components/AxisScale";
 import { TrendChart, type TrendPoint } from "../components/TrendChart";
 import { Physique } from "../components/physique/Physique";
 import {
@@ -22,9 +23,10 @@ function volumeTrend(
   return sessions
     .filter((s) => s.completed && bySession.has(s.id))
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map((s) => ({
+    .map((s, i) => ({
       date: formatDate(s.date),
       value: toDisplay(bySession.get(s.id)!, unit),
+      i,
     }));
 }
 
@@ -39,15 +41,13 @@ function overallBySession(logs: SetLog[]): Map<string, number> {
   return bySession;
 }
 
-const CAPTION_GAP = 20;
-const TICK_CLEARANCE = 16;
-const AXIS_BAND = 36;
+const CHART_H = 176;
 
 export function Trends() {
   const [unit] = useUnit();
   const [picked, setPicked] = useState<RegionId | null>(null);
-  const captionRef = useRef<HTMLElement>(null);
-  const [reserveTop, setReserveTop] = useState(72);
+  const [xZoom, setXZoom] = useState(0);
+  const [yZoom, setYZoom] = useState(0);
   const data = useLiveQuery(async () => {
     const [sessions, logs, exercises] = await Promise.all([
       db.sessions.toArray(),
@@ -82,55 +82,43 @@ export function Trends() {
       ? `No ${title.toLowerCase()} volume yet`
       : "Not enough sessions yet — log two to see a trend";
   const hasTrend = points.length >= 2;
-  const contributorKey = contributors.map((lift) => lift.id).join(" ");
-
-  useLayoutEffect(() => {
-    if (!ready) return;
-    const el = captionRef.current;
-    if (!el) return;
-    const measure = () => {
-      setReserveTop(Math.ceil(el.getBoundingClientRect().height) + CAPTION_GAP);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ready, title, contributorKey, hasTrend, emptyLabel, hasAny]);
+  const xDomain = useMemo(() => {
+    if (points.length < 2) return undefined;
+    const last = points.length - 1;
+    return scaledWindow(0, last, scaleFromZoom(xZoom));
+  }, [points, xZoom]);
+  const yDomain = useMemo(() => {
+    if (points.length < 2) return undefined;
+    let lo = points[0].value;
+    let hi = lo;
+    for (const point of points) {
+      lo = Math.min(lo, point.value);
+      hi = Math.max(hi, point.value);
+    }
+    return scaledWindow(lo, hi, scaleFromZoom(yZoom));
+  }, [points, yZoom]);
 
   if (!data || !volumes || !intensities) {
     return <p className="text-sm text-muted">Loading…</p>;
   }
 
-  return (
-    <div className="relative h-full min-h-0">
-      {hasTrend ? (
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <TrendChart
-            key={picked ?? "overall"}
-            data={points}
-            ground
-            reserveTop={reserveTop + TICK_CLEARANCE}
-            valueLabel={unit}
-          />
-        </div>
-      ) : null}
+  const selectRegion = (id: RegionId | null) => {
+    setPicked(id);
+    setXZoom(0);
+    setYZoom(0);
+  };
 
-      <div
-        className="absolute inset-x-0 z-10"
-        style={{ top: reserveTop, bottom: hasTrend ? AXIS_BAND : 0 }}
-      >
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="relative min-h-[12rem] min-w-0 flex-1">
         <Physique
           intensities={intensities}
           selected={picked}
-          onSelect={setPicked}
+          onSelect={selectRegion}
         />
       </div>
 
-      <section
-        ref={captionRef}
-        data-physique-metric
-        className="pointer-events-none absolute inset-x-0 top-0 z-20"
-      >
+      <section data-physique-metric className="shrink-0 pt-6">
         <div className="flex items-baseline gap-3">
           <h2 className="text-lg font-semibold tracking-tight" aria-live="polite">
             {title}
@@ -138,7 +126,7 @@ export function Trends() {
           <p className="tnum shrink-0 text-[13px] text-muted">{unit}</p>
         </div>
         {contributors.length > 0 ? (
-          <div className="pointer-events-auto mt-1 flex flex-wrap gap-x-3 gap-y-1">
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
             {contributors.map((lift) => (
               <Link
                 key={lift.id}
@@ -154,8 +142,34 @@ export function Trends() {
             Per completed session
           </p>
         )}
-        {!hasTrend ? (
-          <p className="pointer-events-auto mt-3 max-w-[65ch] text-[13px] leading-relaxed text-muted">
+        {hasTrend && xDomain && yDomain ? (
+          <div className="mt-3 grid grid-cols-[2.75rem_minmax(0,1fr)] gap-x-3">
+            <AxisScale
+              axis="y"
+              value={yZoom}
+              onChange={setYZoom}
+              label="Volume scale"
+            />
+            <TrendChart
+              key={picked ?? "overall"}
+              data={points}
+              height={CHART_H}
+              xDomain={xDomain}
+              yDomain={yDomain}
+              valueLabel={unit}
+            />
+            <div />
+            <div className="pl-11">
+              <AxisScale
+                axis="x"
+                value={xZoom}
+                onChange={setXZoom}
+                label="Time scale"
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="max-w-[65ch] pt-2 text-[13px] leading-relaxed text-muted">
             {!hasAny ? (
               <>
                 Nothing to chart yet. Progress appears after a completed
@@ -169,7 +183,7 @@ export function Trends() {
               emptyLabel
             )}
           </p>
-        ) : null}
+        )}
       </section>
     </div>
   );
