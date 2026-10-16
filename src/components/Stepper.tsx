@@ -23,10 +23,15 @@ interface StepperProps {
   /** `lead` matches the live weight numeral. `compact` is the reps companion. */
   size?: "default" | "compact" | "lead";
   /**
-   * Vertical drag steps the value, the way a drag on the model steps weight.
-   * A tap still opens the field. A sideways drag is left for the exercise swipe.
+   * Vertical drag steps the value. A tap still opens the field.
+   * A sideways drag is left for the exercise swipe.
    */
   drag?: boolean;
+  /**
+   * Next value for one step of a vertical drag. Finger up is +1.
+   * Absent, the drag adds `step`.
+   */
+  onDragStep?: (direction: -1 | 1, value: number) => number;
 }
 
 function parseDraft(text: string): number | null {
@@ -53,6 +58,7 @@ export function Stepper({
   suffixClassName,
   size = "default",
   drag = false,
+  onDragStep,
 }: StepperProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,7 +103,10 @@ export function Stepper({
   };
 
   const stepBy = (direction: -1 | 1) => {
-    const next = clamp(valueRef.current + direction * step, min, max);
+    const raw = onDragStep
+      ? onDragStep(direction, valueRef.current)
+      : valueRef.current + direction * step;
+    const next = clamp(raw, min, max);
     if (next === valueRef.current) return;
     valueRef.current = next;
     onChange(next);

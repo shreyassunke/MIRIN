@@ -18,7 +18,13 @@ import {
 } from "../lib/laterality";
 import { regionForExercise } from "../lib/muscleRegions";
 import type { StageDraft } from "../lib/stageDraft";
-import { MANUAL_STEP, round2, type InputMethod, type Unit } from "../lib/units";
+import {
+  MANUAL_STEP,
+  round2,
+  stepDumbbell,
+  type InputMethod,
+  type Unit,
+} from "../lib/units";
 import {
   choiceForDraft,
   currentVariationId,
@@ -232,6 +238,10 @@ export function TodayExerciseStage({
                   layout="readout"
                   inlineSuffix={unit}
                   size="lead"
+                  drag
+                  onDragStep={(direction, current) =>
+                    stepDumbbell(current, unit, direction)
+                  }
                   onChange={onDumbbell}
                 />
               ),
@@ -242,7 +252,6 @@ export function TodayExerciseStage({
                   laterality={draft.laterality}
                   live={live && mode === "dumbbell"}
                   onChange={onDumbbell}
-                  onRepStep={stepRepsBy}
                   onEdit={openList}
                 />
               ),

@@ -3,7 +3,7 @@ import {
   Suspense,
   type KeyboardEvent,
 } from "react";
-import { DUMBBELL_SIZES, type Unit } from "../../lib/units";
+import { DUMBBELL_SIZES, stepDumbbell, type Unit } from "../../lib/units";
 import { lateralityCaption, type Laterality } from "../../lib/laterality";
 import { formatWeight } from "../../lib/workout";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
@@ -18,8 +18,6 @@ interface DumbbellPickerProps {
   value: number;
   laterality: Laterality;
   onChange: (value: number) => void;
-  /** Sideways drift inside the vertical weight drag. True when the step landed. */
-  onRepStep?: (direction: -1 | 1) => boolean;
   /** Pair/single. Used when the stage tap is not opening the variation list. */
   onToggleLaterality?: () => void;
   /** Tap on the bell opens the variation list. */
@@ -28,11 +26,8 @@ interface DumbbellPickerProps {
   onSwipe?: (direction: -1 | 1) => void;
 }
 
-function stepValue(unit: Unit, value: number, delta: number): number {
-  const sizes = DUMBBELL_SIZES[unit];
-  const current = sizes.indexOf(value);
-  const index = current < 0 ? 0 : current;
-  return sizes[Math.max(0, Math.min(sizes.length - 1, index + delta))];
+function stepValue(unit: Unit, value: number, delta: -1 | 1): number {
+  return stepDumbbell(value, unit, delta);
 }
 
 function BellStageFallback() {
@@ -47,8 +42,6 @@ function DumbbellIcon({
   value: number;
   pair: boolean;
   live?: boolean;
-  onChange: (value: number) => void;
-  onRepStep?: (direction: -1 | 1) => boolean;
   onToggleLaterality?: () => void;
   onEdit?: () => void;
   onSwipe?: (direction: -1 | 1) => void;
@@ -73,8 +66,6 @@ function DumbbellIcon({
           value={props.value}
           pair={props.pair}
           live={live}
-          onChange={props.onChange}
-          onRepStep={props.onRepStep}
           onTap={props.onEdit ?? props.onToggleLaterality}
           onSwipe={props.onSwipe}
         />
@@ -88,7 +79,6 @@ export function DumbbellPicker({
   value,
   laterality,
   onChange,
-  onRepStep,
   onToggleLaterality,
   onEdit,
   live = true,
@@ -131,21 +121,16 @@ export function DumbbellPicker({
     >
       <span className="sr-only">
         {onEdit
-          ? "Activate to change variation."
+          ? "Activate to change variation. Arrow keys change the weight."
           : pair
-            ? "Pair. Activate to switch to single."
-            : "Single. Activate to switch to pair."}
-        {onRepStep
-          ? " Slide up or down to change weight. Drift sideways while sliding to change reps."
-          : ""}
+            ? "Pair. Activate to switch to single. Arrow keys change the weight."
+            : "Single. Activate to switch to pair. Arrow keys change the weight."}
       </span>
       <DumbbellIcon
         unit={unit}
         value={value}
         pair={pair}
         live={live}
-        onChange={onChange}
-        onRepStep={onRepStep}
         onEdit={onEdit}
         onToggleLaterality={onToggleLaterality}
         onSwipe={onSwipe}

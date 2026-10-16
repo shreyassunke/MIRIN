@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Group, Mesh } from "three";
 import * as THREE from "three";
-import { DUMBBELL_SIZES, type Unit } from "../../../lib/units";
+import type { Unit } from "../../../lib/units";
 import {
   createDumbbellModel,
   type DumbbellRuntime,
@@ -20,9 +20,6 @@ interface Dumbbell3DProps {
   unit: Unit;
   value: number;
   pair?: boolean;
-  onChange?: (value: number) => void;
-  /** Sideways drift inside the vertical weight drag. True when the step landed. */
-  onRepStep?: (direction: -1 | 1) => boolean;
   onTap?: () => void;
   onSwipe?: (direction: -1 | 1) => void;
   live?: boolean;
@@ -52,8 +49,6 @@ export function Dumbbell3D({
   unit,
   value,
   pair = false,
-  onChange,
-  onRepStep,
   onTap,
   onSwipe,
   live = true,
@@ -62,21 +57,11 @@ export function Dumbbell3D({
   const valueRef = useRef(value);
   const unitRef = useRef(unit);
   const pairRef = useRef(pair);
-  const onChangeRef = useRef(onChange);
   const onTapRef = useRef(onTap);
   valueRef.current = value;
   unitRef.current = unit;
   pairRef.current = pair;
-  onChangeRef.current = onChange;
   onTapRef.current = onTap;
-
-  const stepBy = useCallback((delta: number) => {
-    const sizes = DUMBBELL_SIZES[unitRef.current];
-    const current = sizes.indexOf(valueRef.current);
-    const index = current < 0 ? 0 : current;
-    const next = Math.max(0, Math.min(sizes.length - 1, index + delta));
-    if (sizes[next] !== valueRef.current) onChangeRef.current?.(sizes[next]);
-  }, []);
 
   const attach = useCallback((pivot: Group) => {
     const set = new THREE.Group();
@@ -131,9 +116,6 @@ export function Dumbbell3D({
     attach,
     mode: "fixed",
     pose: DUMBBELL_CAM,
-    onStep: onChange ? stepBy : undefined,
-    onCrossStep: onRepStep,
-    stepAxis: "y",
     onSwipe,
     live,
     onTap: onTap
@@ -153,17 +135,13 @@ export function Dumbbell3D({
     requestRender();
   }, [value, unit, pair, fit, requestRender]);
 
-  const interactive = Boolean(onChange || onTap || onSwipe);
+  const interactive = Boolean(onTap || onSwipe);
 
   return (
     <div
       ref={hostRef}
-      className={
-        interactive
-          ? "mx-auto h-36 w-full max-w-xs cursor-ns-resize"
-          : "mx-auto h-36 w-full max-w-xs"
-      }
-      style={{ touchAction: onChange ? "none" : "pan-y" }}
+      className="mx-auto h-36 w-full max-w-xs"
+      style={{ touchAction: "pan-y", cursor: interactive ? "pointer" : undefined }}
       aria-hidden="true"
       {...pointer}
     />

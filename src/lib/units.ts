@@ -106,6 +106,25 @@ export function nearestDumbbell(value: number, unit: Unit): number {
   return best;
 }
 
+/** Next rack size. Off-rack values land on the nearest size before stepping past it. */
+export function stepDumbbell(
+  value: number,
+  unit: Unit,
+  direction: -1 | 1,
+): number {
+  const sizes = DUMBBELL_SIZES[unit];
+  const exact = sizes.findIndex((size) => Math.abs(size - value) < 1e-6);
+  if (exact < 0) {
+    const nearest = nearestDumbbell(value, unit);
+    if (direction > 0 && nearest > value) return nearest;
+    if (direction < 0 && nearest < value) return nearest;
+    const index = Math.max(0, sizes.indexOf(nearest));
+    return sizes[Math.max(0, Math.min(sizes.length - 1, index + direction))];
+  }
+  const next = Math.max(0, Math.min(sizes.length - 1, exact + direction));
+  return sizes[next];
+}
+
 /**
  * Greedy decomposition of a total into per-side plates for a given bar.
  * Best-effort: a total that doesn't divide evenly returns the closest
