@@ -27,9 +27,17 @@ function prefersReducedMotion() {
   );
 }
 
+const PHONE_BOX = "(max-width: 767px)";
+
+function phoneBox() {
+  return typeof window !== "undefined" && window.matchMedia(PHONE_BOX).matches;
+}
+
 /**
- * One frame. Settled, it is the active page, so Log sits on that
- * weight line. Mid-swipe it is the taller of the two pages, so neither clips.
+ * One frame, the way a multi-photo post keeps one box. On a phone the
+ * box is the screen slot, so a swipe never changes its height. On a
+ * wide layout the settled page sets the height, and mid-swipe the frame
+ * is the taller of the two so neither clips.
  */
 export function ExerciseDeck({
   index,
@@ -49,6 +57,7 @@ export function ExerciseDeck({
   const heights = useRef<number[]>([]);
   const progressRef = useRef(index);
   const draggingRef = useRef(false);
+  const fixedBox = useRef(phoneBox());
 
   const paint = useCallback((progress: number, dragging: boolean) => {
     progressRef.current = progress;
@@ -67,6 +76,10 @@ export function ExerciseDeck({
       dragging || Math.abs(progress - Math.round(progress)) > 0.001;
     rootRef.current?.classList.toggle("is-paging", inMotion);
     if (!viewport) return;
+    if (fixedBox.current) {
+      if (viewport.style.height) viewport.style.height = "";
+      return;
+    }
     const pages = heights.current;
     const n = pages.length;
     if (n === 0) return;
@@ -80,6 +93,16 @@ export function ExerciseDeck({
     }
     if (next > 0) viewport.style.height = `${Math.round(next)}px`;
   }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia(PHONE_BOX);
+    const onChange = () => {
+      fixedBox.current = mq.matches;
+      paint(progressRef.current, draggingRef.current);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [paint]);
 
   const { goTo } = usePagerGesture({
     count,
@@ -134,7 +157,15 @@ export function ExerciseDeck({
   }, [count, index, label, paging]);
 
   if (!paging) {
-    return <div data-exercise-frame="">{pages[0]}</div>;
+    return (
+      <div className="exercise-frame" data-exercise-frame="">
+        <div className="load-swipe-field">
+          <div className="exercise-deck">
+            <div className="exercise-deck-page">{pages[0]}</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -95,6 +95,159 @@ export function weekCells(anchor: Date): Date[] {
   return Array.from({ length: 7 }, (_, index) => addDays(start, index));
 }
 
+export const CONTRIBUTION_LEVELS = [0, 1, 2, 3, 4] as const;
+export type ContributionLevel = (typeof CONTRIBUTION_LEVELS)[number];
+
+/**
+ * Sets logged on a day, or sets of one exercise when a target is in focus.
+ * A day with no log is zero. Volume, not a streak.
+ */
+export function setsOnDay(
+  day: TrainingDay | undefined,
+  exerciseId: string | null,
+): number {
+  if (!day) return 0;
+  if (!exerciseId) {
+    return day.sessions.reduce((sum, session) => sum + session.setCount, 0);
+  }
+  let sets = 0;
+  for (const session of day.sessions) {
+    for (const exercise of session.exercises) {
+      if (exercise.exerciseId === exerciseId) sets += exercise.sets;
+    }
+  }
+  return sets;
+}
+
+/** Discrete heat. The same count is the same shade in every year. */
+export function contributionLevel(sets: number): ContributionLevel {
+  if (sets <= 0) return 0;
+  if (sets < 5) return 1;
+  if (sets < 10) return 2;
+  if (sets < 16) return 3;
+  return 4;
+}
+
+export interface ContributionDay {
+  key: string;
+  date: Date;
+  /** Inside the selected range. Padding and days after today do not count. */
+  counts: boolean;
+}
+
+export interface ContributionColumn {
+  /** Sunday through Saturday. */
+  days: ContributionDay[];
+}
+
+export interface ContributionMonth {
+  label: string;
+  column: number;
+}
+
+export interface ContributionCalendar {
+  columns: ContributionColumn[];
+  months: ContributionMonth[];
+  startKey: string;
+  endKey: string;
+}
+
+function atMidnight(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function monthShort(date: Date): string {
+  return date.toLocaleDateString(undefined, { month: "short" });
+}
+
+/**
+ * Sunday-aligned columns covering `gridStart`–`gridEnd`.
+ * Only days from `countStart` through `countEnd` count toward the range.
+ */
+function buildContribution(
+  gridStart: Date,
+  gridEnd: Date,
+  countStart: Date,
+  countEnd: Date,
+): ContributionCalendar {
+  const startMs = countStart.getTime();
+  const endMs = countEnd.getTime();
+  const columns: ContributionColumn[] = [];
+  for (
+    let cursor = gridStart;
+    cursor.getTime() <= gridEnd.getTime();
+    cursor = addDays(cursor, 7)
+  ) {
+    const days: ContributionDay[] = [];
+    for (let index = 0; index < 7; index++) {
+      const date = addDays(cursor, index);
+      const time = date.getTime();
+      days.push({
+        key: toLocalISODate(date),
+        date,
+        counts: time >= startMs && time <= endMs,
+      });
+    }
+    columns.push({ days });
+  }
+
+  const months: ContributionMonth[] = [];
+  columns.forEach((column, index) => {
+    const opening = column.days.find((day) => day.counts);
+    if (index === 0 && opening) {
+      months.push({ label: monthShort(opening.date), column: 0 });
+    }
+    const firstOfMonth = column.days.find(
+      (day) => day.counts && day.date.getDate() === 1,
+    );
+    if (!firstOfMonth || index === 0) return;
+    const prev = months[months.length - 1];
+    if (prev && index - prev.column < 2) return;
+    months.push({ label: monthShort(firstOfMonth.date), column: index });
+  });
+
+  return {
+    columns,
+    months,
+    startKey: toLocalISODate(countStart),
+    endKey: toLocalISODate(countEnd),
+  };
+}
+
+/** The rolling year ending today: GitHub's "last year", Sunday-aligned. */
+export function trailingContribution(today: Date): ContributionCalendar {
+  const end = atMidnight(today);
+  const start = addDays(end, -364);
+  return buildContribution(startOfWeek(start), addDays(startOfWeek(end), 6), start, end);
+}
+
+/** One calendar year. The current year stops at today. */
+export function yearContribution(year: number, today: Date): ContributionCalendar {
+  const endCap = atMidnight(today);
+  const start = new Date(year, 0, 1);
+  const last = new Date(year, 11, 31);
+  const end = last.getTime() < endCap.getTime() ? last : endCap;
+  return buildContribution(
+    startOfWeek(start),
+    addDays(startOfWeek(end), 6),
+    start,
+    end,
+  );
+}
+
+/** Current year first, then back to the earliest logged day. */
+export function contributionYears(dateKeys: Iterable<string>, today: Date): number[] {
+  const current = today.getFullYear();
+  let earliest = current;
+  for (const key of dateKeys) {
+    const year = Number(key.slice(0, 4));
+    if (year >= 1970 && year < earliest) earliest = year;
+  }
+  const years: number[] = [];
+  for (let year = current; year >= earliest; year--) years.push(year);
+  return years;
+}
+
 /** "October 11–17", or a cross-month span when the week breaks. */
 export function formatWeekLabel(start: Date, end: Date): string {
   const sameMonth =
