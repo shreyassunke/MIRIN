@@ -96,6 +96,8 @@ import { useUnit } from "../lib/settings";
 import { RestTimer } from "../components/RestTimer";
 import { UnitToggle } from "../components/UnitToggle";
 import { DaySwitcher } from "../components/DaySwitcher";
+import { LoggedSetGhost } from "../components/LoggedSetGhost";
+import { deleteSetLog } from "../lib/history";
 
 interface TodayData {
   splitId: string;
@@ -577,6 +579,9 @@ export function Today() {
     0,
     data.exercises.findIndex((e) => e.id === activeId),
   );
+  const ghostSet = activeId
+    ? (logsByExercise.get(activeId) ?? []).at(-1)
+    : undefined;
 
   function patchDraft(exerciseId: string, partial: Partial<StageDraft>) {
     setDrafts((prev) => {
@@ -1144,7 +1149,9 @@ export function Today() {
           })}
         </ExerciseDeck>
       )}
+      </div>
 
+      <div className="today-lower">
       {!data.isRestDay && (
         <div className="mt-4 text-center">
           {addingExercise ? (
@@ -1244,6 +1251,15 @@ export function Today() {
           onDismiss={() => setTimerVisible(false)}
         />
       )}
+
+      {phone && ghostSet ? (
+        <LoggedSetGhost
+          key={ghostSet.id}
+          set={ghostSet}
+          unit={unit}
+          onUndo={() => void deleteSetLog(ghostSet.id)}
+        />
+      ) : null}
 
       {phone ? <div ref={assignDock} className="set-dock" /> : null}
     </div>

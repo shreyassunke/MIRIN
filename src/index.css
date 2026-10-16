@@ -715,10 +715,12 @@ textarea {
   cursor: move;
 }
 
-/* Phone thumb band. The carousel is one screen box, so a swipe does not
-   resize it. The set line sits 3rem above the tab bar. */
+/* Phone thumb band. The carousel fills the top half of the page, so the
+   dots land on the halfway line and a swipe does not resize the box.
+   The set line sits 3rem above the tab bar. */
 .today-phone-frame,
-.today-phone-scroll {
+.today-phone-scroll,
+.today-lower {
   display: contents;
 }
 
@@ -742,18 +744,42 @@ textarea {
 
   .today-phone-scroll {
     display: flex;
+    flex: none;
+    flex-direction: column;
+    /* The dot marks, not their hit area, sit on the halfway line of the page. */
+    height: calc(
+      50dvh - max(1.25rem, env(safe-area-inset-top, 0px)) + 1.375rem
+    );
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+
+  .today-lower {
+    display: flex;
     flex: 1 1 auto;
     flex-direction: column;
+    align-items: stretch;
     min-height: 0;
     overflow: auto;
     overscroll-behavior: contain;
+    padding-top: 0.25rem;
+  }
+
+  .today-lower > .mt-4 {
+    margin-top: 0.25rem;
+  }
+
+  .today-lower > .mt-6 {
+    margin-top: 0.5rem;
   }
 
   .exercise-frame {
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
-    min-height: 20rem;
+    min-height: 0;
   }
 
   .exercise-frame > .load-swipe-field {
@@ -805,6 +831,79 @@ textarea {
 .set-line {
   pointer-events: auto;
   max-width: 100%;
+}
+
+/* The set just logged. Same figures as the live row, faded, so the
+   row underneath stays the one you act on. */
+.logged-ghost {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  margin-top: 0.5rem;
+}
+
+.logged-ghost-figure {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  opacity: 0.5;
+}
+
+.logged-ghost-unit {
+  margin-left: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.logged-ghost-times {
+  margin: 0 0.35rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.logged-ghost > .logged-ghost-times {
+  color: var(--color-muted);
+}
+
+.logged-ghost-tag {
+  margin-right: 0.5rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.logged-ghost-action {
+  min-height: 2.75rem;
+  padding: 0 0.15rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.logged-ghost-action:hover {
+  color: var(--color-ink);
+}
+
+.logged-ghost-action:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 .exercise-deck {
