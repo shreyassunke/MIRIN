@@ -85,7 +85,7 @@ import {
   ItemOverflow,
   RestPresetPanel,
 } from "../components/ItemOverflow";
-import { toCanonical, toDisplay, type InputMethod } from "../lib/units";
+import { toCanonical, type InputMethod } from "../lib/units";
 import {
   resolveStageDraft,
   stageTotal,
