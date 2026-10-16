@@ -19,6 +19,7 @@ import {
   retainRenderer,
   type FrameFn,
 } from "./stage";
+import { applyCrossTravel, crossAxisEngaged } from "./crossStep";
 import {
   aimFixedCamera,
   BARBELL_CAM,
@@ -59,6 +60,8 @@ type DragStart = {
   captured: boolean;
   discarded: boolean;
   kind?: CaptureKind;
+  /** Rep steps already applied for this drag's sideways travel. */
+  cross: number;
 };
 
 export function useWeightStage(opts: {
@@ -71,6 +74,11 @@ export function useWeightStage(opts: {
   ) => void;
   /** Drag steps the rack. Sign is index delta. Axis comes from `stepAxis`. */
   onStep?: (direction: -1 | 1) => void;
+  /**
+   * Sideways drift inside a vertical weight drag. True when the step landed.
+   * A drag that starts horizontal still belongs to the pager.
+   */
+  onCrossStep?: (direction: -1 | 1) => boolean;
   /** "y" = vertical drag (up = +1). "x" = horizontal. Default "y". */
   stepAxis?: "x" | "y";
   /** One horizontal flick. -1 = right (prev), +1 = left (next). */
@@ -112,6 +120,7 @@ export function useWeightStage(opts: {
   const extraRef = useRef(opts.extraFrame);
   const tapRef = useRef(opts.onTap);
   const stepRef = useRef(opts.onStep);
+  const crossRef = useRef(opts.onCrossStep);
   const swipeRef = useRef(opts.onSwipe);
   const stepPx = opts.stepPx ?? 36;
   const swipePx = opts.swipePx ?? 40;
@@ -124,6 +133,7 @@ export function useWeightStage(opts: {
   extraRef.current = opts.extraFrame;
   tapRef.current = opts.onTap;
   stepRef.current = opts.onStep;
+  crossRef.current = opts.onCrossStep;
   swipeRef.current = opts.onSwipe;
 
   const bakeStill = useCallback(() => {
@@ -368,6 +378,7 @@ export function useWeightStage(opts: {
       pointerId: e.pointerId,
       captured: false,
       discarded: false,
+      cross: 0,
     };
   };
 
@@ -421,6 +432,17 @@ export function useWeightStage(opts: {
               stepRef.current(-dir as -1 | 1);
               start.y += dir * stepPx;
               remain = e.clientY - start.y;
+            }
+            // The pager already released this drag. Sideways drift steps reps.
+            if (crossRef.current) {
+              const travel = e.clientX - start.x;
+              start.cross = applyCrossTravel(
+                travel,
+                start.cross,
+                crossRef.current,
+              );
+              if (crossAxisEngaged(travel)) host.dataset.slide = "both";
+              else delete host.dataset.slide;
             }
           } else {
             let remain = e.clientX - start.x;
@@ -478,6 +500,7 @@ export function useWeightStage(opts: {
     if (host?.hasPointerCapture(e.pointerId)) {
       host.releasePointerCapture(e.pointerId);
     }
+    if (host) delete host.dataset.slide;
     if (start.kind === "swipe" && swipeRef.current) {
       const travel = e.clientX - start.x;
       if (Math.abs(travel) >= swipePx) {

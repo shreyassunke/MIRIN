@@ -706,6 +706,75 @@ textarea {
   touch-action: manipulation;
 }
 
+/* A vertical weight drag has drifted sideways. The rep word joins the numeral. */
+.load-readout:has([data-slide="both"]) .set-reps-suffix {
+  color: var(--color-ink);
+}
+
+.load-readout [data-slide="both"] {
+  cursor: move;
+}
+
+/* Phone thumb band. The column ends at the tab bar; the set line is the
+   last row in it, centered, one step above the bar and clear of the
+   home indicator. The instrument scrolls above that row. */
+.today-phone-frame,
+.today-phone-scroll {
+  display: contents;
+}
+
+@media (max-width: 767px) {
+  html:has(.today-phone-frame) {
+    overflow: hidden;
+  }
+
+  .today-phone-frame {
+    position: fixed;
+    z-index: 20;
+    top: max(1.25rem, env(safe-area-inset-top, 0px));
+    right: max(0px, calc((100% - 42rem) / 2));
+    bottom: calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 3.5rem);
+    left: max(0px, calc((100% - 42rem) / 2));
+    display: flex;
+    flex-direction: column;
+    padding: 0 1rem 0.75rem;
+    background: var(--color-bg);
+  }
+
+  .today-phone-scroll {
+    display: block;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 0.75rem;
+  }
+
+  .set-dock {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: none;
+    justify-content: center;
+    padding-top: 0.75rem;
+    pointer-events: none;
+    background: var(--color-bg);
+  }
+
+  .today-phone-frame .rest-timer {
+    position: static;
+    inset: auto;
+    width: auto;
+    max-width: none;
+    margin: 0 0 0.75rem;
+  }
+}
+
+.set-line {
+  pointer-events: auto;
+  max-width: 100%;
+}
+
 .exercise-deck {
   overflow: hidden;
 }
@@ -863,6 +932,47 @@ textarea {
   -webkit-user-select: none;
   cursor: grabbing;
   touch-action: none;
+}
+
+.log-face {
+  overflow: hidden;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The file is a white figure on black. Luminance keeps the figure and drops the field. */
+.log-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: currentColor;
+  -webkit-mask-image: url("/logo.png");
+  mask-image: url("/logo.png");
+  -webkit-mask-mode: luminance;
+  mask-mode: luminance;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: 92%;
+  mask-size: 92%;
+}
+
+/* The ring sits on the circle, outside the clip that masks the slide. */
+.log-action:focus-within {
+  border-radius: 999px;
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+.log-action .log-face:focus-visible {
+  outline: none;
+}
+
+/* A press scale fights the sliding track. */
+.log-action.is-paging .btn-primary:active,
+.log-action.is-paging .glass-btn:active {
+  transform: none;
 }
 
 .load-pager {

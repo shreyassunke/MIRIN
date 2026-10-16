@@ -26,6 +26,7 @@ import {
   type Unit,
 } from "./units";
 import { convertLoadForVariation, nativeVariation, variationById } from "./variations";
+import { recommendNextSet } from "./overload";
 import {
   defaultInputMethodFor,
   defaultRepsFor,
@@ -185,9 +186,31 @@ export function resolveStageDraft(args: {
   }
 
   const fallbackReps = defaultRepsFor(args.dayTemplateId ?? "");
-  const reps = loggingWarmup
+  let reps = loggingWarmup
     ? Math.max(5, (source?.reps ?? fallbackReps) - warmupCount)
     : (source?.reps ?? fallbackReps);
+
+  // The stage is the prescription. Last session's raw set stays as evidence
+  // for the line under Log; it is not a second number to confirm.
+  const recommendation = loggingWarmup
+    ? null
+    : recommendNextSet({
+        today: args.logs,
+        prior,
+        mode,
+        unit,
+        fallbackReps,
+      });
+  const sourceWeight = weight;
+  if (recommendation) {
+    reps = recommendation.reps;
+    if (equipment !== "bodyweight") {
+      weight = recommendation.weight;
+      heldLoadLb = toCanonical(weight, unit);
+    }
+  }
+  const keepSourcePlates =
+    !recommendation || Math.abs(weight - sourceWeight) < 0.05;
 
   let barWeight = DEFAULT_BAR[unit];
   let plates: number[] = [];
@@ -195,7 +218,8 @@ export function resolveStageDraft(args: {
   let manualWeight = weight;
 
   if (mode === "barbell") {
-    const breakdown = !loggingWarmup ? source?.loadBreakdown : undefined;
+    const breakdown =
+      !loggingWarmup && keepSourcePlates ? source?.loadBreakdown : undefined;
     if (source?.inputMethod === "barbell" && breakdown?.platesPerSide) {
       const bar = breakdown.barWeight ?? toCanonical(DEFAULT_BAR[unit], unit);
       barWeight = toDisplay(bar, unit);

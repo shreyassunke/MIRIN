@@ -6,6 +6,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import type { InputModeOption } from "../../lib/library";
 import type { InputMethod, Unit } from "../../lib/units";
 import { formatWeight } from "../../lib/workout";
@@ -38,6 +39,17 @@ interface LoadInstrumentProps {
   onRepsChange?: (reps: number) => void;
   /** Finger-drag between equipment pages. Chevrons stay either way. */
   swipe?: boolean;
+  /** Sits beside the weight and reps. Shown on the active equipment page. */
+  headerAction?: ReactNode;
+  /** One quiet word above the weight line, such as a warm-up. */
+  headerCaption?: string;
+  /**
+   * Phone thumb dock. When set, the live weight line renders here
+   * instead of under the instrument.
+   */
+  headerDock?: HTMLElement | null;
+  /** Neighbor pages on a phone omit the line; the dock owns the live one. */
+  suppressHeader?: boolean;
 }
 
 /** Active page height, blended while a swipe is between pages. */
@@ -84,6 +96,8 @@ function SetReps({
         layout="readout"
         size="lead"
         inlineSuffix="reps"
+        suffixClassName="set-reps-suffix"
+        drag
         onChange={onChange}
       />
     </>
@@ -99,6 +113,9 @@ function WeightHeader({
   qualifierAria,
   reps,
   onRepsChange,
+  action,
+  caption,
+  docked = false,
 }: {
   unit: Unit;
   weight: number;
@@ -108,6 +125,10 @@ function WeightHeader({
   qualifierAria?: string;
   reps?: number;
   onRepsChange?: (reps: number) => void;
+  /** Log control, seated on this line. */
+  action?: ReactNode;
+  caption?: string;
+  docked?: boolean;
 }) {
   const count =
     reps != null && onRepsChange ? (
@@ -130,17 +151,27 @@ function WeightHeader({
   ) : null;
 
   return (
-    <div className="flex min-h-11 flex-wrap items-center justify-center whitespace-nowrap">
-      {weightDisplay ?? (
-        <>
-          <span className="tnum text-3xl font-semibold tracking-tight">
-            {formatWeight(weight)}
-          </span>
-          <span className="ml-1.5 text-sm text-muted">{unit}</span>
-        </>
-      )}
-      {gloss}
-      {count}
+    <div className={docked ? "set-line" : undefined}>
+      {caption ? (
+        <p className="mb-1 text-center text-[13px] font-medium text-muted">
+          {caption}
+        </p>
+      ) : null}
+      <div className="flex min-h-11 items-center justify-center gap-2.5">
+        <div className="flex min-w-0 items-center whitespace-nowrap">
+          {weightDisplay ?? (
+            <>
+              <span className="tnum text-3xl font-semibold tracking-tight">
+                {formatWeight(weight)}
+              </span>
+              <span className="ml-1.5 text-sm text-muted">{unit}</span>
+            </>
+          )}
+          {gloss}
+          {count}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
     </div>
   );
 }
@@ -189,6 +220,10 @@ export function LoadInstrument({
   fieldRef,
   reps,
   onRepsChange,
+  headerAction,
+  headerCaption,
+  headerDock,
+  suppressHeader = false,
   swipe = true,
 }: LoadInstrumentProps) {
   const visible = pages.filter((page) => modes.some((m) => m.id === page.id));
@@ -312,25 +347,48 @@ export function LoadInstrument({
     };
   }, [fieldRef, methodLabel, paging, swipe]);
 
+  const inlineHeader = !headerDock && !suppressHeader;
+
+  const setLine = (page: LoadInstrumentPage, live = false, docked = false) => (
+    <WeightHeader
+      unit={unit}
+      weight={page.weight}
+      weightDisplay={page.weightDisplay}
+      qualifier={page.qualifier}
+      onQualifierClick={page.onQualifierClick}
+      qualifierAria={page.qualifierAria}
+      reps={reps}
+      onRepsChange={onRepsChange}
+      action={
+        headerAction ? (
+          live ? (
+            headerAction
+          ) : (
+            <span className="inline-block h-11 w-11" aria-hidden="true" />
+          )
+        ) : undefined
+      }
+      caption={live ? headerCaption : undefined}
+      docked={docked}
+    />
+  );
+
   const body = (page: LoadInstrumentPage, live = false) => (
     <div
-      className="flex flex-col gap-2"
+      className="load-readout flex flex-col gap-2"
       aria-live={live ? "polite" : undefined}
     >
-      <WeightHeader
-        unit={unit}
-        weight={page.weight}
-        weightDisplay={page.weightDisplay}
-        qualifier={page.qualifier}
-        onQualifierClick={page.onQualifierClick}
-        qualifierAria={page.qualifierAria}
-        reps={reps}
-        onRepsChange={onRepsChange}
-      />
       {page.stage}
+      {inlineHeader ? setLine(page, live) : null}
       {page.extras}
     </div>
   );
+
+  const dockPage = visible[index] ?? visible[0];
+  const dockedLine =
+    headerDock && dockPage
+      ? createPortal(setLine(dockPage, true, true), headerDock)
+      : null;
 
   const switcher = paging ? (
     <EquipmentSwitch
@@ -351,6 +409,7 @@ export function LoadInstrument({
     return (
       <div className="flex flex-col gap-1">
         {body(page, true)}
+        {dockedLine}
         {switcher}
       </div>
     );
@@ -358,6 +417,7 @@ export function LoadInstrument({
 
   return (
     <div className="flex flex-col gap-1">
+      {dockedLine}
       <div ref={rootRef} className="load-pager-root">
         <div ref={viewportRef} className="load-pager">
           <div ref={trackRef} className="load-pager-track">

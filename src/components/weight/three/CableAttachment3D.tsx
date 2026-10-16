@@ -19,6 +19,8 @@ interface CableAttachment3DProps {
   unit: Unit;
   value: number;
   onChange: (value: number) => void;
+  /** Sideways drift inside the vertical weight drag. True when the step landed. */
+  onRepStep?: (direction: -1 | 1) => boolean;
   live?: boolean;
   /** A tap on the clip, short of a drag, opens the variation list. */
   onEdit?: () => void;
@@ -29,6 +31,7 @@ export function CableAttachment3D({
   unit,
   value,
   onChange,
+  onRepStep,
   live = true,
   onEdit,
 }: CableAttachment3DProps) {
@@ -67,6 +70,7 @@ export function CableAttachment3D({
     mode: "fixed",
     pose: CABLE_CAM,
     onStep: stepBy,
+    onCrossStep: onRepStep,
     stepAxis: "y",
     onTap: onEdit ? () => onEdit() : undefined,
     live,
@@ -98,7 +102,7 @@ export function CableAttachment3D({
       }
       aria-label={
         onEdit
-          ? `${cableAttachmentLabel(attachment)} cable attachment. Activate to change variation`
+          ? `${cableAttachmentLabel(attachment)} cable attachment.${onRepStep ? " Slide up or down for weight. Drift sideways while sliding for reps." : ""} Activate to change variation`
           : `${cableAttachmentLabel(attachment)} cable attachment`
       }
       data-cable-attachment={attachment}

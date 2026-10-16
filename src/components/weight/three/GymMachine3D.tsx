@@ -18,6 +18,8 @@ interface GymMachine3DProps {
   unit: Unit;
   value: number;
   onChange?: (value: number) => void;
+  /** Sideways drift inside the vertical weight drag. True when the step landed. */
+  onRepStep?: (direction: -1 | 1) => boolean;
   live?: boolean;
   /** A tap on the station, short of a drag, opens the variation list. */
   onEdit?: () => void;
@@ -28,6 +30,7 @@ export function GymMachine3D({
   unit,
   value,
   onChange,
+  onRepStep,
   live = true,
   onEdit,
 }: GymMachine3DProps) {
@@ -98,6 +101,7 @@ export function GymMachine3D({
     mode: "fixed",
     pose: LAT_PULLDOWN_CAM,
     onStep: onChange ? stepBy : undefined,
+    onCrossStep: onRepStep,
     stepAxis: "y",
     onTap: onEdit ? () => onEdit() : undefined,
     live,
@@ -124,7 +128,7 @@ export function GymMachine3D({
       }
       aria-label={
         onEdit
-          ? `${GYM_MACHINE_LABEL[machine]}. Activate to change variation`
+          ? `${GYM_MACHINE_LABEL[machine]}.${onRepStep ? " Slide up or down for weight. Drift sideways while sliding for reps." : ""} Activate to change variation`
           : GYM_MACHINE_LABEL[machine]
       }
       data-gym-machine={machine}

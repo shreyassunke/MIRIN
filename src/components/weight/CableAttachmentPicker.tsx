@@ -20,6 +20,8 @@ interface CableAttachmentPickerProps {
   unit: Unit;
   value: number;
   onChange: (value: number) => void;
+  /** Sideways drift inside the vertical weight drag. True when the step landed. */
+  onRepStep?: (direction: -1 | 1) => boolean;
   onAttachment: (id: CableAttachmentId) => void;
   live?: boolean;
   onEdit?: () => void;
@@ -30,6 +32,7 @@ export function CableAttachmentPicker({
   unit,
   value,
   onChange,
+  onRepStep,
   onAttachment,
   live = true,
   onEdit,
@@ -52,6 +55,7 @@ export function CableAttachmentPicker({
           unit={unit}
           value={value}
           onChange={onChange}
+          onRepStep={onRepStep}
           live={live}
           onEdit={onEdit}
         />

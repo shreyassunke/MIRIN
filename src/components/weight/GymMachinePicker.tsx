@@ -14,6 +14,8 @@ interface GymMachinePickerProps {
   unit: Unit;
   value: number;
   onChange: (value: number) => void;
+  /** Sideways drift inside the vertical weight drag. True when the step landed. */
+  onRepStep?: (direction: -1 | 1) => boolean;
   live?: boolean;
   onEdit?: () => void;
 }
@@ -23,6 +25,7 @@ export function GymMachinePicker({
   unit,
   value,
   onChange,
+  onRepStep,
   live = true,
   onEdit,
 }: GymMachinePickerProps) {
@@ -47,6 +50,7 @@ export function GymMachinePicker({
           value={value}
           live={live}
           onChange={onChange}
+          onRepStep={onRepStep}
           onEdit={onEdit}
         />
       </Suspense>

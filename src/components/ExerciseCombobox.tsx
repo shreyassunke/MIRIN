@@ -36,6 +36,11 @@ interface ExerciseComboboxProps {
   placeholder?: string;
   /** Optional label rendered inside the dismiss boundary. */
   label?: string;
+  /**
+   * Title-sized field. The caret is the only chrome; matches sit as text
+   * under the title instead of in a panel.
+   */
+  inline?: boolean;
 }
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -192,6 +197,7 @@ export function ExerciseCombobox({
   autoFocus = true,
   placeholder = "Search exercises",
   label,
+  inline = false,
 }: ExerciseComboboxProps) {
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -293,36 +299,68 @@ export function ExerciseCombobox({
   };
 
   return (
-    <div ref={rootRef}>
+    <div ref={rootRef} className={inline ? "w-full" : undefined}>
       {label && (
         <p className="mb-2 text-[13px] font-medium text-muted">{label}</p>
       )}
-      <input
-        ref={inputRef}
-        type="text"
-        role="combobox"
-        aria-expanded={optionCount > 0}
-        aria-controls={listboxId}
-        aria-activedescendant={
-          optionCount > 0 ? `${listboxId}-${highlight}` : undefined
+      <div
+        className={
+          inline
+            ? "flex h-11 min-w-0 items-center justify-center"
+            : undefined
         }
-        aria-label="Search exercises"
-        autoFocus={autoFocus}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        autoComplete="off"
-        spellCheck={false}
-        className="h-11 w-full rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted focus:border-muted"
-      />
+      >
+        {inline && !query && placeholder ? (
+          <span
+            className="min-w-0 truncate text-lg font-semibold tracking-tight text-ink"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              inputRef.current?.focus();
+            }}
+          >
+            {placeholder}
+          </span>
+        ) : null}
+        <input
+          ref={inputRef}
+          type="text"
+          role="combobox"
+          aria-expanded={optionCount > 0}
+          aria-controls={listboxId}
+          aria-activedescendant={
+            optionCount > 0 ? `${listboxId}-${highlight}` : undefined
+          }
+          aria-label={inline ? "Replace exercise" : "Search exercises"}
+          autoFocus={autoFocus}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={inline ? undefined : placeholder}
+          autoComplete="off"
+          spellCheck={false}
+          style={
+            inline && !query
+              ? { width: "1ch", fieldSizing: "fixed" }
+              : undefined
+          }
+          className={
+            inline
+              ? "exercise-title h-11 max-w-full shrink-0 text-lg font-semibold tracking-tight text-ink"
+              : "h-11 w-full rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted focus:border-muted"
+          }
+        />
+      </div>
 
       {hasQuery && (
         <ul
           id={listboxId}
           role="listbox"
           aria-label="Exercise results"
-          className="mt-2 max-h-72 overflow-y-auto rounded-xl glass"
+          className={
+            inline
+              ? "mt-1 max-h-60 overflow-y-auto"
+              : "mt-2 max-h-72 overflow-y-auto rounded-xl glass"
+          }
         >
           {results.map((entry, index) => {
             const isAdded = excluded.has(entry.id);
@@ -339,22 +377,36 @@ export function ExerciseCombobox({
                   pick(index);
                 }}
                 className={[
-                  "flex cursor-pointer items-baseline justify-between gap-3 border-b border-hairline px-3 py-2.5 last:border-b-0",
-                  highlight === index ? "bg-surface-raised" : "",
+                  inline
+                    ? "flex cursor-pointer items-baseline justify-center gap-2 px-2 py-1.5"
+                    : "flex cursor-pointer items-baseline justify-between gap-3 border-b border-hairline px-3 py-2.5 last:border-b-0",
+                  inline
+                    ? highlight === index
+                      ? "text-ink"
+                      : "text-muted"
+                    : highlight === index
+                      ? "bg-surface-raised"
+                      : "",
                   isAdded ? "cursor-default opacity-50" : "",
                 ].join(" ")}
               >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-ink">
-                    {entry.name}
-                  </span>
-                  <span className="block text-[13px] text-muted">
-                    {(entry.station && STATION_LABEL[entry.station]) ||
-                      equipmentLabel(entry.equipment)}
-                    {entry.primaryMuscles[0] &&
-                      ` — ${muscleLabel(entry.primaryMuscles[0])}`}
-                    {entry.isCustom && " — Custom"}
-                  </span>
+                <span className={inline ? "min-w-0 truncate text-[15px] font-medium" : "min-w-0"}>
+                  {inline ? (
+                    entry.name
+                  ) : (
+                    <>
+                      <span className="block truncate text-sm font-medium text-ink">
+                        {entry.name}
+                      </span>
+                      <span className="block text-[13px] text-muted">
+                        {(entry.station && STATION_LABEL[entry.station]) ||
+                          equipmentLabel(entry.equipment)}
+                        {entry.primaryMuscles[0] &&
+                          ` — ${muscleLabel(entry.primaryMuscles[0])}`}
+                        {entry.isCustom && " — Custom"}
+                      </span>
+                    </>
+                  )}
                 </span>
                 {isAdded && (
                   <span className="shrink-0 text-[13px] text-muted">Added</span>
@@ -371,12 +423,21 @@ export function ExerciseCombobox({
               e.preventDefault();
               setCreating(true);
             }}
-            className={[
-              "cursor-pointer px-3 py-2.5 text-sm font-medium text-ink",
-              highlight === results.length ? "bg-surface-raised" : "",
-            ].join(" ")}
+            className={
+              inline
+                ? [
+                    "cursor-pointer px-2 py-1.5 text-center text-[13px]",
+                    highlight === results.length ? "text-ink" : "text-muted",
+                  ].join(" ")
+                : [
+                    "cursor-pointer px-3 py-2.5 text-sm font-medium text-ink",
+                    highlight === results.length ? "bg-surface-raised" : "",
+                  ].join(" ")
+            }
           >
-            Create custom exercise “{debouncedQuery.trim()}”
+            {inline
+              ? `Create “${debouncedQuery.trim()}”`
+              : `Create custom exercise “${debouncedQuery.trim()}”`}
           </li>
         </ul>
       )}

@@ -10,7 +10,6 @@ import {
 } from "../db/db";
 import {
   DEFAULT_REST_SECONDS,
-  formatSet,
   formatWeight,
   lastNativeSets,
   newId,
@@ -30,7 +29,6 @@ import {
   ensureExerciseRow,
   equipmentForExercise,
   isGymMachineId,
-  renameExercise,
   type ExerciseLibraryEntry,
 } from "../lib/library";
 import type { CableAttachmentId } from "../lib/cableAttachment";
@@ -63,12 +61,9 @@ import {
   patchExercisePref,
   workingSets,
 } from "../lib/exerciseMeta";
-import { deleteSetDrop, deleteSetLog } from "../lib/history";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
-import {
-  LoggedSetLedger,
-  TodayExercisePage,
-} from "../components/TodayExerciseTile";
+import { LogActionSwipe } from "../components/LogActionSwipe";
+import { TodayExercisePage } from "../components/TodayExerciseTile";
 import { ExerciseDeck } from "../components/ExerciseDeck";
 import {
   exerciseStageTitle,
@@ -82,7 +77,6 @@ import {
   IconHistory,
   IconNote,
   IconRemove,
-  IconReplace,
   IconRest,
   IconSticky,
   IconSuperset,
@@ -91,14 +85,7 @@ import {
   ItemOverflow,
   RestPresetPanel,
 } from "../components/ItemOverflow";
-import { OverloadPanel } from "../components/overload/OverloadPanel";
-import {
-  decomposePlates,
-  nearestDumbbell,
-  toCanonical,
-  toDisplay,
-  type InputMethod,
-} from "../lib/units";
+import { toCanonical, toDisplay, type InputMethod } from "../lib/units";
 import {
   resolveStageDraft,
   stageTotal,
@@ -333,6 +320,21 @@ function useTodayData(): TodayData | undefined {
   }, []);
 }
 
+function usePhoneLayout() {
+  const query = "(max-width: 767px)";
+  const [phone, setPhone] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(query).matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setPhone(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return phone;
+}
+
 export function Today() {
   const data = useTodayData();
   const navigate = useNavigate();
@@ -351,6 +353,11 @@ export function Today() {
     kind: "session" | "sticky";
   } | null>(null);
   const [formVideoId, setFormVideoId] = useState<string | null>(null);
+  const phone = usePhoneLayout();
+  const [setDock, setSetDock] = useState<HTMLDivElement | null>(null);
+  const assignDock = useCallback((node: HTMLDivElement | null) => {
+    setSetDock(node);
+  }, []);
   const loggingRef = useRef(false);
   /** Completing fills sets from last session, so it takes a second tap. */
   const [finishArmed, setFinishArmed] = useState(false);
@@ -564,13 +571,8 @@ export function Today() {
     activeExercise && activeDraft
       ? exerciseStageTitle(activeExercise, activeDraft)
       : "";
-  const totalDisplay = activeDraft ? stageTotal(activeDraft) : 0;
-  const loggingWarmup = activeDraft?.loggingWarmup ?? false;
-
   const anyLogged = data.logs.length > 0;
-  const showFillLeft = anyLogged && fillPlan.length > 0;
   const showComplete = anyLogged && fillPlan.length === 0;
-  const activeLogged = activeId ? (logsByExercise.get(activeId) ?? []) : [];
   const activeIndex = Math.max(
     0,
     data.exercises.findIndex((e) => e.id === activeId),
@@ -582,28 +584,6 @@ export function Today() {
       if (!current) return prev;
       return { ...prev, [exerciseId]: { ...current, ...partial } };
     });
-  }
-
-  /** Load the overload recommendation onto the stage, in that mode's own terms. */
-  function takeRecommendation(
-    exerciseId: string,
-    weight: number,
-    reps: number,
-  ) {
-    const current = viewDrafts[exerciseId];
-    if (!current) return;
-    if (current.mode === "barbell") {
-      patchDraft(exerciseId, {
-        plates: decomposePlates(weight, current.barWeight, unit),
-        reps,
-      });
-      return;
-    }
-    if (current.mode === "dumbbell") {
-      patchDraft(exerciseId, { dumbbell: nearestDumbbell(weight, unit), reps });
-      return;
-    }
-    patchDraft(exerciseId, { manualWeight: weight, reps });
   }
 
   function setMode(next: InputMethod, exerciseId: string) {
@@ -786,20 +766,6 @@ export function Today() {
     setTimerVisible(true);
   }
 
-  /** Take back the last action on this exercise: a drop, or the set itself. */
-  async function undoLastLog(exerciseId: string) {
-    const logged = logsByExercise.get(exerciseId) ?? [];
-    const last = logged[logged.length - 1];
-    if (!last) return;
-    if (last.drops?.length) {
-      await deleteSetDrop(last.id, last.drops.length - 1);
-    } else {
-      await deleteSetLog(last.id);
-    }
-    setTimerVisible(false);
-    setFinishArmed(false);
-  }
-
   async function toggleExerciseFinished(exerciseId: string, finished: boolean) {
     const sessionId = await ensureSession();
     await setExerciseFinished(sessionId, exerciseId, finished);
@@ -952,11 +918,10 @@ export function Today() {
   const activeStickyNote = activeId ? data.stickyNotes[activeId] : undefined;
   const activeEditing =
     editingNote?.id === activeId ? editingNote.kind : null;
-  const swappingExercise =
-    swappingIndex != null ? data.exercises[swappingIndex] : undefined;
 
   return (
-    <div>
+    <div className="today-phone-frame">
+      <div className="today-phone-scroll">
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="shrink-0 pr-2">
           <DaySwitcher
@@ -972,8 +937,6 @@ export function Today() {
               month: "long",
               day: "numeric",
             })}
-            {anyLogged &&
-              ` · ${data.logs.length} ${data.logs.length === 1 ? "set" : "sets"} logged`}
           </p>
         </div>
         <UnitToggle />
@@ -999,7 +962,6 @@ export function Today() {
           label={activeDisplayName || "Exercises"}
         >
           {data.exercises.map((exercise, index) => {
-            const logged = logsByExercise.get(exercise.id) ?? [];
             const draft = viewDrafts[exercise.id];
             const finished = finishedIds.has(exercise.id);
             const displayName = draft
@@ -1017,11 +979,28 @@ export function Today() {
               <TodayExercisePage
                 key={exercise.id}
                 exercise={exercise}
-                logged={logged}
-                finished={finished}
                 inSuperset={grouped}
                 title={displayName}
-                onRename={(next) => void renameExercise(exercise.id, next)}
+                onReplace={() => {
+                  setFollowDerived(true);
+                  setSelectedId(exercise.id);
+                  setSwappingIndex(index);
+                }}
+                replacing={
+                  swappingIndex === index ? (
+                    <ExerciseCombobox
+                      inline
+                      placeholder={displayName}
+                      excludeIds={data.exerciseIds.filter(
+                        (id) => id !== exercise.id,
+                      )}
+                      onCancel={() => setSwappingIndex(null)}
+                      onPick={(entry) =>
+                        void handleSwapExercise(index, entry)
+                      }
+                    />
+                  ) : undefined
+                }
                 overflow={
                   <ItemOverflow
                     label={`${displayName} options`}
@@ -1067,16 +1046,6 @@ export function Today() {
                             close={close}
                           />
                         ),
-                      },
-                      {
-                        id: "replace",
-                        label: "Replace",
-                        icon: <IconReplace />,
-                        onSelect: () => {
-                          setFollowDerived(true);
-                          setSelectedId(exercise.id);
-                          setSwappingIndex(index);
-                        },
                       },
                       ...(hasFormVideo
                         ? [
@@ -1145,6 +1114,29 @@ export function Today() {
                     onAttachment={(next) => setAttachment(next, exercise.id)}
                     onVariation={(choice) => void applyVariation(exercise.id, choice)}
                     onStation={(id) => void applyStation(exercise.id, id)}
+                    headerCaption={draft.loggingWarmup ? "Warm-up" : undefined}
+                    headerDock={
+                      phone && setDock && exercise.id === activeId
+                        ? setDock
+                        : null
+                    }
+                    suppressHeader={Boolean(
+                      phone && setDock && exercise.id !== activeId,
+                    )}
+                    headerAction={
+                      <LogActionSwipe
+                        key={exercise.id}
+                        canDrop={(logsByExercise.get(exercise.id) ?? []).length > 0}
+                        logLabel={
+                          draft.loggingWarmup
+                            ? `Log warm-up ${formatWeight(stageTotal(draft))}×${draft.reps}`
+                            : `Log ${formatWeight(stageTotal(draft))}×${draft.reps}`
+                        }
+                        dropAria={`Add a drop to set ${(logsByExercise.get(exercise.id) ?? []).length} of ${exercise.name}`}
+                        onLog={() => logCurrent(exercise.id)}
+                        onDrop={() => void logDrop(exercise.id)}
+                      />
+                    }
                   />
                 ) : null}
               </TodayExercisePage>
@@ -1153,53 +1145,8 @@ export function Today() {
         </ExerciseDeck>
       )}
 
-      {swappingExercise && swappingIndex != null && (
-        <div className="mt-4">
-          <ExerciseCombobox
-            label="Replace with…"
-            excludeIds={data.exerciseIds.filter(
-              (id) => id !== swappingExercise.id,
-            )}
-            placeholder="Search exercises"
-            onCancel={() => setSwappingIndex(null)}
-            onPick={(entry) => void handleSwapExercise(swappingIndex, entry)}
-          />
-        </div>
-      )}
-
-      {activeExercise && activeDraft && (
-        <div data-log-bar="" className="mt-3 flex flex-col gap-2">
-          <LoggedSetLedger
-            logs={activeLogged}
-            formatSet={(set) => formatSet(set, (lb) => toDisplay(lb, unit))}
-            undoLastHasDrop={(activeLogged.at(-1)?.drops?.length ?? 0) > 0}
-            onUndoLast={() => void undoLastLog(activeExercise.id)}
-          />
-          <button
-            type="button"
-            onClick={() => logCurrent(activeExercise.id)}
-            className="btn-primary h-12 w-full rounded-pill bg-accent text-[15px] font-semibold text-bg hover:bg-ink"
-          >
-            {loggingWarmup
-              ? `Log warm-up ${formatWeight(totalDisplay)}×${activeDraft.reps}`
-              : `Log ${formatWeight(totalDisplay)}×${activeDraft.reps}`}
-          </button>
-
-          {activeLogged.length > 0 && (
-            <button
-              type="button"
-              onClick={() => void logDrop(activeExercise.id)}
-              aria-label={`Add a drop to set ${activeLogged.length} of ${activeExercise.name}`}
-              className="glass-btn h-12 w-full rounded-pill text-[15px] font-medium text-ink"
-            >
-              Add drop to set {activeLogged.length}
-            </button>
-          )}
-        </div>
-      )}
-
       {!data.isRestDay && (
-        <div className="mt-4">
+        <div className="mt-4 text-center">
           {addingExercise ? (
             <ExerciseCombobox
               excludeIds={data.exerciseIds}
@@ -1261,39 +1208,6 @@ export function Today() {
         <FormVideoPanel exerciseId={activeId} open className="pt-1 pb-1" />
       )}
 
-      {activeExercise && activeDraft && (
-        <div className="mt-6 mb-24 md:mb-0">
-          <OverloadPanel
-            exercise={activeExercise}
-            draft={activeDraft}
-            todayLogs={activeLogged}
-            prior={data.prefills[activeExercise.id] ?? []}
-            unit={unit}
-            dayTemplateId={data.dayTemplateId}
-            onTake={(weight, reps) =>
-              takeRecommendation(activeExercise.id, weight, reps)
-            }
-          />
-        </div>
-      )}
-
-      {showFillLeft && (
-        <div className="mt-6">
-          <button
-            type="button"
-            onClick={() =>
-              finishArmed ? void finishWorkout() : setFinishArmed(true)
-            }
-            className="text-[13px] font-medium text-ink transition-colors duration-150 hover:text-muted"
-          >
-            {finishArmed ? "Confirm" : "Fill what’s left"}
-            <span className="ml-1.5 font-normal text-muted">
-              {fillPlan.length} {fillPlan.length === 1 ? "set" : "sets"}
-            </span>
-          </button>
-        </div>
-      )}
-
       {showComplete && (
         <div className="mt-6">
           <button
@@ -1313,8 +1227,9 @@ export function Today() {
         </div>
       )}
 
-      {/* Keep the floating timer from covering the last controls. */}
-      {timerVisible && <div aria-hidden="true" className="h-24" />}
+      {/* Desktop timer floats, so the last control needs room to scroll clear. */}
+      {timerVisible && <div aria-hidden="true" className="hidden h-24 md:block" />}
+      </div>
 
       {timerVisible && (
         <RestTimer
@@ -1329,6 +1244,8 @@ export function Today() {
           onDismiss={() => setTimerVisible(false)}
         />
       )}
+
+      {phone ? <div ref={assignDock} className="set-dock" /> : null}
     </div>
   );
 }

@@ -18,6 +18,8 @@ interface DumbbellPickerProps {
   value: number;
   laterality: Laterality;
   onChange: (value: number) => void;
+  /** Sideways drift inside the vertical weight drag. True when the step landed. */
+  onRepStep?: (direction: -1 | 1) => boolean;
   /** Pair/single. Used when the stage tap is not opening the variation list. */
   onToggleLaterality?: () => void;
   /** Tap on the bell opens the variation list. */
@@ -46,6 +48,7 @@ function DumbbellIcon({
   pair: boolean;
   live?: boolean;
   onChange: (value: number) => void;
+  onRepStep?: (direction: -1 | 1) => boolean;
   onToggleLaterality?: () => void;
   onEdit?: () => void;
   onSwipe?: (direction: -1 | 1) => void;
@@ -71,6 +74,7 @@ function DumbbellIcon({
           pair={props.pair}
           live={live}
           onChange={props.onChange}
+          onRepStep={props.onRepStep}
           onTap={props.onEdit ?? props.onToggleLaterality}
           onSwipe={props.onSwipe}
         />
@@ -84,6 +88,7 @@ export function DumbbellPicker({
   value,
   laterality,
   onChange,
+  onRepStep,
   onToggleLaterality,
   onEdit,
   live = true,
@@ -130,6 +135,9 @@ export function DumbbellPicker({
           : pair
             ? "Pair. Activate to switch to single."
             : "Single. Activate to switch to pair."}
+        {onRepStep
+          ? " Slide up or down to change weight. Drift sideways while sliding to change reps."
+          : ""}
       </span>
       <DumbbellIcon
         unit={unit}
@@ -137,6 +145,7 @@ export function DumbbellPicker({
         pair={pair}
         live={live}
         onChange={onChange}
+        onRepStep={onRepStep}
         onEdit={onEdit}
         onToggleLaterality={onToggleLaterality}
         onSwipe={onSwipe}

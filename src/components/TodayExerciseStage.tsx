@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Exercise } from "../db/db";
 import type { CableAttachmentId } from "../lib/cableAttachment";
 import {
@@ -37,6 +37,7 @@ import {
 import { DumbbellPicker } from "./weight/DumbbellPicker";
 import { CableAttachmentPicker } from "./weight/CableAttachmentPicker";
 import { GymMachinePicker } from "./weight/GymMachinePicker";
+import { nextReps } from "./weight/three/crossStep";
 import { LoadInstrument } from "./weight/LoadInstrument";
 
 interface TodayExerciseStageProps {
@@ -53,6 +54,38 @@ interface TodayExerciseStageProps {
   onAttachment: (id: CableAttachmentId) => void;
   onVariation: (choice: VariationChoice) => void;
   onStation: (id: string) => void;
+  /** Log control, beside the weight and reps. */
+  headerAction?: ReactNode;
+  headerCaption?: string;
+  /** Phone thumb dock. The live weight line renders here. */
+  headerDock?: HTMLElement | null;
+  /** Neighbor pages on a phone omit their own weight line. */
+  suppressHeader?: boolean;
+}
+
+/** The gloss on the live number, in the same words the stage prints. */
+export function stageLoadQualifier(
+  exercise: Exercise,
+  draft: StageDraft,
+): string | undefined {
+  const choice = variationById(exercise, draft.variationId);
+  const equipment = choice?.equipment ?? equipmentForExercise(exercise);
+  const modes = inputModesForEquipment(equipment);
+  const mode = modes.some((item) => item.id === draft.mode)
+    ? draft.mode
+    : resolveInputMethod(equipment, draft.mode);
+  const label = lateralityCaption(
+    draft.laterality,
+    loadSharing(mode, equipment),
+    lateralityLimbForRegion(regionForExercise(exercise)),
+  );
+  if (mode === "dumbbell") {
+    return draft.laterality === "bilateral"
+      ? lateralityCaption(draft.laterality, "independent")
+      : label;
+  }
+  if (mode === "manual" && supportsLaterality("manual", equipment)) return label;
+  return undefined;
 }
 
 export function exerciseStageTitle(exercise: Exercise, draft: StageDraft) {
@@ -75,9 +108,24 @@ export function TodayExerciseStage({
   onAttachment,
   onVariation,
   onStation,
+  headerAction,
+  headerCaption,
+  headerDock,
+  suppressHeader,
 }: TodayExerciseStageProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const trayRef = useRef<HTMLDivElement>(null);
+  const repsRef = useRef(draft.reps);
+  const onRepsRef = useRef(onReps);
+  repsRef.current = draft.reps;
+  onRepsRef.current = onReps;
+  const stepRepsBy = useCallback((direction: -1 | 1) => {
+    const next = nextReps(repsRef.current, direction);
+    if (next == null) return false;
+    repsRef.current = next;
+    onRepsRef.current(next);
+    return true;
+  }, []);
   const [open, setOpen] = useState(false);
   const choice = variationById(exercise, draft.variationId);
   const equipment = choice?.equipment ?? equipmentForExercise(exercise);
@@ -85,13 +133,6 @@ export function TodayExerciseStage({
   const mode = modes.some((item) => item.id === draft.mode)
     ? draft.mode
     : resolveInputMethod(equipment, draft.mode);
-  const limb = lateralityLimbForRegion(regionForExercise(exercise));
-  const lateralityLabel = lateralityCaption(
-    draft.laterality,
-    loadSharing(mode, equipment),
-    limb,
-  );
-  const manualLaterality = supportsLaterality("manual", equipment);
   const stationChoices = stationsForExercise(exercise);
   const pickedStation =
     draft.station && isGymMachineId(draft.station) ? draft.station : null;
@@ -135,6 +176,10 @@ export function TodayExerciseStage({
         onModeChange={onMode}
         reps={draft.reps}
         onRepsChange={onReps}
+        headerAction={headerAction}
+        headerCaption={headerCaption}
+        headerDock={headerDock}
+        suppressHeader={suppressHeader}
         pages={modes.map((item) => {
           if (item.id === "barbell") {
             return {
@@ -190,10 +235,6 @@ export function TodayExerciseStage({
                   onChange={onDumbbell}
                 />
               ),
-              qualifier:
-                draft.laterality === "bilateral"
-                  ? lateralityCaption(draft.laterality, "independent")
-                  : lateralityLabel,
               stage: (
                 <DumbbellPicker
                   unit={unit}
@@ -201,6 +242,7 @@ export function TodayExerciseStage({
                   laterality={draft.laterality}
                   live={live && mode === "dumbbell"}
                   onChange={onDumbbell}
+                  onRepStep={stepRepsBy}
                   onEdit={openList}
                 />
               ),
@@ -222,7 +264,6 @@ export function TodayExerciseStage({
                 onChange={onManual}
               />
             ),
-            qualifier: manualLaterality ? lateralityLabel : undefined,
             stage: cable ? (
               <CableAttachmentPicker
                 attachment={draft.cableAttachment}
@@ -230,6 +271,7 @@ export function TodayExerciseStage({
                 value={draft.manualWeight}
                 live={live}
                 onChange={onManual}
+                onRepStep={stepRepsBy}
                 onAttachment={onAttachment}
                 onEdit={openList}
               />
@@ -240,6 +282,7 @@ export function TodayExerciseStage({
                 value={draft.manualWeight}
                 live={live}
                 onChange={onManual}
+                onRepStep={stepRepsBy}
                 onEdit={openList}
               />
             ) : (

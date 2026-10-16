@@ -21,6 +21,8 @@ interface Dumbbell3DProps {
   value: number;
   pair?: boolean;
   onChange?: (value: number) => void;
+  /** Sideways drift inside the vertical weight drag. True when the step landed. */
+  onRepStep?: (direction: -1 | 1) => boolean;
   onTap?: () => void;
   onSwipe?: (direction: -1 | 1) => void;
   live?: boolean;
@@ -51,6 +53,7 @@ export function Dumbbell3D({
   value,
   pair = false,
   onChange,
+  onRepStep,
   onTap,
   onSwipe,
   live = true,
@@ -129,6 +132,7 @@ export function Dumbbell3D({
     mode: "fixed",
     pose: DUMBBELL_CAM,
     onStep: onChange ? stepBy : undefined,
+    onCrossStep: onRepStep,
     stepAxis: "y",
     onSwipe,
     live,

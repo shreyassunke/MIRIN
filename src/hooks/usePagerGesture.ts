@@ -63,11 +63,18 @@ function canScrollNestedX(
   return false;
 }
 
-function isExemptTarget(target: EventTarget | null, pageClaim: boolean) {
+function isExemptTarget(
+  target: EventTarget | null,
+  pageClaim: boolean,
+  root: HTMLElement,
+) {
   if (!(target instanceof Element)) return false;
   if (target.closest("input, textarea, select, [contenteditable='true']")) {
     return true;
   }
+  // The log circle has its own sideways swipe. A parent pager leaves it alone.
+  const logBar = target.closest("[data-log-bar]");
+  if (logBar && logBar !== root && root.contains(logBar)) return true;
   if (pageClaim) return false;
   return Boolean(target.closest("[data-no-pager]"));
 }
@@ -324,7 +331,7 @@ export function usePagerGesture({
     const onDown = (event: PointerEvent) => {
       if (!event.isPrimary) return;
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      if (isExemptTarget(event.target, pageClaim())) return;
+      if (isExemptTarget(event.target, pageClaim(), root)) return;
       stopSettle();
       stopPaintRaf();
       const width =

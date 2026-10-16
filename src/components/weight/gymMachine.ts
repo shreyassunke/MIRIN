@@ -1,21 +1,24 @@
 import type { GymMachineId } from "../../lib/library";
 
+/** Same resting height as the bar. The number sits on it; Log sits under it. */
+const STAGE = "mx-auto h-[104px] w-full max-w-xs";
+
 export const GYM_MACHINE_STAGE: Record<GymMachineId, string> = {
-  "lat-pulldown": "mx-auto h-64 w-full max-w-sm",
-  cable: "mx-auto h-44 w-full",
-  "seated-row": "mx-auto h-56 w-full max-w-sm",
-  "leg-curl": "mx-auto h-56 w-full max-w-sm",
-  "pec-deck": "mx-auto h-64 w-full max-w-sm",
-  "leg-press": "mx-auto h-56 w-full max-w-sm",
-  "calf-raise": "mx-auto h-64 w-full max-w-sm",
-  "t-bar-row": "mx-auto h-64 w-full max-w-sm",
-  "leg-extension": "mx-auto h-64 w-full max-w-sm",
-  "inner-thigh": "mx-auto h-64 w-full max-w-sm",
-  "outer-thigh": "mx-auto h-64 w-full max-w-sm",
-  preacher: "mx-auto h-56 w-full max-w-sm",
-  "seated-dip": "mx-auto h-64 w-full max-w-sm",
-  "lateral-raise": "mx-auto h-64 w-full max-w-sm",
-  "chest-press": "mx-auto h-64 w-full max-w-sm",
+  "lat-pulldown": STAGE,
+  cable: STAGE,
+  "seated-row": STAGE,
+  "leg-curl": STAGE,
+  "pec-deck": STAGE,
+  "leg-press": STAGE,
+  "calf-raise": STAGE,
+  "t-bar-row": STAGE,
+  "leg-extension": STAGE,
+  "inner-thigh": STAGE,
+  "outer-thigh": STAGE,
+  preacher: STAGE,
+  "seated-dip": STAGE,
+  "lateral-raise": STAGE,
+  "chest-press": STAGE,
 };
 
 export const GYM_MACHINE_URL: Record<GymMachineId, string> = {

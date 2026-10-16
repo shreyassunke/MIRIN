@@ -3,6 +3,7 @@ import { workingSets } from "./exerciseMeta";
 import {
   DUMBBELL_SIZES,
   MANUAL_STEP,
+  nearestDumbbell,
   PLATE_SIZES,
   round2,
   toDisplay,
@@ -79,6 +80,67 @@ export interface Recommendation {
 
 const list = (reps: number[]) => reps.join(", ");
 
+/** The set as it is logged: `135 lb × 9`, with the stage's own gloss when it has one. */
+export function formatLoggingSet(
+  weight: number,
+  reps: number,
+  unit: Unit,
+  qualifier?: string,
+): string {
+  const gloss = qualifier ? ` ${qualifier}` : "";
+  return `${formatWeight(weight)} ${unit}${gloss} × ${reps}`;
+}
+
+const bareSet = (weight: number, reps: number) => `${formatWeight(weight)}×${reps}`;
+
+/**
+ * One sentence under Log. On the prescription it names that set; once the
+ * stage moves, it names both numbers and stops explaining the old one.
+ */
+export function loggingLine(args: {
+  recommendation: Recommendation | null;
+  weight: number;
+  reps: number;
+  unit: Unit;
+  qualifier?: string;
+  onStage: boolean;
+  range: RepRange;
+}): string {
+  if (!args.recommendation) {
+    return `The next target stays inside ${args.range.min}–${args.range.max}.`;
+  }
+  const stage = formatLoggingSet(args.weight, args.reps, args.unit, args.qualifier);
+  if (!args.onStage) {
+    const suggested = formatLoggingSet(
+      args.recommendation.weight,
+      args.recommendation.reps,
+      args.unit,
+      args.qualifier,
+    );
+    return `Suggested ${suggested}. Logging ${stage}.`;
+  }
+  const token = bareSet(args.recommendation.weight, args.recommendation.reps);
+  const at = args.recommendation.reason.lastIndexOf(token);
+  if (at < 0) return args.recommendation.reason;
+  return (
+    args.recommendation.reason.slice(0, at) +
+    stage +
+    args.recommendation.reason.slice(at + token.length)
+  );
+}
+
+/** True when the stage is still the prescription, plate rounding included. */
+export function stageMatchesRecommendation(
+  stageWeight: number,
+  stageReps: number,
+  recommendation: Recommendation,
+  mode: InputMethod,
+): boolean {
+  if (stageReps !== recommendation.reps) return false;
+  const slack = mode === "barbell" ? 4.9 : 0.05;
+  return Math.abs(stageWeight - recommendation.weight) < slack;
+}
+
 /**
  * Double progression. Fill the rep range at a load, then take one equipment
  * step and start the range again. Mid-session the load holds and the target
@@ -94,6 +156,8 @@ export function recommendNextSet(args: {
   fallbackReps: number;
 }): Recommendation | null {
   const { mode, unit } = args;
+  const loadable = (value: number) =>
+    mode === "dumbbell" ? nearestDumbbell(value, unit) : round2(value);
   const logged = workingSets(args.today);
   const prior = workingSets(args.prior);
   if (logged.length === 0 && prior.length === 0) return null;
@@ -106,32 +170,35 @@ export function recommendNextSet(args: {
     const weight = toDisplay(reference.weight, unit);
     const reps = logged.map((set) => set.reps);
     if (reference.reps > range.max) {
+      const next = loadable(nextLoad(weight, 1, mode, unit));
       return {
         verdict: "progress",
-        weight: nextLoad(weight, 1, mode, unit),
+        weight: next,
         reps: range.min,
         range,
         e1rm,
-        reason: `Today ${list(reps)}. Past ${range.max} at ${formatWeight(weight)}, so the load steps up.`,
+        reason: `Today ${list(reps)}. Past ${range.max} at ${formatWeight(weight)}, so this is ${bareSet(next, range.min)}.`,
       };
     }
     if (reference.reps < range.min) {
+      const next = loadable(nextLoad(weight, -1, mode, unit));
       return {
         verdict: "backoff",
-        weight: nextLoad(weight, -1, mode, unit),
+        weight: next,
         reps: range.min,
         range,
         e1rm,
-        reason: `Today ${list(reps)}. Under ${range.min}, so the load steps down.`,
+        reason: `Today ${list(reps)}. Under ${range.min}, so this is ${bareSet(next, range.min)}.`,
       };
     }
+    const held = loadable(weight);
     return {
       verdict: "match",
-      weight,
+      weight: held,
       reps: reference.reps,
       range,
       e1rm,
-      reason: `Today ${list(reps)}. Hold this load.`,
+      reason: `Today ${list(reps)}. This is ${bareSet(held, reference.reps)}.`,
     };
   }
 
@@ -141,37 +208,40 @@ export function recommendNextSet(args: {
   const high = Math.max(...reps);
 
   if (low >= range.max) {
+    const next = loadable(nextLoad(weight, 1, mode, unit));
     return {
       verdict: "progress",
-      weight: nextLoad(weight, 1, mode, unit),
+      weight: next,
       reps: range.min,
       range,
       e1rm,
       reason: `Last time ${list(reps)}. ${
         reps.length > 1 ? "Every set reached" : "That reached"
-      } ${range.max}, so the load steps up.`,
+      } ${range.max}, so this is ${bareSet(next, range.min)}.`,
     };
   }
   if (low < range.min) {
+    const next = loadable(nextLoad(weight, -1, mode, unit));
     return {
       verdict: "backoff",
-      weight: nextLoad(weight, -1, mode, unit),
+      weight: next,
       reps: range.min,
       range,
       e1rm,
-      reason: `Last time ${list(reps)}. Short of ${range.min}, so the load steps down.`,
+      reason: `Last time ${list(reps)}. Short of ${range.min}, so this is ${bareSet(next, range.min)}.`,
     };
   }
+  const held = loadable(weight);
   const target = Math.min(high + 1, range.max);
   return {
     verdict: "hold",
-    weight,
+    weight: held,
     reps: target,
     range,
     e1rm,
     reason:
       target > high
-        ? `Last time ${list(reps)}. One more than ${high}.`
-        : `Last time ${list(reps)}. Bring every set to ${range.max}.`,
+        ? `Last time ${list(reps)}. One more than ${high}, so this is ${bareSet(held, target)}.`
+        : `Last time ${list(reps)}. Bring every set to ${range.max} at ${bareSet(held, target)}.`,
   };
 }

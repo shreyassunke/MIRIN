@@ -28,8 +28,8 @@ function prefersReducedMotion() {
 }
 
 /**
- * One fixed frame. Pages translate inside it; the frame keeps the tallest
- * page's height so a swipe never changes the box.
+ * One frame. Settled, it is the active page, so Log sits on that
+ * weight line. Mid-swipe it is the taller of the two pages, so neither clips.
  */
 export function ExerciseDeck({
   index,
@@ -49,7 +49,6 @@ export function ExerciseDeck({
   const heights = useRef<number[]>([]);
   const progressRef = useRef(index);
   const draggingRef = useRef(false);
-  const frameLock = useRef({ key: "", height: 0 });
 
   const paint = useCallback((progress: number, dragging: boolean) => {
     progressRef.current = progress;
@@ -67,17 +66,20 @@ export function ExerciseDeck({
     const inMotion =
       dragging || Math.abs(progress - Math.round(progress)) > 0.001;
     rootRef.current?.classList.toggle("is-paging", inMotion);
-    if (inMotion || !viewport) return;
-    if (frameLock.current.key !== frameKey) {
-      frameLock.current = { key: frameKey, height: 0 };
+    if (!viewport) return;
+    const pages = heights.current;
+    const n = pages.length;
+    if (n === 0) return;
+    const clamped = Math.max(0, Math.min(n - 1, progress));
+    let next = 0;
+    if (!inMotion) {
+      next = pages[Math.round(clamped)] || 0;
+    } else {
+      const i = Math.floor(clamped);
+      next = Math.max(pages[i] || 0, pages[Math.min(n - 1, i + 1)] || 0);
     }
-    const max = heights.current.reduce((tallest, height) => {
-      return Math.max(tallest, height || 0);
-    }, 0);
-    const next = Math.max(frameLock.current.height, max);
-    frameLock.current.height = next;
     if (next > 0) viewport.style.height = `${Math.round(next)}px`;
-  }, [frameKey]);
+  }, []);
 
   const { goTo } = usePagerGesture({
     count,
@@ -101,7 +103,6 @@ export function ExerciseDeck({
   }, [paint]);
 
   useLayoutEffect(() => {
-    frameLock.current = { key: frameKey, height: 0 };
     measure();
   }, [frameKey, measure]);
 
