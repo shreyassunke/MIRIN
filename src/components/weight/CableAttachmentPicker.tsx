@@ -29,36 +29,16 @@ interface CableAttachmentPickerProps {
 
 export function CableAttachmentPicker({
   attachment,
-  unit,
-  value,
-  onChange,
-  onRepStep,
   onAttachment,
   live = true,
-  onEdit,
 }: CableAttachmentPickerProps) {
-  const fallback = onEdit ? (
-    <button
-      type="button"
-      className={STAGE}
-      onClick={onEdit}
-      aria-label="Change variation"
-    />
-  ) : (
-    <div className={STAGE} data-cable-attachment={attachment} aria-hidden="true" />
+  const fallback = (
+    <div className={STAGE} data-cable-attachment={attachment} aria-hidden="true" style={{ pointerEvents: "none" }} />
   );
   const stage = hasWebGL() ? (
     <ChunkErrorBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
-        <CableAttachment3D
-          attachment={attachment}
-          unit={unit}
-          value={value}
-          onChange={onChange}
-          onRepStep={onRepStep}
-          live={live}
-          onEdit={onEdit}
-        />
+        <CableAttachment3D attachment={attachment} live={live} />
       </Suspense>
     </ChunkErrorBoundary>
   ) : (

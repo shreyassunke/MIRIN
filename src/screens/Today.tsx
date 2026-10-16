@@ -80,6 +80,7 @@ import {
   IconRest,
   IconSticky,
   IconSuperset,
+  IconSwap,
   IconVideo,
   IconWarmup,
   ItemOverflow,
@@ -349,6 +350,7 @@ export function Today() {
   const [timerVisible, setTimerVisible] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
+  const [variationTick, setVariationTick] = useState<Record<string, number>>({});
   const [timerExerciseId, setTimerExerciseId] = useState<string | null>(null);
   const [editingNote, setEditingNote] = useState<{
     id: string;
@@ -1011,6 +1013,16 @@ export function Today() {
                     label={`${displayName} options`}
                     items={[
                       {
+                        id: "variation",
+                        label: "Change exercise",
+                        icon: <IconSwap />,
+                        onSelect: () =>
+                          setVariationTick((prev) => ({
+                            ...prev,
+                            [exercise.id]: (prev[exercise.id] ?? 0) + 1,
+                          })),
+                      },
+                      {
                         id: "note",
                         label: sessionNote ? "Edit note" : "Add note",
                         icon: <IconNote />,
@@ -1128,6 +1140,7 @@ export function Today() {
                     suppressHeader={Boolean(
                       phone && setDock && exercise.id !== activeId,
                     )}
+                    variationRequest={variationTick[exercise.id] ?? 0}
                     headerAction={
                       <LogActionSwipe
                         key={exercise.id}

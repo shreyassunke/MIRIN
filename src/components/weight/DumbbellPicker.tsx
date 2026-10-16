@@ -1,11 +1,6 @@
-import {
-  lazy,
-  Suspense,
-  type KeyboardEvent,
-} from "react";
-import { DUMBBELL_SIZES, stepDumbbell, type Unit } from "../../lib/units";
-import { lateralityCaption, type Laterality } from "../../lib/laterality";
-import { formatWeight } from "../../lib/workout";
+import { lazy, Suspense } from "react";
+import type { Unit } from "../../lib/units";
+import type { Laterality } from "../../lib/laterality";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
 
 const loadDumbbell3D = () =>
@@ -17,124 +12,27 @@ interface DumbbellPickerProps {
   unit: Unit;
   value: number;
   laterality: Laterality;
-  onChange: (value: number) => void;
-  /** Pair/single. Used when the stage tap is not opening the variation list. */
-  onToggleLaterality?: () => void;
-  /** Tap on the bell opens the variation list. */
-  onEdit?: () => void;
   live?: boolean;
-  onSwipe?: (direction: -1 | 1) => void;
-}
-
-function stepValue(unit: Unit, value: number, delta: -1 | 1): number {
-  return stepDumbbell(value, unit, delta);
 }
 
 function BellStageFallback() {
-  return <div className="mx-auto h-36 w-full max-w-xs" />;
-}
-
-function DumbbellIcon({
-  live = true,
-  ...props
-}: {
-  unit: Unit;
-  value: number;
-  pair: boolean;
-  live?: boolean;
-  onToggleLaterality?: () => void;
-  onEdit?: () => void;
-  onSwipe?: (direction: -1 | 1) => void;
-}) {
-  const onActivate = props.onEdit ?? props.onToggleLaterality;
-  const fallback = onActivate ? (
-    <button
-      type="button"
-      className="mx-auto h-36 w-full max-w-xs"
-      onClick={onActivate}
-      aria-label="Change variation"
-    />
-  ) : (
-    <BellStageFallback />
-  );
-  if (!hasWebGL()) return fallback;
-  return (
-    <ChunkErrorBoundary fallback={fallback}>
-      <Suspense fallback={fallback}>
-        <Dumbbell3D
-          unit={props.unit}
-          value={props.value}
-          pair={props.pair}
-          live={live}
-          onTap={props.onEdit ?? props.onToggleLaterality}
-          onSwipe={props.onSwipe}
-        />
-      </Suspense>
-    </ChunkErrorBoundary>
-  );
+  return <div className="mx-auto h-36 w-full max-w-xs" style={{ pointerEvents: "none" }} aria-hidden="true" />;
 }
 
 export function DumbbellPicker({
   unit,
   value,
   laterality,
-  onChange,
-  onToggleLaterality,
-  onEdit,
   live = true,
-  onSwipe,
 }: DumbbellPickerProps) {
-  const sizes = DUMBBELL_SIZES[unit];
   const pair = laterality === "bilateral";
-  const loadCaption = pair
-    ? lateralityCaption("bilateral", "independent")
-    : null;
-
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "ArrowUp" || event.key === "ArrowRight") {
-      event.preventDefault();
-      const next = stepValue(unit, value, 1);
-      if (next !== value) onChange(next);
-    } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
-      event.preventDefault();
-      const next = stepValue(unit, value, -1);
-      if (next !== value) onChange(next);
-    } else if (event.key === " " || event.key === "Enter") {
-      event.preventDefault();
-      if (onEdit) onEdit();
-      else onToggleLaterality?.();
-    }
-  };
-
+  const fallback = <BellStageFallback />;
+  if (!hasWebGL()) return fallback;
   return (
-    <div
-      role="slider"
-      tabIndex={0}
-      aria-label={`Dumbbell weight (${unit})`}
-      aria-orientation="vertical"
-      aria-valuemin={sizes[0]}
-      aria-valuemax={sizes[sizes.length - 1]}
-      aria-valuenow={value}
-      aria-valuetext={`${formatWeight(value)} ${unit}${loadCaption ? ` ${loadCaption}` : ""}, ${pair ? "pair" : "single"}. Activate to change variation`}
-      onKeyDown={onKeyDown}
-      className="outline-none"
-    >
-      <span className="sr-only">
-        {onEdit
-          ? "Activate to change variation. Arrow keys change the weight."
-          : pair
-            ? "Pair. Activate to switch to single. Arrow keys change the weight."
-            : "Single. Activate to switch to pair. Arrow keys change the weight."}
-      </span>
-      <DumbbellIcon
-        unit={unit}
-        value={value}
-        pair={pair}
-        live={live}
-        onEdit={onEdit}
-        onToggleLaterality={onToggleLaterality}
-        onSwipe={onSwipe}
-      />
-    </div>
+    <ChunkErrorBoundary fallback={fallback}>
+      <Suspense fallback={fallback}>
+        <Dumbbell3D unit={unit} value={value} pair={pair} live={live} />
+      </Suspense>
+    </ChunkErrorBoundary>
   );
 }

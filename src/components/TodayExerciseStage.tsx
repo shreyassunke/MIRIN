@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Exercise } from "../db/db";
 import type { CableAttachmentId } from "../lib/cableAttachment";
 import {
@@ -43,7 +43,6 @@ import {
 import { DumbbellPicker } from "./weight/DumbbellPicker";
 import { CableAttachmentPicker } from "./weight/CableAttachmentPicker";
 import { GymMachinePicker } from "./weight/GymMachinePicker";
-import { nextReps } from "./weight/three/crossStep";
 import { LoadInstrument } from "./weight/LoadInstrument";
 
 interface TodayExerciseStageProps {
@@ -67,6 +66,8 @@ interface TodayExerciseStageProps {
   headerDock?: HTMLElement | null;
   /** Neighbor pages on a phone omit their own weight line. */
   suppressHeader?: boolean;
+  /** Bumps when the overflow menu asks to change this exercise. */
+  variationRequest?: number;
 }
 
 /** The gloss on the live number, in the same words the stage prints. */
@@ -118,20 +119,11 @@ export function TodayExerciseStage({
   headerCaption,
   headerDock,
   suppressHeader,
+  variationRequest = 0,
 }: TodayExerciseStageProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const trayRef = useRef<HTMLDivElement>(null);
-  const repsRef = useRef(draft.reps);
-  const onRepsRef = useRef(onReps);
-  repsRef.current = draft.reps;
-  onRepsRef.current = onReps;
-  const stepRepsBy = useCallback((direction: -1 | 1) => {
-    const next = nextReps(repsRef.current, direction);
-    if (next == null) return false;
-    repsRef.current = next;
-    onRepsRef.current(next);
-    return true;
-  }, []);
+  const seenVariation = useRef(0);
   const [open, setOpen] = useState(false);
   const choice = variationById(exercise, draft.variationId);
   const equipment = choice?.equipment ?? equipmentForExercise(exercise);
@@ -162,6 +154,12 @@ export function TodayExerciseStage({
   useEffect(() => {
     if (!live) setOpen(false);
   }, [live]);
+
+  useEffect(() => {
+    if (variationRequest === seenVariation.current) return;
+    seenVariation.current = variationRequest;
+    if (variationRequest > 0) setOpen(true);
+  }, [variationRequest]);
 
   useEffect(() => {
     if (!open || equipment !== "machine") return;
@@ -211,7 +209,6 @@ export function TodayExerciseStage({
                   plates={draft.plates}
                   live={live && mode === "barbell"}
                   onChange={onBar}
-                  onEdit={openList}
                 />
               ),
               extras: (
@@ -251,8 +248,6 @@ export function TodayExerciseStage({
                   value={draft.dumbbell}
                   laterality={draft.laterality}
                   live={live && mode === "dumbbell"}
-                  onChange={onDumbbell}
-                  onEdit={openList}
                 />
               ),
             };
@@ -270,6 +265,7 @@ export function TodayExerciseStage({
                 layout="readout"
                 inlineSuffix={unit}
                 size="lead"
+                drag
                 onChange={onManual}
               />
             ),
@@ -280,9 +276,7 @@ export function TodayExerciseStage({
                 value={draft.manualWeight}
                 live={live}
                 onChange={onManual}
-                onRepStep={stepRepsBy}
                 onAttachment={onAttachment}
-                onEdit={openList}
               />
             ) : machine ? (
               <GymMachinePicker
@@ -291,8 +285,6 @@ export function TodayExerciseStage({
                 value={draft.manualWeight}
                 live={live}
                 onChange={onManual}
-                onRepStep={stepRepsBy}
-                onEdit={openList}
               />
             ) : (
               <VariationWell label={wellLabel} onEdit={openList} />

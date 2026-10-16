@@ -22,37 +22,21 @@ interface GymMachinePickerProps {
 
 export function GymMachinePicker({
   machine,
-  unit,
-  value,
-  onChange,
-  onRepStep,
   live = true,
-  onEdit,
 }: GymMachinePickerProps) {
-  const fallback = onEdit ? (
-    <button
-      type="button"
+  const fallback = (
+    <div
       className={GYM_MACHINE_STAGE[machine]}
       data-gym-machine={machine}
-      onClick={onEdit}
-      aria-label="Change variation"
+      aria-hidden="true"
+      style={{ pointerEvents: "none" }}
     />
-  ) : (
-    <div className={GYM_MACHINE_STAGE[machine]} data-gym-machine={machine} aria-hidden="true" />
   );
   if (!hasWebGL()) return fallback;
   return (
     <ChunkErrorBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
-        <GymMachine3D
-          machine={machine}
-          unit={unit}
-          value={value}
-          live={live}
-          onChange={onChange}
-          onRepStep={onRepStep}
-          onEdit={onEdit}
-        />
+        <GymMachine3D machine={machine} live={live} />
       </Suspense>
     </ChunkErrorBoundary>
   );

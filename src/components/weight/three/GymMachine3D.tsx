@@ -1,12 +1,7 @@
 import { useCallback, useRef } from "react";
 import * as THREE from "three";
 import type { GymMachineId } from "../../../lib/library";
-import { MANUAL_STEP, round2, type Unit } from "../../../lib/units";
-import {
-  GYM_MACHINE_LABEL,
-  GYM_MACHINE_STAGE,
-  GYM_MACHINE_URL,
-} from "../gymMachine";
+import { GYM_MACHINE_STAGE, GYM_MACHINE_URL } from "../gymMachine";
 import { createChestPressModel } from "./createChestPressModel";
 import { loadGymMachine } from "./loadGymMachine";
 import { frameMaterial } from "./materials";
@@ -15,38 +10,14 @@ import { useWeightStage } from "./useWeightStage";
 
 interface GymMachine3DProps {
   machine: GymMachineId;
-  unit: Unit;
-  value: number;
-  onChange?: (value: number) => void;
-  /** Sideways drift inside the vertical weight drag. True when the step landed. */
-  onRepStep?: (direction: -1 | 1) => boolean;
   live?: boolean;
-  /** A tap on the station, short of a drag, opens the variation list. */
-  onEdit?: () => void;
 }
 
 export function GymMachine3D({
   machine,
-  unit,
-  value,
-  onChange,
-  onRepStep,
   live = true,
-  onEdit,
 }: GymMachine3DProps) {
-  const valueRef = useRef(value);
-  const unitRef = useRef(unit);
-  const onChangeRef = useRef(onChange);
   const fitRef = useRef<() => void>(() => {});
-  valueRef.current = value;
-  unitRef.current = unit;
-  onChangeRef.current = onChange;
-
-  const stepBy = useCallback((delta: number) => {
-    const step = MANUAL_STEP[unitRef.current];
-    const next = round2(Math.max(0, valueRef.current + delta * step));
-    if (next !== valueRef.current) onChangeRef.current?.(next);
-  }, []);
 
   const attach = useCallback((pivot: THREE.Group) => {
     let cancelled = false;
@@ -96,43 +67,21 @@ export function GymMachine3D({
     };
   }, [machine]);
 
-  const { hostRef, fit, pointer } = useWeightStage({
+  const { hostRef, fit } = useWeightStage({
     attach,
     mode: "fixed",
     pose: LAT_PULLDOWN_CAM,
-    onStep: onChange ? stepBy : undefined,
-    onCrossStep: onRepStep,
-    stepAxis: "y",
-    onTap: onEdit ? () => onEdit() : undefined,
     live,
   });
   fitRef.current = fit;
-  const stage = `${GYM_MACHINE_STAGE[machine]}${onChange ? " cursor-ns-resize" : ""}`;
 
   return (
     <div
       ref={hostRef}
-      className={stage}
-      style={{ touchAction: onChange ? "none" : "pan-y" }}
-      role={onEdit ? "button" : "img"}
-      tabIndex={onEdit ? 0 : undefined}
-      onKeyDown={
-        onEdit
-          ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onEdit();
-              }
-            }
-          : undefined
-      }
-      aria-label={
-        onEdit
-          ? `${GYM_MACHINE_LABEL[machine]}.${onRepStep ? " Slide up or down for weight. Drift sideways while sliding for reps." : ""} Activate to change variation`
-          : GYM_MACHINE_LABEL[machine]
-      }
+      className={`${GYM_MACHINE_STAGE[machine]} pointer-events-none`}
+      style={{ pointerEvents: "none" }}
       data-gym-machine={machine}
-      {...pointer}
+      aria-hidden="true"
     />
   );
 }

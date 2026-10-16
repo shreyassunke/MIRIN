@@ -20,8 +20,6 @@ interface Dumbbell3DProps {
   unit: Unit;
   value: number;
   pair?: boolean;
-  onTap?: () => void;
-  onSwipe?: (direction: -1 | 1) => void;
   live?: boolean;
 }
 
@@ -49,19 +47,15 @@ export function Dumbbell3D({
   unit,
   value,
   pair = false,
-  onTap,
-  onSwipe,
   live = true,
 }: Dumbbell3DProps) {
   const runtimeRef = useRef<PairRuntime | null>(null);
   const valueRef = useRef(value);
   const unitRef = useRef(unit);
   const pairRef = useRef(pair);
-  const onTapRef = useRef(onTap);
   valueRef.current = value;
   unitRef.current = unit;
   pairRef.current = pair;
-  onTapRef.current = onTap;
 
   const attach = useCallback((pivot: Group) => {
     const set = new THREE.Group();
@@ -112,17 +106,11 @@ export function Dumbbell3D({
     };
   }, []);
 
-  const { hostRef, requestRender, fit, pointer } = useWeightStage({
+  const { hostRef, requestRender, fit } = useWeightStage({
     attach,
     mode: "fixed",
     pose: DUMBBELL_CAM,
-    onSwipe,
     live,
-    onTap: onTap
-      ? () => {
-          onTapRef.current?.();
-        }
-      : undefined,
   });
 
   useEffect(() => {
@@ -135,15 +123,12 @@ export function Dumbbell3D({
     requestRender();
   }, [value, unit, pair, fit, requestRender]);
 
-  const interactive = Boolean(onTap || onSwipe);
-
   return (
     <div
       ref={hostRef}
-      className="mx-auto h-36 w-full max-w-xs"
-      style={{ touchAction: "pan-y", cursor: interactive ? "pointer" : undefined }}
+      className="pointer-events-none mx-auto h-36 w-full max-w-xs"
+      style={{ pointerEvents: "none" }}
       aria-hidden="true"
-      {...pointer}
     />
   );
 }

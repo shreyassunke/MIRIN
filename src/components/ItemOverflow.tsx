@@ -264,6 +264,15 @@ const stroke = {
   strokeLinejoin: "round" as const,
 };
 
+export function IconSwap(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
+      <path d="M7 7h11M15 4.5 18 7.5 15 10.5" {...stroke} />
+      <path d="M17 17H6M9 13.5 6 16.5 9 19.5" {...stroke} />
+    </svg>
+  );
+}
+
 export function IconNote(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>

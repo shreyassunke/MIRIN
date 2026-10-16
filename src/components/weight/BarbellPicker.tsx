@@ -12,6 +12,8 @@ import {
 import { createPortal } from "react-dom";
 import {
   BAR_OPTIONS,
+  MANUAL_STEP,
+  decomposePlates,
   round2,
   type Unit,
 } from "../../lib/units";
@@ -36,36 +38,25 @@ interface BarbellPickerProps {
 
 const BAR_STAGE_H = 104;
 
-function BarStageFallback({ onEdit }: { onEdit?: () => void }) {
-  if (!onEdit) return <div className="w-full" style={{ height: BAR_STAGE_H }} />;
-  return (
-    <button
-      type="button"
-      className="w-full"
-      style={{ height: BAR_STAGE_H }}
-      onClick={onEdit}
-      aria-label="Change variation"
-    />
-  );
+function BarStageFallback() {
+  return <div className="w-full" style={{ height: BAR_STAGE_H, pointerEvents: "none" }} aria-hidden="true" />;
 }
 
 function LoadedBar({
   live = true,
-  ...props
+  unit,
+  plates,
 }: {
   unit: Unit;
   plates: number[];
-  onRemove: (index: number) => void;
   live?: boolean;
-  onSwipe?: (direction: -1 | 1) => void;
-  onEdit?: () => void;
 }) {
-  const fallback = <BarStageFallback onEdit={props.onEdit} />;
+  const fallback = <BarStageFallback />;
   if (!hasWebGL()) return fallback;
   return (
     <ChunkErrorBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
-        <LoadedBar3D {...props} live={live} />
+        <LoadedBar3D unit={unit} plates={plates} live={live} />
       </Suspense>
     </ChunkErrorBoundary>
   );
@@ -256,23 +247,34 @@ export function BarWeightControl({
 
   return (
     <div className="flex flex-col items-center">
-      <button
-        ref={triggerRef}
-        type="button"
-        id={triggerId}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-controls={open ? listId : undefined}
-        aria-label={`Total ${formatWeight(total)} ${unit}. Bar ${formatWeight(barWeight)} ${unit}. Change bar.`}
-        onClick={() => setOpen((value) => !value)}
-        className="inline-flex min-h-11 items-center"
-      >
-        <span className="tnum text-3xl font-semibold tracking-tight">
-          {formatWeight(total)}
-        </span>
-        <span className="ml-1.5 text-sm text-muted">{unit}</span>
-        <Chevron open={open} />
-      </button>
+      <div className="inline-flex min-h-11 items-center">
+        <Stepper
+          label={`Weight (${unit})`}
+          value={total}
+          step={MANUAL_STEP[unit]}
+          min={barWeight}
+          layout="readout"
+          inlineSuffix={unit}
+          size="lead"
+          drag
+          onChange={(next) =>
+            onChange(barWeight, decomposePlates(next, barWeight, unit))
+          }
+        />
+        <button
+          ref={triggerRef}
+          type="button"
+          id={triggerId}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          aria-controls={open ? listId : undefined}
+          aria-label={`Bar ${formatWeight(barWeight)} ${unit}. Change bar.`}
+          onClick={() => setOpen((value) => !value)}
+          className="inline-flex min-h-11 items-center"
+        >
+          <Chevron open={open} />
+        </button>
+      </div>
       {open &&
         createPortal(
           <div
@@ -347,14 +349,9 @@ export function BarbellRack({
 
   return (
     <div>
-      <p className="mb-1 text-center text-[13px] text-muted">
-        {plates.length
-          ? "Tap a plate to remove it"
-          : "Empty bar — add plates below"}
-      </p>
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="text-[13px] font-medium text-muted">
-          Plates per side
+          {plates.length ? "Plates per side" : "Empty bar — add plates below"}
         </span>
         {plates.length > 0 && (
           <button
@@ -379,32 +376,14 @@ export function BarbellRack({
 
 export function BarbellPicker({
   unit,
-  barWeight,
   plates,
-  onChange,
   live = true,
-  onSwipe,
-  onEdit,
 }: BarbellPickerProps & {
   live?: boolean;
-  onSwipe?: (direction: -1 | 1) => void;
 }) {
-  const removePlate = (index: number) =>
-    onChange(
-      barWeight,
-      plates.filter((_, i) => i !== index),
-    );
-
   return (
     <div className="flex justify-center">
-      <LoadedBar
-        unit={unit}
-        plates={plates}
-        onRemove={removePlate}
-        live={live}
-        onSwipe={onSwipe}
-        onEdit={onEdit}
-      />
+      <LoadedBar unit={unit} plates={plates} live={live} />
     </div>
   );
 }
