@@ -43,14 +43,22 @@ function LogFace({
           : "log-face btn-primary h-11 w-11"
       }
     >
-      {drop ? "Drop" : <span className="log-logo" aria-hidden="true" />}
+      {drop ? (
+        "Drop"
+      ) : (
+        <span className="log-emblem">
+          <span className="log-logo" aria-hidden="true" />
+        </span>
+      )}
     </button>
   );
 }
 
 /**
- * Log is a chalk circle with the MIRIN figure. A sideways swipe, either
- * way, slides into the same drop action. The finger owns the track.
+ * Log is a machined coin with the MIRIN figure struck into the face.
+ * A sideways swipe, either way, slides into the same drop action.
+ * The finger owns the track. The coin's press lives on the face, so a
+ * swipe does not scale the track.
  */
 export function LogActionSwipe({
   canDrop,

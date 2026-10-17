@@ -32,8 +32,6 @@ interface BarbellPickerProps {
   barWeight: number; // display unit
   plates: number[]; // per side, display unit, sorted descending
   onChange: (barWeight: number, plates: number[]) => void;
-  /** A tap on the bar, missing the plates, opens the variation list. */
-  onEdit?: () => void;
 }
 
 const BAR_STAGE_H = 104;
@@ -46,17 +44,24 @@ function LoadedBar({
   live = true,
   unit,
   plates,
+  onRemove,
 }: {
   unit: Unit;
   plates: number[];
   live?: boolean;
+  onRemove?: (index: number) => void;
 }) {
   const fallback = <BarStageFallback />;
   if (!hasWebGL()) return fallback;
   return (
     <ChunkErrorBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
-        <LoadedBar3D unit={unit} plates={plates} live={live} />
+        <LoadedBar3D
+          unit={unit}
+          plates={plates}
+          live={live}
+          onRemove={onRemove}
+        />
       </Suspense>
     </ChunkErrorBoundary>
   );
@@ -376,14 +381,26 @@ export function BarbellRack({
 
 export function BarbellPicker({
   unit,
+  barWeight,
   plates,
+  onChange,
   live = true,
 }: BarbellPickerProps & {
   live?: boolean;
 }) {
   return (
     <div className="flex justify-center">
-      <LoadedBar unit={unit} plates={plates} live={live} />
+      <LoadedBar
+        unit={unit}
+        plates={plates}
+        live={live}
+        onRemove={(index) =>
+          onChange(
+            barWeight,
+            plates.filter((_, i) => i !== index),
+          )
+        }
+      />
     </div>
   );
 }

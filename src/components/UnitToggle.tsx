@@ -1,29 +1,28 @@
 import { useLengthUnit, useUnit } from "../lib/settings";
-import type { LengthUnit, Unit } from "../lib/units";
+import type { LengthUnit } from "../lib/units";
 import { chipClass, chipTrackClass } from "./chip";
 
-const UNITS: Unit[] = ["lb", "kg"];
 const LENGTH_UNITS: LengthUnit[] = ["in", "cm"];
 
 const sizeClass = "h-9 min-w-10 px-3 text-[13px]";
 
-/** The persistent global lb/kg switch. */
+/** One unit at a time. A tap swaps pounds and kilograms. */
 export function UnitToggle() {
   const [unit, setUnit] = useUnit();
+  const next = unit === "lb" ? "kg" : "lb";
   return (
-    <div role="group" aria-label="Weight unit" className={chipTrackClass}>
-      {UNITS.map((u) => (
-        <button
-          key={u}
-          type="button"
-          aria-pressed={unit === u}
-          onClick={() => setUnit(u)}
-          className={`${chipClass(unit === u)} ${sizeClass}`}
-        >
-          {u}
-        </button>
-      ))}
-    </div>
+    <button
+      type="button"
+      aria-label={
+        unit === "lb"
+          ? "Pounds. Switch to kilograms."
+          : "Kilograms. Switch to pounds."
+      }
+      onClick={() => setUnit(next)}
+      className="unit-switch inline-flex h-11 min-w-11 items-center justify-center px-1 text-[15px] font-medium text-ink"
+    >
+      {unit}
+    </button>
   );
 }
 

@@ -514,6 +514,23 @@ textarea {
   filter: none;
 }
 
+/* One weight unit. The word is the control; a tap swaps it. */
+.unit-switch {
+  transition:
+    transform var(--motion-fast) var(--ease-out-quint),
+    color var(--motion-fast) var(--ease-out-quint);
+}
+
+.unit-switch:active {
+  transform: scale(0.97);
+}
+
+.loaded-bar:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass {
     background: var(--color-surface);
@@ -1089,6 +1106,142 @@ textarea {
   mask-size: 92%;
 }
 
+/*
+  Log is a machined coin: a chalk face in a dark housing, one overhead
+  softbox, the figure struck proud of the metal. The housing stays put.
+  The face sinks on press so the click is the bezel opening, not a squash
+  of the control. Light stays in the room — the glint drops as the face
+  goes concave.
+*/
+.log-face.btn-primary {
+  --emblem-hi: color-mix(in srgb, #fff 84%, var(--color-accent));
+  --emblem-mid: var(--color-accent);
+  --emblem-lo: color-mix(in srgb, var(--color-bg) 58%, var(--color-accent));
+  --emblem-glint: rgb(255 255 255 / 0.9);
+  --emblem-lit: rgb(255 255 255 / 0.55);
+  --emblem-shade: rgb(0 0 0 / 0.55);
+  --emblem-inset-rest:
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    inset 0 -1.5px 2px rgb(0 0 0 / 0.34);
+  --emblem-inset: var(--emblem-inset-rest);
+  display: grid;
+  padding: 2px;
+  background: #000;
+  filter: none;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+}
+
+.log-face.btn-primary:hover,
+.log-face.btn-primary:active {
+  background: #000;
+  filter: none;
+  transform: none;
+}
+
+.log-emblem {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 78% 48% at 50% 16%, var(--emblem-hi), transparent 72%),
+    linear-gradient(180deg, var(--emblem-hi) 0%, var(--emblem-mid) 44%, var(--emblem-lo) 100%);
+  box-shadow: var(--emblem-inset);
+  transition:
+    transform var(--motion-snap) var(--ease-out-quint),
+    box-shadow var(--motion-snap) var(--ease-out-quint);
+}
+
+.log-emblem::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  box-sizing: border-box;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.95),
+    rgb(255 255 255 / 0.15) 36%,
+    rgb(0 0 0 / 0.12) 64%,
+    rgb(0 0 0 / 0.5)
+  );
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  transition: opacity var(--motion-snap) var(--ease-out-quint);
+}
+
+.log-emblem::after {
+  content: "";
+  position: absolute;
+  top: 7%;
+  left: 16%;
+  z-index: 0;
+  width: 72%;
+  height: 42%;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at 50% 35%,
+    #fff 0%,
+    rgb(255 255 255 / 0.35) 34%,
+    transparent 70%
+  );
+  pointer-events: none;
+  opacity: 0.85;
+  transition:
+    transform var(--motion-snap) var(--ease-out-quint),
+    opacity var(--motion-snap) var(--ease-out-quint);
+}
+
+.log-face.btn-primary .log-logo {
+  position: relative;
+  z-index: 1;
+  filter:
+    drop-shadow(0 -0.5px 0 var(--emblem-lit))
+    drop-shadow(0 0.75px 0 var(--emblem-shade));
+}
+
+.log-face.btn-primary:active .log-emblem {
+  --emblem-inset:
+    inset 0 3px 5px rgb(0 0 0 / 0.42),
+    inset 0 -1px 0 rgb(255 255 255 / 0.18);
+  transform: scale(0.88);
+  transition-duration: var(--motion-fast);
+}
+
+.log-face.btn-primary:active .log-emblem::before {
+  opacity: 0.2;
+  transition-duration: var(--motion-fast);
+}
+
+.log-face.btn-primary:active .log-emblem::after {
+  transform: translate3d(0, 90%, 0);
+  opacity: 0.28;
+  transition-duration: var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .log-face.btn-primary:hover .log-emblem::after {
+    opacity: 1;
+    transform: translate3d(0, -6%, 0);
+  }
+
+  .log-face.btn-primary:active .log-emblem::after {
+    transform: translate3d(0, 90%, 0);
+    opacity: 0.28;
+  }
+}
+
 /* The ring sits on the circle, outside the clip that masks the slide. */
 .log-action:focus-within {
   border-radius: 999px;
@@ -1100,10 +1253,24 @@ textarea {
   outline: none;
 }
 
-/* A press scale fights the sliding track. */
+/* A press scale fights the sliding track. The coin face sinks on its own. */
 .log-action.is-paging .btn-primary:active,
 .log-action.is-paging .glass-btn:active {
   transform: none;
+}
+
+.log-action.is-paging .log-face.btn-primary:active .log-emblem {
+  --emblem-inset: var(--emblem-inset-rest);
+  transform: none;
+}
+
+.log-action.is-paging .log-face.btn-primary:active .log-emblem::before {
+  opacity: 1;
+}
+
+.log-action.is-paging .log-face.btn-primary:active .log-emblem::after {
+  transform: none;
+  opacity: 0.85;
 }
 
 .load-pager {
@@ -1194,7 +1361,10 @@ html.reorder-active [data-reorder-index] {
 
   .glass-btn:active,
   .glass-chip:active,
-  .btn-primary:active {
+  .btn-primary:active,
+  .unit-switch:active,
+  .log-face.btn-primary:active .log-emblem,
+  .log-face.btn-primary:active .log-emblem::after {
     transform: none;
   }
 
@@ -1247,6 +1417,22 @@ html[data-mode="light"] {
   --shadow-glass: 0 8px 24px rgb(0 0 0 / 0.08);
   --color-accent: #1a1a1a;
   --color-on-accent: #f6f5f2;
+}
+
+html[data-mode="light"] .log-face.btn-primary {
+  --emblem-hi: color-mix(in srgb, #fff 26%, var(--color-accent));
+  --emblem-lo: #050505;
+  --emblem-glint: rgb(255 255 255 / 0.55);
+  --emblem-lit: rgb(255 255 255 / 0.4);
+  --emblem-shade: rgb(0 0 0 / 0.7);
+  --emblem-inset-rest:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    inset 0 -1.5px 2px rgb(0 0 0 / 0.55);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+html[data-mode="light"] .log-face.btn-primary .log-logo {
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.55));
 }
 
 html[data-mode="light"] .nav-glyph-raster {

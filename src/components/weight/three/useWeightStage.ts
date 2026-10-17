@@ -501,6 +501,8 @@ export function useWeightStage(opts: {
       host.releasePointerCapture(e.pointerId);
     }
     if (host) delete host.dataset.slide;
+    // A cancelled touch is a scroll the browser took back, never a tap.
+    if (e.type === "pointercancel") return;
     if (start.kind === "swipe" && swipeRef.current) {
       const travel = e.clientX - start.x;
       if (Math.abs(travel) >= swipePx) {
