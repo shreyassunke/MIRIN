@@ -366,15 +366,32 @@ export function IconAddSet(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** Header add mark. Round ends, arms about nine times the stroke. */
+/**
+ * Instagram's create plus: stroke 2, round caps, arms from 6.545 to 17.455
+ * on a 24 canvas. The viewBox is cropped to the ink and drawn at 24px so
+ * the mark matches that icon instead of floating inside the padding.
+ */
 export function IconPlus(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
-      <path
-        d="M12 6.3v11.4M6.3 12h11.4"
+    <svg viewBox="4.8 4.8 14.4 14.4" className="h-6 w-6" aria-hidden="true" {...props}>
+      <line
+        x1="6.545"
+        x2="17.455"
+        y1="12.001"
+        y2="12.001"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="12.003"
+        x2="12.003"
+        y1="6.545"
+        y2="17.455"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
         strokeLinecap="round"
       />
     </svg>
