@@ -1185,7 +1185,8 @@ textarea {
 }
 
 .log-pill .numeral,
-.log-pill .set-times {
+.log-pill .set-times,
+.log-pill-rest {
   text-shadow:
     0 1px 0 rgb(255 255 255 / 0.22),
     0 -1px 0 rgb(0 0 0 / 0.72);
@@ -1205,7 +1206,8 @@ textarea {
 }
 
 .log-pill:active .numeral,
-.log-pill:active .set-times {
+.log-pill:active .set-times,
+.log-pill:active .log-pill-rest {
   text-shadow:
     0 1px 0 rgb(0 0 0 / 0.55),
     0 -1px 0 rgb(255 255 255 / 0.05);
@@ -1237,22 +1239,37 @@ textarea {
   stroke-linecap: round;
 }
 
-.log-pill-rest {
-  display: inline-flex;
+.log-pill-slot {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.log-pill.is-rest .log-pill-slot {
+  visibility: hidden;
+}
+
+.log-pill-face > .log-pill-rest {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  margin-left: 0.35rem;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-ink);
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 1.875rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
+  letter-spacing: -0.03em;
   line-height: 1;
   cursor: pointer;
   touch-action: none;
@@ -1490,7 +1507,8 @@ html[data-mode="light"] .log-pill-face {
 }
 
 html[data-mode="light"] .log-pill .numeral,
-html[data-mode="light"] .log-pill .set-times {
+html[data-mode="light"] .log-pill .set-times,
+html[data-mode="light"] .log-pill-rest {
   text-shadow:
     0 1px 0 rgb(255 255 255 / 0.9),
     0 -1px 0 rgb(22 22 22 / 0.14);
@@ -1505,7 +1523,8 @@ html[data-mode="light"] .log-pill:hover:active .log-pill-face {
 }
 
 html[data-mode="light"] .log-pill:active .numeral,
-html[data-mode="light"] .log-pill:active .set-times {
+html[data-mode="light"] .log-pill:active .set-times,
+html[data-mode="light"] .log-pill:active .log-pill-rest {
   text-shadow: 0 1px 0 rgb(22 22 22 / 0.2);
 }
 

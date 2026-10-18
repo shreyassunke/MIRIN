@@ -143,6 +143,7 @@ export function RestReadout({
   onNudge: (delta: number) => void;
 }) {
   const dragRef = useRef<{ y: number; moved: boolean } | null>(null);
+  const skipClick = useRef(false);
   const mm = Math.floor(remaining / 60);
   const ss = String(remaining % 60).padStart(2, "0");
   const label = `Rest ${mm}:${ss}. Drag up or down to change it. Tap to dismiss.`;
@@ -175,8 +176,7 @@ export function RestReadout({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    if (!start || start.moved) return;
-    onDismiss();
+    if (start?.moved) skipClick.current = true;
   };
 
   return (
@@ -188,6 +188,13 @@ export function RestReadout({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onClick={() => {
+        if (skipClick.current) {
+          skipClick.current = false;
+          return;
+        }
+        onDismiss();
+      }}
     >
       <span role="timer" aria-live="off">
         {mm}:{ss}

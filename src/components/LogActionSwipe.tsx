@@ -97,7 +97,7 @@ function PillFace({
       : 0;
 
   return (
-    <div ref={faceRef} className="log-pill">
+    <div ref={faceRef} className={show ? "log-pill is-rest" : "log-pill"}>
       {show && length > 0 && (
         <svg
           className="log-pill-ring"
@@ -116,24 +116,30 @@ function PillFace({
           />
         </svg>
       )}
-      <button
-        type="button"
-        className="log-pill-hit"
-        aria-label={label}
-        onClick={onClick}
-      />
+      {!show && (
+        <button
+          type="button"
+          className="log-pill-hit"
+          aria-label={label}
+          onClick={onClick}
+        />
+      )}
       <div className="log-pill-face">
         <span className="log-pill-sheen" aria-hidden="true" />
-        <div className="flex min-w-0 items-center whitespace-nowrap">
+        <div
+          className="log-pill-slot"
+          aria-hidden={show || undefined}
+          {...(show ? { inert: "" } : {})}
+        >
           {children}
-          {show && clock && (
-            <RestReadout
-              remaining={clock.remaining}
-              onDismiss={clock.dismiss}
-              onNudge={clock.nudge}
-            />
-          )}
         </div>
+        {show && clock && (
+          <RestReadout
+            remaining={clock.remaining}
+            onDismiss={clock.dismiss}
+            onNudge={clock.nudge}
+          />
+        )}
       </div>
     </div>
   );
@@ -189,7 +195,12 @@ export function LogActionSwipe({
       return;
     }
     const target = event.target;
-    if (target instanceof Element && target.closest("button, a")) return;
+    if (
+      target instanceof Element &&
+      target.closest(".log-pill.is-rest, button, a")
+    ) {
+      return;
+    }
     log();
   };
 
