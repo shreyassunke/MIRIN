@@ -212,6 +212,124 @@ a,
   border-color: transparent;
 }
 
+.exercise-search-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color var(--motion-fast) var(--ease-out-quint),
+    transform var(--motion-fast) var(--ease-out-quint);
+}
+
+.exercise-search-trigger:active {
+  transform: scale(0.97);
+}
+
+.exercise-search-trigger:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .exercise-search-trigger:hover {
+    color: var(--color-ink);
+  }
+}
+
+.exercise-search-corner {
+  width: 100%;
+  margin: 0;
+  text-align: right;
+}
+
+/* The icon's slot stays in the corner. The field is painted over that
+   slot and reveals toward the title, so the day line does not reflow. */
+.header-search {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.header-search.is-open {
+  z-index: 2;
+}
+
+.today-header {
+  position: relative;
+  z-index: 5;
+}
+
+.header-search-field {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+
+.header-search.is-open .header-search-field {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(14rem, calc(100vw - 8.5rem));
+  height: 2.75rem;
+  background: linear-gradient(90deg, transparent, var(--color-bg) 0.85rem);
+  animation: header-search-reveal 220ms var(--ease-out-expo);
+}
+
+@keyframes header-search-reveal {
+  from {
+    clip-path: inset(0 0 0 calc(100% - 2.75rem));
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.header-search-clip {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  overflow: hidden;
+}
+
+.header-search-results {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 2;
+  width: min(18rem, calc(100vw - 2rem));
+  margin: 0;
+}
+
+.header-search-field > .rounded-xl {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 2;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: min(70dvh, 28rem);
+  overflow: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-search.is-open .header-search-field {
+    animation: none;
+  }
+}
+
 /* The browser's own surfaces belong to the palette too. */
 ::selection {
   background: color-mix(in srgb, var(--color-accent) 32%, transparent);
@@ -556,6 +674,72 @@ textarea {
   transform: scale(0.97);
 }
 
+/* The unit on the live weight. Press confirms the touch; the word settles after the swap. */
+.unit-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-left: 0.125rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--motion-fast) var(--ease-out-quint),
+    color var(--motion-fast) var(--ease-out-quint),
+    background-color var(--motion-fast) var(--ease-out-quint);
+}
+
+.unit-mark:active {
+  transform: scale(0.94);
+  background-color: var(--color-wash-strong);
+  color: var(--color-ink);
+  transition-duration: 80ms;
+}
+
+.unit-mark:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: -2px;
+}
+
+.unit-mark-word {
+  display: inline-block;
+  animation: unit-mark-in var(--motion-snap) var(--ease-out-quint) both;
+}
+
+@keyframes unit-mark-in {
+  from {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .unit-mark:hover {
+    background-color: var(--color-wash);
+    color: var(--color-ink);
+  }
+
+  .unit-mark:active {
+    background-color: var(--color-wash-strong);
+  }
+}
+
 .loaded-bar:focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: 3px;
@@ -633,6 +817,156 @@ textarea {
 
 .overflow-menu {
   animation: mirin-menu-in var(--motion-snap) var(--ease-out-quint) both;
+}
+
+/* Menus and result lists. The words lead; a row only warms when it is the one. */
+.quiet-menu {
+  border: 1px solid var(--color-glass-border);
+  padding: 6px;
+  background: color-mix(in srgb, var(--color-bg) 86%, transparent);
+  backdrop-filter: blur(22px) saturate(1.2);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  box-shadow:
+    inset 0 1px 0 var(--color-sheen),
+    0 18px 48px rgb(0 0 0 / 0.22);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline) transparent;
+}
+
+.quiet-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.quiet-menu::-webkit-scrollbar-thumb {
+  background: var(--color-hairline);
+  border-radius: 99px;
+}
+
+.quiet-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0 0.75rem;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.011em;
+  color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--motion-fast) var(--ease-out-expo),
+    color var(--motion-fast) var(--ease-out-expo);
+}
+
+.quiet-menu-item svg {
+  height: 1rem;
+  width: 1rem;
+  flex: none;
+}
+
+.quiet-menu-item[data-danger] {
+  color: var(--color-muted);
+}
+
+.quiet-menu-item:hover,
+.quiet-menu-item:focus-visible,
+.quiet-menu-item[data-open],
+.quiet-menu-item[data-current] {
+  outline: none;
+  background: color-mix(in srgb, var(--color-ink) 6%, transparent);
+  color: var(--color-ink);
+}
+
+.quiet-result {
+  align-items: center;
+  min-height: 52px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.quiet-result-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.011em;
+  line-height: 1.25;
+}
+
+.quiet-result-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+
+.exercise-menu-icon {
+  display: flex;
+  height: 1rem;
+  width: 1rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+}
+
+.exercise-menu-icon svg {
+  height: 1rem;
+  width: 1rem;
+}
+
+.exercise-menu-rule {
+  height: 1px;
+  margin: 4px 12px;
+  background: var(--color-glass-border);
+}
+
+.exercise-menu-rest {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0 6px 6px;
+}
+
+.exercise-menu-rest-item {
+  height: 44px;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--color-muted);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color var(--motion-fast) var(--ease-out-expo),
+    background-color var(--motion-fast) var(--ease-out-expo);
+}
+
+.exercise-menu-rest-item[aria-pressed="true"] {
+  color: var(--color-ink);
+}
+
+.exercise-menu-rest-item:hover,
+.exercise-menu-rest-item:focus-visible {
+  outline: none;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiet-menu-item,
+  .exercise-menu-rest-item {
+    transition: none;
+  }
 }
 
 /* Native confirm dialog — glass overlay, dim scrim, centered */
@@ -763,9 +1097,9 @@ textarea {
   cursor: move;
 }
 
-/* Phone thumb band. The carousel fills the top half of the page, so the
-   dots land on the halfway line and a swipe does not resize the box.
-   The set line sits 3rem above the tab bar. */
+/* Phone column. The stage takes the space the header and the thumb dock
+   leave behind, so a taller instrument is not clipped by a fixed half.
+   The set line sits just above the tab bar. */
 .today-phone-frame,
 .today-phone-scroll,
 .today-lower {
@@ -782,7 +1116,7 @@ textarea {
     z-index: 20;
     top: max(1.25rem, env(safe-area-inset-top, 0px));
     right: max(0px, calc((100% - 42rem) / 2));
-    bottom: calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 6.5rem);
+    bottom: calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 4.25rem);
     left: max(0px, calc((100% - 42rem) / 2));
     display: flex;
     flex-direction: column;
@@ -792,13 +1126,8 @@ textarea {
 
   .today-phone-scroll {
     display: flex;
-    flex: none;
+    flex: 1 1 auto;
     flex-direction: column;
-    /* The dot marks, not their hit area, sit on the halfway line of the page. */
-    height: calc(
-      50dvh - max(1.25rem, env(safe-area-inset-top, 0px)) + 1.375rem
-    );
-    max-height: 100%;
     min-height: 0;
     overflow: hidden;
     overscroll-behavior: contain;
@@ -806,9 +1135,10 @@ textarea {
 
   .today-lower {
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     flex-direction: column;
     align-items: stretch;
+    max-height: min(16rem, 42%);
     min-height: 0;
     overflow: auto;
     overscroll-behavior: contain;
@@ -851,9 +1181,15 @@ textarea {
   }
 
   .exercise-frame .exercise-deck-page {
+    display: flex;
+    flex-direction: column;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
+  }
+
+  .exercise-frame .exercise-deck-page > [data-exercise-stage] {
+    margin-block: auto;
   }
 
   .set-dock {
@@ -862,9 +1198,14 @@ textarea {
     display: flex;
     flex: none;
     justify-content: center;
-    padding-top: 0.75rem;
+    padding-top: 0.5rem;
     pointer-events: none;
     background: var(--color-bg);
+  }
+
+  .set-finish {
+    width: min(100%, 18rem);
+    margin-top: 0.65rem;
   }
 
 }
@@ -886,11 +1227,11 @@ textarea {
 }
 
 .logbook-wheel {
-  --log-row: 2.25rem;
+  --log-row: 2.125rem;
   position: relative;
   width: max-content;
   max-width: 100%;
-  margin: 0.25rem auto 0;
+  margin: 0 auto;
 }
 
 .logbook-band {
@@ -912,7 +1253,7 @@ textarea {
   display: grid;
   grid-template-columns: 1.5rem max-content 2.75rem;
   align-content: start;
-  height: calc(var(--log-row) * 5);
+  height: calc(var(--log-row) * 3);
   margin: 0;
   padding: 0;
   overflow-x: hidden;
@@ -938,23 +1279,24 @@ textarea {
 
 .logbook-pad {
   grid-column: 1 / -1;
-  height: calc(var(--log-row) * 2);
+  height: var(--log-row);
 }
 
 .logbook-row {
+  --log-scale: clamp(0.82, calc(1.12 - abs(var(--wheel, 0)) * 0.26), 1.12);
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
   align-items: center;
   height: var(--log-row);
   scroll-snap-align: center;
-  opacity: clamp(0.16, calc(1 - abs(var(--wheel, 0)) * 0.48), 1);
+  opacity: clamp(0.22, calc(1 - abs(var(--wheel, 0)) * 0.58), 1);
 }
 
 .logbook-index {
   justify-self: center;
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--log-scale));
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1;
@@ -974,7 +1316,7 @@ textarea {
 
 .logbook-figures .numeral {
   height: auto;
-  font-size: 1.0625rem;
+  font-size: calc(1.0625rem * var(--log-scale));
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -982,7 +1324,7 @@ textarea {
 .logbook-unit,
 .logbook-times {
   color: var(--color-muted);
-  font-size: 0.8125rem;
+  font-size: calc(0.8125rem * var(--log-scale));
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -1001,7 +1343,7 @@ textarea {
   background: transparent;
   color: var(--color-muted);
   font-family: inherit;
-  font-size: 1.0625rem;
+  font-size: calc(1.0625rem * var(--log-scale));
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -1042,8 +1384,8 @@ html[data-mode="light"] .logbook-band {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.75rem;
-  margin-top: 2px;
+  min-height: 2rem;
+  margin-top: 0;
 }
 
 .exercise-dot {
@@ -1285,6 +1627,26 @@ html[data-mode="light"] .logbook-band {
   transition-duration: var(--motion-fast);
 }
 
+/* A unit tap is its own control. The key underneath stays seated. */
+.log-pill:has(.unit-mark:active) .log-pill-face,
+.log-pill:has(.unit-mark:active):active .log-pill-face {
+  transform: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.26),
+    inset 0 -1px 0 rgb(0 0 0 / 0.65);
+}
+
+.log-pill:has(.unit-mark:active):active .log-pill-sheen {
+  opacity: 0;
+}
+
+.log-pill:has(.unit-mark:active):active .numeral,
+.log-pill:has(.unit-mark:active):active .set-times {
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 0.22),
+    0 -1px 0 rgb(0 0 0 / 0.72);
+}
+
 .log-pill-ring {
   position: absolute;
   inset: 0;
@@ -1372,7 +1734,7 @@ html[data-mode="light"] .logbook-band {
 
 .log-pill-clip {
   max-width: 100%;
-  overflow: hidden;
+  overflow: clip;
   border-radius: 999px;
 }
 
@@ -1383,6 +1745,16 @@ html[data-mode="light"] .logbook-band {
 
 .log-pill-page {
   flex: 0 0 auto;
+}
+
+/* At rest the neighboring Drop face must not paint a second cap.
+   It returns while the pill is actually sliding. */
+.log-pill-page[aria-hidden="true"] {
+  visibility: hidden;
+}
+
+.log-action.is-paging .log-pill-page[aria-hidden="true"] {
+  visibility: visible;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1501,6 +1873,7 @@ html.reorder-active [data-reorder-index] {
   .glass-chip:active,
   .btn-primary:active,
   .unit-switch:active,
+  .unit-mark:active,
   .log-pill:active .log-pill-face,
   .log-pill:active .log-pill-sheen,
   .logbook-remove:active {
@@ -1508,7 +1881,8 @@ html.reorder-active [data-reorder-index] {
   }
 
   .mirin-splash-mark,
-  .mirin-splash-exit {
+  .mirin-splash-exit,
+  .unit-mark-word {
     animation: none;
   }
 
@@ -1597,6 +1971,23 @@ html[data-mode="light"] .log-pill:active .numeral,
 html[data-mode="light"] .log-pill:active .set-times,
 html[data-mode="light"] .log-pill:active .log-pill-rest {
   text-shadow: 0 1px 0 rgb(22 22 22 / 0.2);
+}
+
+html[data-mode="light"] .log-pill:has(.unit-mark:active) .log-pill-face,
+html[data-mode="light"] .log-pill:has(.unit-mark:active):active .log-pill-face,
+html[data-mode="light"] .log-pill:has(.unit-mark:active):hover:active .log-pill-face {
+  background: linear-gradient(180deg, #fffcf8 0%, #f3f1ec 52%, #e7e4de 100%);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -1px 0 rgb(22 22 22 / 0.1);
+  transform: none;
+}
+
+html[data-mode="light"] .log-pill:has(.unit-mark:active):active .numeral,
+html[data-mode="light"] .log-pill:has(.unit-mark:active):active .set-times {
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9),
+    0 -1px 0 rgb(22 22 22 / 0.14);
 }
 
 html[data-mode="light"] .log-action.is-paging .log-pill:active .log-pill-face {

@@ -209,15 +209,12 @@ export function ItemOverflow({ label, items }: ItemOverflowProps) {
               width: MENU_WIDTH,
               transformOrigin: coords.origin,
             }}
-            className="overflow-menu fixed z-50 rounded-xl p-1.5 shadow-glass glass"
+            className="overflow-menu quiet-menu fixed z-50 rounded-xl"
           >
             {items.map((item, index) => (
               <div key={item.id}>
                 {item.separatorBefore && (
-                  <div
-                    role="separator"
-                    className="my-1 h-px bg-glass-border"
-                  />
+                  <div role="separator" className="exercise-menu-rule" />
                 )}
                 <button
                   ref={(el) => {
@@ -226,21 +223,15 @@ export function ItemOverflow({ label, items }: ItemOverflowProps) {
                   type="button"
                   role="menuitem"
                   disabled={item.disabled}
+                  data-danger={item.danger ? "" : undefined}
+                  data-open={expandedId === item.id ? "" : undefined}
                   onClick={() => activate(item)}
                   className={[
-                    "flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-[15px] font-medium transition-colors duration-150 motion-reduce:transition-none",
-                    item.danger
-                      ? "text-muted hover:bg-wash hover:text-ink"
-                      : "text-ink hover:bg-wash",
+                    "quiet-menu-item",
                     item.disabled ? "pointer-events-none opacity-40" : "",
-                    expandedId === item.id
-                      ? "bg-wash"
-                      : "",
                   ].join(" ")}
                 >
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted">
-                    {item.icon}
-                  </span>
+                  <span className="exercise-menu-icon">{item.icon}</span>
                   <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 </button>
                 {expandedId === item.id && item.panel
@@ -358,6 +349,15 @@ export function IconTodayMark(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconSearch(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
+      <circle cx="10.75" cy="10.75" r="5.25" {...stroke} />
+      <path d="M14.8 14.8 19 19" {...stroke} />
+    </svg>
+  );
+}
+
 export function IconAddSet(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
@@ -394,7 +394,7 @@ export function RestPresetPanel({
   close: () => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1 px-2 pb-2 pt-0.5">
+    <div className="exercise-menu-rest" role="group" aria-label="Rest">
       {REST_PRESETS.map((seconds) => (
         <button
           key={seconds}
@@ -404,10 +404,7 @@ export function RestPresetPanel({
             onPick(seconds);
             close();
           }}
-          className={[
-            "glass-chip h-9 rounded-pill px-3 text-[13px] font-medium",
-            value === seconds ? "glass-chip-active text-ink" : "text-muted hover:text-ink",
-          ].join(" ")}
+          className="exercise-menu-rest-item"
         >
           {formatRestLabel(seconds)}
         </button>

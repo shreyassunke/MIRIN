@@ -8,6 +8,7 @@ import {
 } from "react";
 import { formatWeight } from "../lib/workout";
 import { LogPillContext } from "./LogActionSwipe";
+import { UnitMark } from "./UnitToggle";
 
 /** Same claim and travel as the weight stage drag. Up increases. */
 const DRAG_TAP_PX = 12;
@@ -26,6 +27,8 @@ interface StepperProps {
   layout?: "default" | "inline" | "stacked" | "readout";
   /** Unit or suffix shown beside the value in inline layout. */
   inlineSuffix?: string;
+  /** The suffix is the weight unit. A tap swaps pounds and kilograms. */
+  unitSwitch?: boolean;
   /** Extra class on the suffix, so a parent can mark it while a gesture is live. */
   suffixClassName?: string;
   /** `lead` matches the live weight numeral. `compact` is the reps companion. */
@@ -63,6 +66,7 @@ export function Stepper({
   format,
   layout = "default",
   inlineSuffix,
+  unitSwitch = false,
   suffixClassName,
   size = "default",
   drag = false,
@@ -132,6 +136,9 @@ export function Stepper({
 
   const onDragDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drag || editing || event.button !== 0) return;
+    if (event.target instanceof Element && event.target.closest(".unit-mark")) {
+      return;
+    }
     event.preventDefault();
     dragRef.current = {
       pointerId: event.pointerId,
@@ -206,10 +213,11 @@ export function Stepper({
     inputRef.current?.focus();
   };
 
-  const suffix =
-    (readout || layout === "inline" || layout === "stacked") && inlineSuffix ? (
-      <span className={suffixClass}>{inlineSuffix}</span>
-    ) : null;
+  const suffix = unitSwitch ? (
+    <UnitMark />
+  ) : (readout || layout === "inline" || layout === "stacked") && inlineSuffix ? (
+    <span className={suffixClass}>{inlineSuffix}</span>
+  ) : null;
 
   const valueControl = (
     <input
@@ -271,7 +279,19 @@ export function Stepper({
       <div
         data-no-pager=""
         onPointerDown={drag ? onDragDown : undefined}
-        onMouseDown={drag ? (event) => event.preventDefault() : undefined}
+        onMouseDown={
+          drag
+            ? (event) => {
+                if (
+                  event.target instanceof Element &&
+                  event.target.closest(".unit-mark")
+                ) {
+                  return;
+                }
+                event.preventDefault();
+              }
+            : undefined
+        }
         onPointerMove={drag ? onDragMove : undefined}
         onPointerUp={drag ? onDragEnd : undefined}
         onPointerCancel={drag ? onDragEnd : undefined}

@@ -260,6 +260,7 @@ export function BarWeightControl({
           min={barWeight}
           layout="readout"
           inlineSuffix={unit}
+          unitSwitch
           size="lead"
           drag
           onChange={(next) =>

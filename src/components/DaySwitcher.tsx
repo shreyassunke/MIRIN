@@ -244,7 +244,7 @@ export function DaySwitcher({
               width: MENU_WIDTH,
               transformOrigin: coords.origin,
             }}
-            className="overflow-menu fixed z-50 max-h-[min(22rem,calc(100dvh-8rem))] overflow-y-auto rounded-xl p-1.5 shadow-glass glass"
+            className="overflow-menu quiet-menu fixed z-50 max-h-[min(22rem,calc(100dvh-8rem))] overflow-y-auto rounded-xl"
           >
             {options.map((option, index) => {
               const selected = option.id === currentId;
@@ -259,12 +259,7 @@ export function DaySwitcher({
                   id={`${listId}-${option.id}`}
                   aria-selected={selected}
                   onClick={() => pick(option.id)}
-                  className={[
-                    "flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-[15px] font-medium transition-colors duration-150 motion-reduce:transition-none",
-                    selected
-                      ? "bg-wash text-ink"
-                      : "text-ink hover:bg-wash",
-                  ].join(" ")}
+                  className="quiet-menu-item"
                 >
                   <span className="min-w-0 flex-1 truncate">{option.name}</span>
                   {selected ? (

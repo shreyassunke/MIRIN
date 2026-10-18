@@ -61,7 +61,7 @@ import {
   patchExercisePref,
   workingSets,
 } from "../lib/exerciseMeta";
-import { AddExerciseButton, ExerciseCombobox } from "../components/ExerciseCombobox";
+import { ExerciseCombobox, HeaderExerciseSearch } from "../components/ExerciseCombobox";
 import { LogActionSwipe } from "../components/LogActionSwipe";
 import { TodayExercisePage } from "../components/TodayExerciseTile";
 import { ExerciseDeck } from "../components/ExerciseDeck";
@@ -73,6 +73,7 @@ import { NoteEditor } from "../components/NoteEditor";
 import { FormVideoPanel } from "../components/FormVideo";
 import { formClipsFor } from "../lib/formVideos";
 import {
+  IconAddSet,
   IconDone,
   IconHistory,
   IconNote,
@@ -519,7 +520,7 @@ export function Today() {
   if (data.isRestDay) {
     return (
       <div>
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <header className="today-header mb-6 flex flex-nowrap items-start justify-between gap-3">
           <div className="shrink-0 pr-2">
             <DaySwitcher
               dayName={data.dayName}
@@ -536,7 +537,19 @@ export function Today() {
               })}
             </p>
           </div>
-          <UnitToggle />
+          <div className="flex shrink-0 items-center">
+            <UnitToggle />
+            <HeaderExerciseSearch
+              open={addingExercise}
+              onOpen={() => setAddingExercise(true)}
+              onClose={() => setAddingExercise(false)}
+              excludeIds={data.exerciseIds}
+              onPick={async (entry) => {
+                const id = await ensureExerciseRow(entry);
+                await addAdHocExercise(id);
+              }}
+            />
+          </div>
         </header>
         <p className="mb-4 text-sm leading-relaxed text-muted">
           No workout scheduled for today.
@@ -548,18 +561,6 @@ export function Today() {
             }.`}{" "}
           Adjust the rotation on the Split screen if this looks wrong.
         </p>
-        {addingExercise ? (
-          <ExerciseCombobox
-            excludeIds={data.exerciseIds}
-            onCancel={() => setAddingExercise(false)}
-            onPick={async (entry) => {
-              const id = await ensureExerciseRow(entry);
-              await addAdHocExercise(id);
-            }}
-          />
-        ) : (
-          <AddExerciseButton onClick={() => setAddingExercise(true)} />
-        )}
       </div>
     );
   }
@@ -918,6 +919,29 @@ export function Today() {
   const activeStickyNote = activeId ? data.stickyNotes[activeId] : undefined;
   const activeEditing =
     editingNote?.id === activeId ? editingNote.kind : null;
+  const showContext =
+    Boolean(
+      activeId && (activeStickyNote || activeSessionNote || activeEditing),
+    ) || Boolean(activeId && formVideoId === activeId);
+  const showLower = showContext || (!phone && showComplete);
+  const completeControl = showComplete ? (
+    <div className={phone ? "set-finish" : "mt-6"}>
+      <button
+        type="button"
+        onClick={() =>
+          finishArmed ? void finishWorkout() : setFinishArmed(true)
+        }
+        className={[
+          "h-12 w-full rounded-pill text-[15px] font-semibold",
+          activeId === null
+            ? "btn-primary bg-accent text-bg hover:bg-ink"
+            : "glass-btn text-ink",
+        ].join(" ")}
+      >
+        {finishArmed ? "Confirm" : "Complete workout"}
+      </button>
+    </div>
+  ) : null;
 
   return (
     <RestClockProvider
@@ -934,7 +958,7 @@ export function Today() {
     >
     <div className="today-phone-frame">
       <div className="today-phone-scroll">
-      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <header className="today-header mb-2 flex flex-nowrap items-start justify-between gap-3 md:mb-4">
         <div className="shrink-0 pr-2">
           <DaySwitcher
             dayName={data.dayName}
@@ -951,7 +975,18 @@ export function Today() {
             })}
           </p>
         </div>
-        <UnitToggle />
+        <div className="flex shrink-0 items-center">
+          <HeaderExerciseSearch
+            open={addingExercise}
+            onOpen={() => setAddingExercise(true)}
+            onClose={() => setAddingExercise(false)}
+            excludeIds={data.exerciseIds}
+            onPick={async (entry) => {
+              const id = await ensureExerciseRow(entry);
+              await addAdHocExercise(id);
+            }}
+          />
+        </div>
       </header>
 
       {data.exercises.length > 0 && (
@@ -1017,6 +1052,12 @@ export function Today() {
                   <ItemOverflow
                     label={`${displayName} options`}
                     items={[
+                      {
+                        id: "add",
+                        label: "Add exercise",
+                        icon: <IconAddSet />,
+                        onSelect: () => setAddingExercise(true),
+                      },
                       {
                         id: "variation",
                         label: "Change exercise",
@@ -1175,28 +1216,10 @@ export function Today() {
       )}
       </div>
 
+      {showLower ? (
       <div className="today-lower">
-      {!data.isRestDay && (
-        <div className="mt-4 flex justify-center">
-          {addingExercise ? (
-            <div className="w-full">
-              <ExerciseCombobox
-                excludeIds={data.exerciseIds}
-                onCancel={() => setAddingExercise(false)}
-                onPick={async (entry) => {
-                  const id = await ensureExerciseRow(entry);
-                  await addAdHocExercise(id);
-                }}
-              />
-            </div>
-          ) : (
-            <AddExerciseButton onClick={() => setAddingExercise(true)} />
-          )}
-        </div>
-      )}
-
       {activeId && (activeStickyNote || activeSessionNote || activeEditing) && (
-        <div className="mt-4 text-left">
+        <div className="mt-2 text-left md:mt-4">
           {activeStickyNote && activeEditing !== "sticky" && (
             <p className="text-[13px] leading-relaxed text-muted">
               {activeStickyNote}
@@ -1235,31 +1258,16 @@ export function Today() {
         <FormVideoPanel exerciseId={activeId} open className="pt-1 pb-1" />
       )}
 
-      {showComplete && (
-        <div className="mt-6">
-          <button
-            type="button"
-            onClick={() =>
-              finishArmed ? void finishWorkout() : setFinishArmed(true)
-            }
-            className={[
-              "h-12 w-full rounded-pill text-[15px] font-semibold",
-              activeId === null
-                ? "btn-primary bg-accent text-bg hover:bg-ink"
-                : "glass-btn text-ink",
-            ].join(" ")}
-          >
-            {finishArmed ? "Confirm" : "Complete workout"}
-          </button>
-        </div>
-      )}
+      {!phone ? completeControl : null}
 
       </div>
+      ) : null}
 
       {phone ? (
         <div className="set-column">
           <LoggedSets sets={loggedSets} unit={unit} />
           <div ref={assignDock} className="set-dock" />
+          {completeControl}
         </div>
       ) : null}
     </div>

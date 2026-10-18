@@ -237,11 +237,11 @@ export function LogActionSwipe({
     const viewport = viewportRef.current;
     if (!page || !viewport) return;
     const sync = () => {
-      const width = page.offsetWidth;
+      const pill = page.querySelector<HTMLElement>(".log-pill");
+      const width = Math.ceil((pill ?? page).getBoundingClientRect().width);
       if (width <= 0) return;
       viewport.style.width = `${width}px`;
       viewport.querySelectorAll<HTMLElement>(".log-pill-page").forEach((el) => {
-        if (el === page) return;
         el.style.width = `${width}px`;
       });
       paint(progressRef.current, draggingRef.current);

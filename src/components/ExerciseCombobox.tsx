@@ -21,7 +21,7 @@ import {
   type GymMachineId,
 } from "../lib/library";
 import { MachineStationPicker, STATION_LABEL } from "./MachineStationPicker";
-import { IconAddSet } from "./ItemOverflow";
+import { IconAddSet, IconSearch } from "./ItemOverflow";
 import { useDismissOnPointerOutside } from "../hooks/useDismissOnPointerOutside";
 
 const MAX_RESULTS = 12;
@@ -42,6 +42,10 @@ interface ExerciseComboboxProps {
    * under the title instead of in a panel.
    */
   inline?: boolean;
+  /**
+   * Grows out of the header search mark. Results hang from that corner.
+   */
+  corner?: boolean;
 }
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -187,6 +191,50 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
   );
 }
 
+/** The exercise search. A mark in the corner, no housing. */
+export function SearchExerciseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Search exercises"
+      className="exercise-search-trigger"
+    >
+      <IconSearch />
+    </button>
+  );
+}
+
+/** The corner mark becomes the field. The right edge stays put. */
+export function HeaderExerciseSearch({
+  open,
+  onOpen,
+  onClose,
+  onPick,
+  excludeIds,
+}: {
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onPick: (entry: ExerciseLibraryEntry) => void;
+  excludeIds: string[];
+}) {
+  return (
+    <div className={open ? "header-search is-open" : "header-search"}>
+      {open ? (
+        <ExerciseCombobox
+          corner
+          excludeIds={excludeIds}
+          onCancel={onClose}
+          onPick={onPick}
+        />
+      ) : (
+        <SearchExerciseButton onClick={onOpen} />
+      )}
+    </div>
+  );
+}
+
 /** Quiet plus that opens the exercise search. The name stays on the button. */
 export function AddExerciseButton({ onClick }: { onClick: () => void }) {
   return (
@@ -213,6 +261,7 @@ export function ExerciseCombobox({
   placeholder = "Search exercises",
   label,
   inline = false,
+  corner = false,
 }: ExerciseComboboxProps) {
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -268,7 +317,7 @@ export function ExerciseCombobox({
 
   if (creating) {
     return (
-      <div ref={rootRef}>
+      <div ref={rootRef} className={corner ? "header-search-field" : undefined}>
         <CreateCustomForm
           initialName={query.trim()}
           onCreate={(entry) => {
@@ -314,15 +363,22 @@ export function ExerciseCombobox({
   };
 
   return (
-    <div ref={rootRef} className={inline ? "w-full" : undefined}>
+    <div
+      ref={rootRef}
+      className={
+        corner ? "header-search-field" : inline ? "w-full" : undefined
+      }
+    >
       {label && (
         <p className="mb-2 text-[13px] font-medium text-muted">{label}</p>
       )}
       <div
         className={
-          inline
-            ? "flex h-11 min-w-0 items-center justify-center"
-            : undefined
+          corner
+            ? "header-search-clip"
+            : inline
+              ? "flex h-11 min-w-0 items-center justify-center"
+              : undefined
         }
       >
         {inline && !query && placeholder ? (
@@ -361,7 +417,9 @@ export function ExerciseCombobox({
           className={
             inline
               ? "exercise-title h-11 max-w-full shrink-0 text-lg font-semibold tracking-tight text-ink"
-              : "exercise-search"
+              : corner
+                ? "exercise-search exercise-search-corner"
+                : "exercise-search"
           }
         />
       </div>
@@ -374,7 +432,9 @@ export function ExerciseCombobox({
           className={
             inline
               ? "mt-1 max-h-60 overflow-y-auto"
-              : "mt-2 max-h-72 overflow-y-auto rounded-xl glass"
+              : corner
+                ? "quiet-menu header-search-results max-h-72 overflow-y-auto rounded-xl"
+                : "quiet-menu mt-2 max-h-72 overflow-y-auto rounded-xl"
           }
         >
           {results.map((entry, index) => {
@@ -385,6 +445,7 @@ export function ExerciseCombobox({
                 id={`${listboxId}-${index}`}
                 role="option"
                 aria-selected={highlight === index}
+                data-current={!inline && highlight === index ? "" : undefined}
                 aria-disabled={isAdded}
                 onMouseEnter={() => setHighlight(index)}
                 onMouseDown={(e) => {
@@ -394,26 +455,24 @@ export function ExerciseCombobox({
                 className={[
                   inline
                     ? "flex cursor-pointer items-baseline justify-center gap-2 px-2 py-1.5"
-                    : "flex cursor-pointer items-baseline justify-between gap-3 border-b border-hairline px-3 py-2.5 last:border-b-0",
+                    : "quiet-menu-item quiet-result",
                   inline
                     ? highlight === index
                       ? "text-ink"
                       : "text-muted"
-                    : highlight === index
-                      ? "bg-surface-raised"
-                      : "",
+                    : "",
                   isAdded ? "cursor-default opacity-50" : "",
                 ].join(" ")}
               >
-                <span className={inline ? "min-w-0 truncate text-[15px] font-medium" : "min-w-0"}>
+                <span className={inline ? "min-w-0 truncate text-[15px] font-medium" : "min-w-0 flex-1"}>
                   {inline ? (
                     entry.name
                   ) : (
                     <>
-                      <span className="block truncate text-sm font-medium text-ink">
+                      <span className="quiet-result-name">
                         {entry.name}
                       </span>
-                      <span className="block text-[13px] text-muted">
+                      <span className="quiet-result-meta">
                         {(entry.station && STATION_LABEL[entry.station]) ||
                           equipmentLabel(entry.equipment)}
                         {entry.primaryMuscles[0] &&
@@ -433,6 +492,7 @@ export function ExerciseCombobox({
             id={`${listboxId}-${results.length}`}
             role="option"
             aria-selected={highlight === results.length}
+            data-current={!inline && highlight === results.length ? "" : undefined}
             onMouseEnter={() => setHighlight(results.length)}
             onMouseDown={(e) => {
               e.preventDefault();
@@ -444,10 +504,7 @@ export function ExerciseCombobox({
                     "cursor-pointer px-2 py-1.5 text-center text-[13px]",
                     highlight === results.length ? "text-ink" : "text-muted",
                   ].join(" ")
-                : [
-                    "cursor-pointer px-3 py-2.5 text-sm font-medium text-ink",
-                    highlight === results.length ? "bg-surface-raised" : "",
-                  ].join(" ")
+                : "quiet-menu-item"
             }
           >
             {inline

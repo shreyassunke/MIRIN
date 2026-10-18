@@ -25,7 +25,7 @@ export function TodayExercisePage({
   const name = title ?? exercise.name;
 
   return (
-    <div className="flex flex-col gap-4" data-exercise-stage="">
+    <div className="flex flex-col gap-2 md:gap-4" data-exercise-stage="">
       <div className="relative">
         <div className="px-11 text-center">
           {replacing ? (
