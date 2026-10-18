@@ -1097,9 +1097,10 @@ textarea {
   cursor: move;
 }
 
-/* Phone column. The stage takes the space the header and the thumb dock
-   leave behind, so a taller instrument is not clipped by a fixed half.
-   The set line sits just above the tab bar. */
+/* Phone column. The stage keeps the top half, so the dot marks sit on
+   the halfway line and a short instrument is not dropped into the
+   middle of the screen. The log key sits under that half. Logged sets
+   fill in beneath the key, above the tab bar. */
 .today-phone-frame,
 .today-phone-scroll,
 .today-lower {
@@ -1126,8 +1127,13 @@ textarea {
 
   .today-phone-scroll {
     display: flex;
-    flex: 1 1 auto;
+    flex: none;
     flex-direction: column;
+    /* The dot marks, not their hit area, sit on the halfway line of the page. */
+    height: calc(
+      50dvh - max(1.25rem, env(safe-area-inset-top, 0px)) + 1.375rem
+    );
+    max-height: 100%;
     min-height: 0;
     overflow: hidden;
     overscroll-behavior: contain;
@@ -1181,15 +1187,9 @@ textarea {
   }
 
   .exercise-frame .exercise-deck-page {
-    display: flex;
-    flex-direction: column;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-  }
-
-  .exercise-frame .exercise-deck-page > [data-exercise-stage] {
-    margin-block: auto;
   }
 
   .set-dock {
@@ -1198,7 +1198,7 @@ textarea {
     display: flex;
     flex: none;
     justify-content: center;
-    padding-top: 0.5rem;
+    padding-top: 0.35rem;
     pointer-events: none;
     background: var(--color-bg);
   }
@@ -1224,6 +1224,7 @@ textarea {
   align-items: center;
   width: 100%;
   min-height: 0;
+  gap: 0.35rem;
 }
 
 .logbook-wheel {

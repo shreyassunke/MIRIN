@@ -1265,8 +1265,8 @@ export function Today() {
 
       {phone ? (
         <div className="set-column">
-          <LoggedSets sets={loggedSets} unit={unit} />
           <div ref={assignDock} className="set-dock" />
+          <LoggedSets sets={loggedSets} unit={unit} />
           {completeControl}
         </div>
       ) : null}
