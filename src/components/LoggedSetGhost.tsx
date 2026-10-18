@@ -1,86 +1,178 @@
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { SetLog } from "../db/db";
-import { updateSetLog } from "../lib/history";
+import { deleteSetDrop, deleteSetLog, updateSetDrop, updateSetLog } from "../lib/history";
 import { MANUAL_STEP, toCanonical, toDisplay, type Unit } from "../lib/units";
-import { formatWeight } from "../lib/workout";
 import { Stepper } from "./Stepper";
 
-interface LoggedSetGhostProps {
-  set: SetLog;
+interface LoggedSetsProps {
+  sets: SetLog[];
   unit: Unit;
-  onUndo: () => void;
 }
 
 /**
- * The set just logged, faded, sitting above the live log row.
- * Undo removes it. Edit corrects the weight or the reps in place.
+ * The sets logged on this exercise, oldest at the top. The figures are the
+ * record: drag a number to step it, tap it to type. Minus removes that line.
  */
-export function LoggedSetGhost({ set, unit, onUndo }: LoggedSetGhostProps) {
-  const [editing, setEditing] = useState(false);
-  const weight = toDisplay(set.weight, unit);
+export function LoggedSets({ sets, unit }: LoggedSetsProps) {
+  const listRef = useRef<HTMLUListElement>(null);
+  const tail = sets[sets.length - 1]?.id;
+  const dropTail = sets[sets.length - 1]?.drops?.length ?? 0;
+
+  useLayoutEffect(() => {
+    const node = listRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [sets.length, tail, dropTail]);
+
+  if (sets.length === 0) return null;
+
+  const lines = sets.flatMap((set) => [
+    { key: set.id, set, dropIndex: -1 },
+    ...(set.drops ?? []).map((_, dropIndex) => ({
+      key: `${set.id}:drop:${dropIndex}`,
+      set,
+      dropIndex,
+    })),
+  ]);
+  const last = lines.length - 1;
 
   return (
-    <div className="logged-ghost">
-      {editing ? (
-        <>
-          <Stepper
-            layout="inline"
-            size="compact"
-            inlineSuffix={unit}
-            label={`Logged weight (${unit})`}
-            value={weight}
-            step={MANUAL_STEP[unit]}
-            min={0}
-            onChange={(value) =>
-              void updateSetLog(set.id, { weight: toCanonical(value, unit) })
-            }
-          />
-          <span className="logged-ghost-times" aria-hidden="true">
-            ×
-          </span>
-          <Stepper
-            layout="inline"
-            size="compact"
-            inlineSuffix="reps"
-            label="Logged reps"
-            value={set.reps}
-            step={1}
-            min={1}
-            onChange={(value) => void updateSetLog(set.id, { reps: value })}
-          />
-          <button
-            type="button"
-            className="logged-ghost-action"
-            onClick={() => setEditing(false)}
+    <ul ref={listRef} className="logbook" aria-label="Logged sets">
+      {lines.map((line, i) => {
+        const drop = line.dropIndex >= 0 ? line.set.drops?.[line.dropIndex] : undefined;
+        return (
+          <li
+            key={line.key}
+            className="logbook-row"
+            style={{ ["--log-depth" as string]: String(last - i) }}
           >
-            Done
-          </button>
-        </>
-      ) : (
-        <>
-          {set.isWarmup ? (
-            <span className="logged-ghost-tag">Warm-up</span>
-          ) : null}
-          <p className="logged-ghost-figure tnum">
-            <span>{formatWeight(weight)}</span>
-            <span className="logged-ghost-unit">{unit}</span>
-            <span className="logged-ghost-times" aria-hidden="true">
-              ×
-            </span>
-            <span>{set.reps}</span>
-          </p>
-          <button type="button" className="logged-ghost-action" onClick={onUndo}>
-            Undo
-          </button>
-          <button
-            type="button"
-            className="logged-ghost-action"
-            onClick={() => setEditing(true)}
-          >
-            Edit
-          </button>
-        </>
-      )}
-    </div>
+            {drop ? (
+              <LogLine
+                drop
+                unit={unit}
+                weight={drop.weight}
+                reps={drop.reps}
+                removeLabel={`Remove drop ${line.dropIndex + 1} from set ${line.set.setNumber}`}
+                onWeight={(value) =>
+                  void updateSetDrop(line.set.id, line.dropIndex, {
+                    weight: toCanonical(value, unit),
+                  })
+                }
+                onReps={(value) =>
+                  void updateSetDrop(line.set.id, line.dropIndex, { reps: value })
+                }
+                onRemove={() => void deleteSetDrop(line.set.id, line.dropIndex)}
+              />
+            ) : (
+              <LogLine
+                index={line.set.setNumber}
+                warmup={line.set.isWarmup}
+                unit={unit}
+                weight={line.set.weight}
+                reps={line.set.reps}
+                removeLabel={
+                  line.set.isWarmup
+                    ? `Remove warm-up set ${line.set.setNumber}`
+                    : `Remove set ${line.set.setNumber}`
+                }
+                onWeight={(value) =>
+                  void updateSetLog(line.set.id, { weight: toCanonical(value, unit) })
+                }
+                onReps={(value) => void updateSetLog(line.set.id, { reps: value })}
+                onRemove={() => void deleteSetLog(line.set.id)}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function LogLine({
+  index,
+  warmup = false,
+  drop = false,
+  unit,
+  weight,
+  reps,
+  removeLabel,
+  onWeight,
+  onReps,
+  onRemove,
+}: {
+  index?: number;
+  warmup?: boolean;
+  drop?: boolean;
+  unit: Unit;
+  weight: number;
+  reps: number;
+  removeLabel: string;
+  onWeight: (value: number) => void;
+  onReps: (value: number) => void;
+  onRemove: () => void;
+}) {
+  const canonical = toDisplay(weight, unit);
+  const [shownWeight, setShownWeight] = useState(canonical);
+  const [shownReps, setShownReps] = useState(reps);
+  useEffect(() => setShownWeight(canonical), [canonical]);
+  useEffect(() => setShownReps(reps), [reps]);
+
+  return (
+    <>
+      <span className="logbook-index tnum" aria-hidden="true">
+        {drop ? "·" : index}
+      </span>
+      <div className="logbook-figures">
+        <Stepper
+          layout="readout"
+          size="compact"
+          drag
+          inlineSuffix={unit}
+          suffixClassName="logbook-unit"
+          label={
+            warmup
+              ? `Warm-up set ${index} weight (${unit})`
+              : drop
+                ? `Drop weight (${unit})`
+                : `Set ${index} weight (${unit})`
+          }
+          value={shownWeight}
+          step={MANUAL_STEP[unit]}
+          min={0}
+          onChange={(value) => {
+            setShownWeight(value);
+            onWeight(value);
+          }}
+        />
+        <span className="set-times logbook-times" aria-hidden="true">
+          ×
+        </span>
+        <Stepper
+          layout="readout"
+          size="compact"
+          drag
+          inlineSuffix="reps"
+          suffixClassName="logbook-unit"
+          label={
+            warmup
+              ? `Warm-up set ${index} reps`
+              : drop
+                ? "Drop reps"
+                : `Set ${index} reps`
+          }
+          value={shownReps}
+          step={1}
+          min={1}
+          onChange={(value) => {
+            setShownReps(value);
+            onReps(value);
+          }}
+        />
+      </div>
+      <button type="button" className="logbook-remove" aria-label={removeLabel} onClick={onRemove}>
+        −
+      </button>
+    </>
   );
 }
