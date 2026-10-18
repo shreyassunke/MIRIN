@@ -21,7 +21,7 @@ import {
   type GymMachineId,
 } from "../lib/library";
 import { MachineStationPicker, STATION_LABEL } from "./MachineStationPicker";
-import { IconAddSet, IconSearch } from "./ItemOverflow";
+import { IconAddSet } from "./ItemOverflow";
 import { useDismissOnPointerOutside } from "../hooks/useDismissOnPointerOutside";
 
 const MAX_RESULTS = 12;
@@ -191,21 +191,21 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
   );
 }
 
-/** The exercise search. A mark in the corner, no housing. */
+/** A bare plus in the corner. Opens the exercise search so a lift can be added. */
 export function SearchExerciseButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Search exercises"
+      aria-label="Add exercise"
       className="exercise-search-trigger"
     >
-      <IconSearch />
+      <IconAddSet />
     </button>
   );
 }
 
-/** The corner mark becomes the field. The right edge stays put. */
+/** The plus becomes the field. The right edge stays put. */
 export function HeaderExerciseSearch({
   open,
   onOpen,
