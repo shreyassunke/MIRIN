@@ -9,9 +9,20 @@ interface LoggedSetsProps {
   unit: Unit;
 }
 
+/** How far each row sits from the selection band, in row-heights. */
+function placeWheel(node: HTMLUListElement) {
+  const mid = node.scrollTop + node.clientHeight / 2;
+  node.querySelectorAll<HTMLElement>(".logbook-row").forEach((row) => {
+    const rowMid = row.offsetTop + row.offsetHeight / 2;
+    const distance = row.offsetHeight > 0 ? (rowMid - mid) / row.offsetHeight : 0;
+    row.style.setProperty("--wheel", distance.toFixed(3));
+  });
+}
+
 /**
- * The sets logged on this exercise, oldest at the top. The figures are the
- * record: drag a number to step it, tap it to type. Minus removes that line.
+ * The sets logged on this exercise, as a wheel. The row in the band is the
+ * one in hand; the others fall off above and below it. Drag a number to step
+ * it, tap it to type. Minus removes that line.
  */
 export function LoggedSets({ sets, unit }: LoggedSetsProps) {
   const listRef = useRef<HTMLUListElement>(null);
@@ -22,6 +33,25 @@ export function LoggedSets({ sets, unit }: LoggedSetsProps) {
     const node = listRef.current;
     if (!node) return;
     node.scrollTop = node.scrollHeight;
+    placeWheel(node);
+  }, [sets.length, tail, dropTail]);
+
+  useEffect(() => {
+    const node = listRef.current;
+    if (!node) return;
+    let frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => placeWheel(node));
+    };
+    node.addEventListener("scroll", onScroll, { passive: true });
+    const observer = new ResizeObserver(onScroll);
+    observer.observe(node);
+    return () => {
+      cancelAnimationFrame(frame);
+      node.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
   }, [sets.length, tail, dropTail]);
 
   if (sets.length === 0) return null;
@@ -34,17 +64,18 @@ export function LoggedSets({ sets, unit }: LoggedSetsProps) {
       dropIndex,
     })),
   ]);
-  const last = lines.length - 1;
-
   return (
-    <ul ref={listRef} className="logbook" aria-label="Logged sets">
-      {lines.map((line, i) => {
+    <div className="logbook-wheel">
+      <div className="logbook-band" aria-hidden="true" />
+      <ul ref={listRef} className="logbook" aria-label="Logged sets">
+      <li className="logbook-pad" aria-hidden="true" />
+      {lines.map((line) => {
         const drop = line.dropIndex >= 0 ? line.set.drops?.[line.dropIndex] : undefined;
         return (
           <li
             key={line.key}
             className="logbook-row"
-            style={{ ["--log-depth" as string]: String(last - i) }}
+            style={{ ["--wheel" as string]: "0" }}
           >
             {drop ? (
               <LogLine
@@ -85,7 +116,9 @@ export function LoggedSets({ sets, unit }: LoggedSetsProps) {
           </li>
         );
       })}
-    </ul>
+      <li className="logbook-pad" aria-hidden="true" />
+      </ul>
+    </div>
   );
 }
 

@@ -843,9 +843,8 @@ textarea {
   max-width: 100%;
 }
 
-/* Logged sets, oldest at the top. Each line further from the live key
-   is a step smaller, so the stack reads as something you can scroll.
-   The bar stays hidden. */
+/* Logged sets sit in a wheel. The band stays put; rows scroll through it
+   and dim as they leave it. The bar stays hidden. */
 .set-column {
   display: flex;
   flex: none;
@@ -855,18 +854,49 @@ textarea {
   min-height: 0;
 }
 
+.logbook-wheel {
+  --log-row: 2.25rem;
+  position: relative;
+  width: max-content;
+  max-width: 100%;
+  margin: 0.25rem auto 0;
+}
+
+.logbook-band {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: var(--log-row);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .logbook {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 1.5rem max-content 2.75rem;
-  align-items: center;
-  max-height: 10rem;
-  margin: 0.25rem 0 0;
+  align-content: start;
+  height: calc(var(--log-row) * 5);
+  margin: 0;
   padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   list-style: none;
   scrollbar-width: none;
+  scroll-snap-type: y mandatory;
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 18%,
+    #000 82%,
+    transparent 100%
+  );
 }
 
 .logbook::-webkit-scrollbar {
@@ -875,19 +905,25 @@ textarea {
   height: 0;
 }
 
+.logbook-pad {
+  grid-column: 1 / -1;
+  height: calc(var(--log-row) * 2);
+}
+
 .logbook-row {
-  --log-rank: min(var(--log-depth, 0), 4);
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
   align-items: center;
-  min-height: calc(2.125rem - var(--log-rank) * 0.1875rem);
+  height: var(--log-row);
+  scroll-snap-align: center;
+  opacity: clamp(0.16, calc(1 - abs(var(--wheel, 0)) * 0.48), 1);
 }
 
 .logbook-index {
   justify-self: center;
   color: var(--color-muted);
-  font-size: max(9px, calc(11px - var(--log-rank) * 0.5px));
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1;
@@ -898,16 +934,16 @@ textarea {
   align-items: baseline;
   justify-content: center;
   min-width: 0;
-  padding: 0 0.35rem;
+  padding: 0 0.65rem;
 }
 
 .logbook-figures [data-no-pager] {
-  min-height: calc(2.125rem - var(--log-rank) * 0.1875rem);
+  min-height: var(--log-row);
 }
 
 .logbook-figures .numeral {
   height: auto;
-  font-size: calc(0.9375rem - var(--log-rank) * 0.0625rem);
+  font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -915,13 +951,13 @@ textarea {
 .logbook-unit,
 .logbook-times {
   color: var(--color-muted);
-  font-size: max(10px, calc(0.75rem - var(--log-rank) * 0.03125rem));
+  font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: 0;
 }
 
 .logbook-times {
-  margin: 0 0.3rem;
+  margin: 0 0.35rem;
 }
 
 .logbook-remove {
@@ -929,12 +965,12 @@ textarea {
   align-items: center;
   justify-content: center;
   width: 2.75rem;
-  height: calc(2.125rem - var(--log-rank) * 0.1875rem);
+  height: var(--log-row);
   border: 0;
   background: transparent;
   color: var(--color-muted);
   font-family: inherit;
-  font-size: calc(1.0625rem - var(--log-rank) * 0.0625rem);
+  font-size: 1.0625rem;
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -959,6 +995,10 @@ textarea {
   .logbook-remove:hover {
     color: var(--color-ink);
   }
+}
+
+html[data-mode="light"] .logbook-band {
+  background: rgb(22 22 22 / 0.06);
 }
 
 .exercise-deck {
