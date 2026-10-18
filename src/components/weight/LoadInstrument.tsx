@@ -1,8 +1,11 @@
 import {
+  cloneElement,
+  isValidElement,
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
+  type ReactElement,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -150,6 +153,27 @@ function WeightHeader({
     )
   ) : null;
 
+  const figures = (
+    <>
+      {weightDisplay ?? (
+        <>
+          <span className="tnum text-3xl font-semibold tracking-tight">
+            {formatWeight(weight)}
+          </span>
+          <span className="ml-1.5 text-sm text-muted">{unit}</span>
+        </>
+      )}
+      {gloss}
+      {count}
+    </>
+  );
+
+  const line = isValidElement(action)
+    ? cloneElement(action as ReactElement<{ children?: ReactNode }>, undefined, figures)
+    : (
+        <div className="flex min-w-0 items-center whitespace-nowrap">{figures}</div>
+      );
+
   return (
     <div className={docked ? "set-line" : undefined}>
       {caption ? (
@@ -157,21 +181,7 @@ function WeightHeader({
           {caption}
         </p>
       ) : null}
-      <div className="flex min-h-11 items-center justify-center gap-2.5">
-        <div className="flex min-w-0 items-center whitespace-nowrap">
-          {weightDisplay ?? (
-            <>
-              <span className="tnum text-3xl font-semibold tracking-tight">
-                {formatWeight(weight)}
-              </span>
-              <span className="ml-1.5 text-sm text-muted">{unit}</span>
-            </>
-          )}
-          {gloss}
-          {count}
-        </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
-      </div>
+      <div className="flex min-h-11 items-center justify-center">{line}</div>
     </div>
   );
 }
@@ -359,15 +369,7 @@ export function LoadInstrument({
       qualifierAria={page.qualifierAria}
       reps={reps}
       onRepsChange={onRepsChange}
-      action={
-        headerAction ? (
-          live ? (
-            headerAction
-          ) : (
-            <span className="inline-block h-11 w-11" aria-hidden="true" />
-          )
-        ) : undefined
-      }
+      action={live ? headerAction : undefined}
       caption={live ? headerCaption : undefined}
       docked={docked}
     />

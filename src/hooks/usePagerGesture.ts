@@ -70,6 +70,8 @@ function isExemptTarget(
 ) {
   if (!(target instanceof Element)) return false;
   if (target.closest("input, textarea, select, [contenteditable='true']")) {
+    // The log pill is the figures. Its own sideways swipe still owns them.
+    if (pageClaim && root.hasAttribute("data-log-bar")) return false;
     return true;
   }
   // The log circle has its own sideways swipe. A parent pager leaves it alone.
@@ -245,6 +247,14 @@ export function usePagerGesture({
       dropWindow();
       dragging.current = false;
       stopPaintRaf();
+
+      if (current.locked) {
+        // The ghost click follows pointerup. If the press began on a field,
+        // that click never comes, and the flag would eat the next tap.
+        window.setTimeout(() => {
+          suppressClick.current = false;
+        }, 0);
+      }
 
       if (!commit || !current.locked) {
         settleTo(Math.round(progress.current), true);

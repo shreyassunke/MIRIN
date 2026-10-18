@@ -1,5 +1,13 @@
-import { useId, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { formatWeight } from "../lib/workout";
+import { LogPillContext } from "./LogActionSwipe";
 
 /** Same claim and travel as the weight stage drag. Up increases. */
 const DRAG_TAP_PX = 12;
@@ -72,7 +80,17 @@ export function Stepper({
   } | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const pill = useContext(LogPillContext);
+  const holdRef = useRef<number | null>(null);
   valueRef.current = value;
+
+  const clearHold = () => {
+    if (holdRef.current == null) return;
+    window.clearTimeout(holdRef.current);
+    holdRef.current = null;
+  };
+
+  useEffect(() => clearHold, []);
 
   const display = format ? format(value) : formatWeight(value);
   const shown = editing ? draft : display;
@@ -122,6 +140,15 @@ export function Stepper({
       captured: false,
       discarded: false,
     };
+    if (pill) {
+      clearHold();
+      holdRef.current = window.setTimeout(() => {
+        const start = dragRef.current;
+        if (!start || start.captured || start.discarded) return;
+        pill.skipClick.current = true;
+        inputRef.current?.focus();
+      }, 450);
+    }
   };
 
   const onDragMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -129,6 +156,7 @@ export function Stepper({
     if (!start || start.pointerId !== event.pointerId || start.discarded) return;
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
+    if (Math.hypot(dx, dy) > 4) clearHold();
     if (!start.captured) {
       if (Math.hypot(dx, dy) <= DRAG_TAP_PX) return;
       if (Math.abs(dx) > Math.abs(dy)) {
@@ -156,14 +184,25 @@ export function Stepper({
     const start = dragRef.current;
     if (!start || start.pointerId !== event.pointerId) return;
     dragRef.current = null;
+    clearHold();
     const host = event.currentTarget;
     if (host.hasPointerCapture(event.pointerId)) {
       host.releasePointerCapture(event.pointerId);
     }
-    if (start.captured || start.discarded) return;
+    if (start.captured || start.discarded) {
+      if (pill) pill.skipClick.current = true;
+      return;
+    }
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
     if (Math.hypot(dx, dy) > DRAG_TAP_PX) return;
+    if (pill) {
+      if (pill.skipClick.current) return;
+      pill.skipClick.current = true;
+      if (document.activeElement === inputRef.current) return;
+      pill.onLog();
+      return;
+    }
     inputRef.current?.focus();
   };
 
