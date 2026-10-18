@@ -97,8 +97,7 @@ import { useUnit } from "../lib/settings";
 import { RestTimer } from "../components/RestTimer";
 import { UnitToggle } from "../components/UnitToggle";
 import { DaySwitcher } from "../components/DaySwitcher";
-import { LoggedSetGhost } from "../components/LoggedSetGhost";
-import { deleteSetLog } from "../lib/history";
+import { LoggedSets } from "../components/LoggedSetGhost";
 
 interface TodayData {
   splitId: string;
@@ -484,6 +483,8 @@ export function Today() {
     });
   }, [data, draftSeed, logsByExercise, unit]);
 
+  const loggedForActive = activeId ? (logsByExercise.get(activeId) ?? []) : [];
+
   // Never leave the fill-and-complete confirmation armed behind the user.
   useEffect(() => {
     if (!finishArmed) return;
@@ -581,9 +582,7 @@ export function Today() {
     0,
     data.exercises.findIndex((e) => e.id === activeId),
   );
-  const ghostSet = activeId
-    ? (logsByExercise.get(activeId) ?? []).at(-1)
-    : undefined;
+  const loggedSets = loggedForActive;
 
   function patchDraft(exerciseId: string, partial: Partial<StageDraft>) {
     setDrafts((prev) => {
@@ -1141,6 +1140,11 @@ export function Today() {
                       phone && setDock && exercise.id !== activeId,
                     )}
                     variationRequest={variationTick[exercise.id] ?? 0}
+                    logbook={
+                      !phone && exercise.id === activeId ? (
+                        <LoggedSets sets={loggedForActive} unit={unit} />
+                      ) : undefined
+                    }
                     headerAction={
                       <LogActionSwipe
                         key={exercise.id}
@@ -1265,16 +1269,12 @@ export function Today() {
         />
       )}
 
-      {phone && ghostSet ? (
-        <LoggedSetGhost
-          key={ghostSet.id}
-          set={ghostSet}
-          unit={unit}
-          onUndo={() => void deleteSetLog(ghostSet.id)}
-        />
+      {phone ? (
+        <div className="set-column">
+          <LoggedSets sets={loggedSets} unit={unit} />
+          <div ref={assignDock} className="set-dock" />
+        </div>
       ) : null}
-
-      {phone ? <div ref={assignDock} className="set-dock" /> : null}
     </div>
   );
 }

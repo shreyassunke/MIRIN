@@ -68,6 +68,8 @@ interface TodayExerciseStageProps {
   suppressHeader?: boolean;
   /** Bumps when the overflow menu asks to change this exercise. */
   variationRequest?: number;
+  /** Logged sets for this exercise, on the desktop line. */
+  logbook?: ReactNode;
 }
 
 /** The gloss on the live number, in the same words the stage prints. */
@@ -120,6 +122,7 @@ export function TodayExerciseStage({
   headerDock,
   suppressHeader,
   variationRequest = 0,
+  logbook,
 }: TodayExerciseStageProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const trayRef = useRef<HTMLDivElement>(null);
@@ -172,6 +175,7 @@ export function TodayExerciseStage({
 
   return (
     <div ref={anchorRef}>
+      {logbook}
       <LoadInstrument
         unit={unit}
         modes={modes}
