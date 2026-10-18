@@ -538,17 +538,20 @@ export function Today() {
             </p>
           </div>
           <div className="flex shrink-0 items-center">
-            <UnitToggle />
-            <HeaderExerciseSearch
-              open={addingExercise}
-              onOpen={() => setAddingExercise(true)}
-              onClose={() => setAddingExercise(false)}
-              excludeIds={data.exerciseIds}
-              onPick={async (entry) => {
-                const id = await ensureExerciseRow(entry);
-                await addAdHocExercise(id);
-              }}
-            />
+            {addingExercise ? (
+              <HeaderExerciseSearch
+                open
+                onOpen={() => setAddingExercise(true)}
+                onClose={() => setAddingExercise(false)}
+                excludeIds={data.exerciseIds}
+                onPick={async (entry) => {
+                  const id = await ensureExerciseRow(entry);
+                  await addAdHocExercise(id);
+                }}
+              />
+            ) : (
+              <UnitToggle />
+            )}
           </div>
         </header>
         <p className="mb-4 text-sm leading-relaxed text-muted">
@@ -976,16 +979,20 @@ export function Today() {
           </p>
         </div>
         <div className="flex shrink-0 items-center">
-          <HeaderExerciseSearch
-            open={addingExercise}
-            onOpen={() => setAddingExercise(true)}
-            onClose={() => setAddingExercise(false)}
-            excludeIds={data.exerciseIds}
-            onPick={async (entry) => {
-              const id = await ensureExerciseRow(entry);
-              await addAdHocExercise(id);
-            }}
-          />
+          {addingExercise ? (
+            <HeaderExerciseSearch
+              open
+              onOpen={() => setAddingExercise(true)}
+              onClose={() => setAddingExercise(false)}
+              excludeIds={data.exerciseIds}
+              onPick={async (entry) => {
+                const id = await ensureExerciseRow(entry);
+                await addAdHocExercise(id);
+              }}
+            />
+          ) : (
+            <UnitToggle />
+          )}
         </div>
       </header>
 
