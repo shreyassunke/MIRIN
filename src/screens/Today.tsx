@@ -1267,6 +1267,9 @@ export function Today() {
         <div className="set-column">
           <div ref={assignDock} className="set-dock" />
           <LoggedSets sets={loggedSets} unit={unit} />
+          {loggedSets.length === 0 ? (
+            <div className="logbook-reserve" aria-hidden="true" />
+          ) : null}
           {completeControl}
         </div>
       ) : null}

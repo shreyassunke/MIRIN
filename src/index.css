@@ -1098,9 +1098,9 @@ textarea {
 }
 
 /* Phone column. The stage keeps the top half, so the dot marks sit on
-   the halfway line. The lower half is the logging dock: the key sits
-   in the thumb zone, and the set wheel follows it with a clear pause
-   between them, above the tab bar. */
+   the halfway line. The log key stays above the set wheel. The wheel's
+   place is held before the first set, so the key does not drop onto
+   the tab bar. */
 .today-phone-frame,
 .today-phone-scroll,
 .today-lower {
@@ -1235,6 +1235,12 @@ textarea {
   width: max-content;
   max-width: 100%;
   margin: 0 auto;
+}
+
+/* Same height as the wheel, so an empty log keeps the key where a set would. */
+.logbook-reserve {
+  height: calc(2.125rem * 3);
+  flex: none;
 }
 
 .logbook-band {
