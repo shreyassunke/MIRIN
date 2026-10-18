@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useGoalCeremony } from "../components/GoalCeremony";
+import { heaviest } from "../lib/goals";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   db,
@@ -362,6 +364,7 @@ export function Today() {
   const assignDock = useCallback((node: HTMLDivElement | null) => {
     setSetDock(node);
   }, []);
+  const { strikeMany } = useGoalCeremony();
   const loggingRef = useRef(false);
   /** Completing fills sets from last session, so it takes a second tap. */
   const [finishArmed, setFinishArmed] = useState(false);
@@ -695,6 +698,9 @@ export function Today() {
       variationId: options?.variationId,
       variationLabel: options?.variationLabel,
     });
+    void strikeMany([
+      { exerciseId, weightLb, priorBestLb: heaviest(existing) },
+    ]);
     setFinishArmed(false);
     // A logged set reopens an exercise that was called done.
     if (finishedIds.has(exerciseId)) {
@@ -825,6 +831,19 @@ export function Today() {
     const sessionId = await ensureSession();
     const session = await db.sessions.get(sessionId);
     if (fillPlan.length > 0) {
+      const running = new Map<string, number>();
+      for (const [id, logs] of logsByExercise) running.set(id, heaviest(logs));
+      const hits = fillPlan.map((planned) => {
+        const priorBestLb = running.get(planned.exerciseId) ?? 0;
+        if (planned.weight > priorBestLb) {
+          running.set(planned.exerciseId, planned.weight);
+        }
+        return {
+          exerciseId: planned.exerciseId,
+          weightLb: planned.weight,
+          priorBestLb,
+        };
+      });
       await db.setLogs.bulkAdd(
         fillPlan.map((planned) => ({
           id: newId(),
@@ -841,6 +860,7 @@ export function Today() {
             session?.exerciseSwapOrigins?.[planned.exerciseId],
         })),
       );
+      void strikeMany(hits);
     }
     await db.sessions.update(sessionId, {
       completed: true,

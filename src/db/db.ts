@@ -159,6 +159,10 @@ export interface Goal {
   /** Target weight in canonical lbs. */
   targetWeight: number;
   createdAt: string;
+  /** When a logged set first met the target. Absent while the target is open. */
+  achievedAt?: string;
+  /** Working weight, canonical lbs, of the set that met the target. */
+  achievedWeight?: number;
 }
 
 /** One calendar day's protein and calories. `id` is YYYY-MM-DD local. */

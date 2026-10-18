@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { AVATAR_KEY, useSettingValue } from "../lib/profile";
 import { getContactLine, getDisplayName } from "../lib/user";
 import { Avatar } from "./Avatar";
+import { GoalCeremonyProvider } from "./GoalCeremony";
 import { NAV_GLYPHS, NavGlyph } from "./NavGlyph";
 
 const NAV_ITEMS = [
@@ -67,6 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
+    <GoalCeremonyProvider>
     <div className="min-h-dvh bg-bg text-ink md:flex">
       {/* Desktop sidebar */}
       <aside className="hidden w-48 shrink-0 border-r border-hairline md:flex md:flex-col">
@@ -163,5 +165,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </nav>
     </div>
+    </GoalCeremonyProvider>
   );
 }

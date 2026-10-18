@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useGoalCeremony } from "../components/GoalCeremony";
 import { db, type SetLog } from "../db/db";
+import { heaviest } from "../lib/goals";
 import {
   addSetToSession,
   deleteSetDrop,
@@ -66,6 +68,7 @@ export function SessionDetail() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [unit] = useUnit();
+  const { strikeMany } = useGoalCeremony();
   const [addingExercise, setAddingExercise] = useState(false);
   const [addingSetFor, setAddingSetFor] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -145,6 +148,7 @@ export function SessionDetail() {
 
   const saveNewSet = async () => {
     if (!addingSetFor) return;
+    const priorBestLb = heaviest(data.logsByExercise.get(addingSetFor));
     await addSetToSession({
       sessionId,
       exerciseId: addingSetFor,
@@ -152,6 +156,13 @@ export function SessionDetail() {
       reps: newReps,
       unit,
     });
+    void strikeMany([
+      {
+        exerciseId: addingSetFor,
+        weightLb: toCanonical(newWeight, unit),
+        priorBestLb,
+      },
+    ]);
     setAddingSetFor(null);
   };
 
@@ -392,6 +403,7 @@ function SetEditor({
   label: string;
   onDelete: () => void;
 }) {
+  const { noteEditedWeight } = useGoalCeremony();
   const weightDisplay = toDisplay(set.weight, unit);
   const step = MANUAL_STEP[unit];
 
@@ -410,9 +422,12 @@ function SetEditor({
             value={weightDisplay}
             step={step}
             min={0}
-            onChange={(v) =>
-              void updateSetLog(set.id, { weight: toCanonical(v, unit) })
-            }
+            onChange={(v) => {
+              const weightLb = toCanonical(v, unit);
+              void updateSetLog(set.id, { weight: weightLb }).then(() =>
+                noteEditedWeight(set.exerciseId, set.id, weightLb),
+              );
+            }}
           />
           <Stepper
             layout="inline"

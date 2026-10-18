@@ -2550,3 +2550,73 @@ html[data-mode="light"] .contrib {
     transform: none;
   }
 }
+
+/* Silver cup. Metal stays silver in both appearances; ink inverts, the object does not. */
+.trophy {
+  --trophy-hi: #fafafa;
+  --trophy-mid: #d4d4d4;
+  --trophy-shade: #8a8a8a;
+  --trophy-edge: color-mix(in srgb, var(--color-muted) 46%, var(--color-bg));
+  --trophy-mouth: #141414;
+}
+
+html[data-mode="light"] .trophy {
+  --trophy-hi: #fffcf8;
+  --trophy-mid: #d9d6d0;
+  --trophy-shade: #8a877f;
+  --trophy-edge: #5c5c58;
+  --trophy-mouth: #b7b3ab;
+}
+
+/* Struck record. The veil fades; the cup settles. */
+
+.record-veil {
+  animation: record-veil-in 220ms var(--ease-out-expo) both;
+}
+
+.record-veil[data-phase="out"] {
+  animation: record-veil-out 180ms var(--ease-out-expo) both;
+}
+
+.record-medal {
+  animation: record-medal-in 240ms var(--ease-out-expo) both;
+}
+
+.record-ring {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+@keyframes record-veil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes record-veil-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes record-medal-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes record-ring {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .record-medal .record-ring {
+    animation: record-ring 480ms var(--ease-out-expo) 40ms both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-veil,
+  .record-veil[data-phase="out"],
+  .record-medal {
+    animation: none;
+  }
+}

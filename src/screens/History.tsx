@@ -4,9 +4,17 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { ContributionGraph } from "../components/ContributionGraph";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
+import { useGoalCeremony } from "../components/GoalCeremony";
+import { TrophyMark } from "../components/TrophyMark";
 import { Stepper } from "../components/Stepper";
 import { db, type Goal } from "../db/db";
-import { addGoal, deleteGoal } from "../lib/goals";
+import {
+  addGoal,
+  deleteGoal,
+  firstStrike,
+  formatRecordDate,
+  isGoalMet,
+} from "../lib/goals";
 import {
   allTimeBests,
   contributionYears,
@@ -37,7 +45,11 @@ function readYear(value: string | null, current: number): number | null {
 interface GoalRow {
   goal: Goal;
   name: string;
+  equipment?: string;
   best: number;
+  /** Earliest session that met the target, when the goal row has not been stamped yet. */
+  struckAt: string | null;
+  struckWeight: number | null;
 }
 
 export function History() {
@@ -51,6 +63,7 @@ export function History() {
   const rawDay = searchParams.get("day");
   const selectedKey = rawDay && parseDateKey(rawDay) ? rawDay : todayKey;
 
+  const { replay } = useGoalCeremony();
   const [addingGoal, setAddingGoal] = useState(false);
   const [pendingExercise, setPendingExercise] =
     useState<ExerciseLibraryEntry | null>(null);
@@ -94,18 +107,46 @@ export function History() {
 
   const goals = useMemo<GoalRow[]>(() => {
     if (!data || !bests) return [];
-    const nameById = new Map(data.exercises.map((e) => [e.id, e.name] as const));
+    const exerciseById = new Map(data.exercises.map((e) => [e.id, e] as const));
     return data.goals
-      .map((goal) => ({
-        goal,
-        name: nameById.get(goal.exerciseId) ?? "Exercise",
-        best: bests.get(goal.exerciseId) ?? 0,
-      }))
+      .map((goal) => {
+        const strike = firstStrike(
+          data.logs,
+          data.sessions,
+          goal.exerciseId,
+          goal.targetWeight,
+        );
+        const exercise = exerciseById.get(goal.exerciseId);
+        return {
+          goal,
+          name: exercise?.name ?? "Exercise",
+          equipment: exercise?.equipment,
+          best: bests.get(goal.exerciseId) ?? 0,
+          struckAt: strike?.at ?? null,
+          struckWeight: strike?.weight ?? null,
+        };
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [data, bests]);
 
+  const openGoals = useMemo(
+    () => goals.filter((row) => !isGoalMet(row.goal, row.best)),
+    [goals],
+  );
+  const records = useMemo(
+    () =>
+      goals
+        .filter((row) => isGoalMet(row.goal, row.best))
+        .sort((a, b) => {
+          const aAt = a.goal.achievedAt ?? a.struckAt ?? "";
+          const bAt = b.goal.achievedAt ?? b.struckAt ?? "";
+          return bAt.localeCompare(aAt) || a.name.localeCompare(b.name);
+        }),
+    [goals],
+  );
+
   const focused =
-    goals.find((row) => row.goal.id === searchParams.get("goal")) ?? null;
+    openGoals.find((row) => row.goal.id === searchParams.get("goal")) ?? null;
 
   const calendar = useMemo(
     () =>
@@ -205,7 +246,7 @@ export function History() {
           <p className="text-[15px] text-muted">Loading…</p>
         ) : (
           <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar">
-            {goals.map((row) => (
+            {openGoals.map((row) => (
               <GoalBadge
                 key={row.goal.id}
                 row={row}
@@ -218,7 +259,10 @@ export function History() {
                 }}
               />
             ))}
-            {goals.length === 0 && !addingGoal && !pendingExercise ? (
+            {openGoals.length === 0 &&
+            records.length === 0 &&
+            !addingGoal &&
+            !pendingExercise ? (
               <p className="self-center text-[15px] text-muted">No targets yet.</p>
             ) : null}
             {!addingGoal && !pendingExercise ? (
@@ -363,7 +407,7 @@ export function History() {
                 <SessionRow
                   key={session.session.id}
                   session={session}
-                  goals={goals}
+                  goals={openGoals}
                   focusedId={focused?.goal.id ?? null}
                   unit={unit}
                 />
@@ -372,6 +416,52 @@ export function History() {
           </>
         )}
       </section>
+
+      {records.length > 0 ? (
+        <section className="mt-10" aria-labelledby="records-heading">
+          <h2 id="records-heading" className="mb-3 text-[13px] font-medium text-muted">
+            Records
+          </h2>
+          <ul className="divide-y divide-hairline border-y border-hairline">
+            {records.map((row) => {
+              const weightLb = row.goal.achievedWeight ?? row.struckWeight ?? row.best;
+              const at = row.goal.achievedAt ?? row.struckAt ?? row.goal.createdAt;
+              const weight = formatWeight(toDisplay(weightLb, unit));
+              const date = formatRecordDate(at);
+              return (
+                <li key={row.goal.id}>
+                  <button
+                    type="button"
+                    className="flex min-h-11 w-full items-center gap-3 py-3 text-left transition-colors duration-150 ease-out-expo hover:bg-wash"
+                    onClick={() =>
+                      replay({
+                        goalId: row.goal.id,
+                        name: row.name,
+                        equipment: row.equipment,
+                        weightLb,
+                        achievedAt: at,
+                      })
+                    }
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center">
+                      <TrophyMark className="h-10 w-10" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-semibold tracking-tight text-ink">
+                        {row.name}
+                      </span>
+                      <span className="mt-0.5 block text-[13px] text-muted">{date}</span>
+                    </span>
+                    <span className="tnum shrink-0 text-[15px] font-semibold tracking-tight text-ink">
+                      {weight} {unit}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }
