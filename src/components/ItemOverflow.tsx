@@ -366,6 +366,21 @@ export function IconAddSet(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Header add mark. Round ends, arms about nine times the stroke. */
+export function IconPlus(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
+      <path
+        d="M12 6.3v11.4M6.3 12h11.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function IconVideo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>

@@ -21,7 +21,7 @@ import {
   type GymMachineId,
 } from "../lib/library";
 import { MachineStationPicker, STATION_LABEL } from "./MachineStationPicker";
-import { IconAddSet } from "./ItemOverflow";
+import { IconAddSet, IconPlus } from "./ItemOverflow";
 import { useDismissOnPointerOutside } from "../hooks/useDismissOnPointerOutside";
 
 const MAX_RESULTS = 12;
@@ -199,8 +199,9 @@ export function SearchExerciseButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       aria-label="Add exercise"
       className="exercise-search-trigger"
+      style={{ color: "var(--color-ink)" }}
     >
-      <IconAddSet />
+      <IconPlus />
     </button>
   );
 }
