@@ -61,7 +61,7 @@ import {
   patchExercisePref,
   workingSets,
 } from "../lib/exerciseMeta";
-import { ExerciseCombobox } from "../components/ExerciseCombobox";
+import { AddExerciseButton, ExerciseCombobox } from "../components/ExerciseCombobox";
 import { LogActionSwipe } from "../components/LogActionSwipe";
 import { TodayExercisePage } from "../components/TodayExerciseTile";
 import { ExerciseDeck } from "../components/ExerciseDeck";
@@ -558,13 +558,7 @@ export function Today() {
             }}
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => setAddingExercise(true)}
-            className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-          >
-            Add exercise
-          </button>
+          <AddExerciseButton onClick={() => setAddingExercise(true)} />
         )}
       </div>
     );
@@ -1183,24 +1177,20 @@ export function Today() {
 
       <div className="today-lower">
       {!data.isRestDay && (
-        <div className="mt-4 text-center">
+        <div className="mt-4 flex justify-center">
           {addingExercise ? (
-            <ExerciseCombobox
-              excludeIds={data.exerciseIds}
-              onCancel={() => setAddingExercise(false)}
-              onPick={async (entry) => {
-                const id = await ensureExerciseRow(entry);
-                await addAdHocExercise(id);
-              }}
-            />
+            <div className="w-full">
+              <ExerciseCombobox
+                excludeIds={data.exerciseIds}
+                onCancel={() => setAddingExercise(false)}
+                onPick={async (entry) => {
+                  const id = await ensureExerciseRow(entry);
+                  await addAdHocExercise(id);
+                }}
+              />
+            </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setAddingExercise(true)}
-              className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-            >
-            Add exercise
-          </button>
+            <AddExerciseButton onClick={() => setAddingExercise(true)} />
           )}
         </div>
       )}

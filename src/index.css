@@ -181,6 +181,37 @@ a,
   background: transparent;
 }
 
+/* Exercise search: the caret is the field. No box, no ring. */
+.exercise-search {
+  display: block;
+  width: min(14rem, 100%);
+  height: 2.75rem;
+  margin-inline: auto;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  outline: none;
+  text-align: left;
+  color: var(--color-ink);
+  caret-color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.exercise-search::placeholder {
+  color: var(--color-muted);
+}
+
+.exercise-search:focus,
+.exercise-search:focus-visible {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  border-color: transparent;
+}
+
 /* The browser's own surfaces belong to the palette too. */
 ::selection {
   background: color-mix(in srgb, var(--color-accent) 32%, transparent);

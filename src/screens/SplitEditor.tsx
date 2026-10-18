@@ -31,7 +31,7 @@ import {
   remapGroupIds,
   remapRecordKey,
 } from "../lib/exerciseMeta";
-import { ExerciseCombobox } from "../components/ExerciseCombobox";
+import { AddExerciseButton, ExerciseCombobox } from "../components/ExerciseCombobox";
 import { DragHandle } from "../components/DragHandle";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { NoteEditor } from "../components/NoteEditor";
@@ -556,13 +556,7 @@ function DayExerciseList({ day, exercises }: DayExerciseListProps) {
             }}
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className={quietBtn}
-          >
-            Add exercise
-          </button>
+          <AddExerciseButton onClick={() => setAdding(true)} />
         )}
       </div>
     </div>

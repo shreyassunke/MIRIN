@@ -21,6 +21,7 @@ import {
   type GymMachineId,
 } from "../lib/library";
 import { MachineStationPicker, STATION_LABEL } from "./MachineStationPicker";
+import { IconAddSet } from "./ItemOverflow";
 import { useDismissOnPointerOutside } from "../hooks/useDismissOnPointerOutside";
 
 const MAX_RESULTS = 12;
@@ -186,6 +187,20 @@ function CreateCustomForm({ initialName, onCreate, onBack }: CreateFormProps) {
   );
 }
 
+/** Quiet plus that opens the exercise search. The name stays on the button. */
+export function AddExerciseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Add exercise"
+      className="glass-btn inline-flex h-11 w-11 items-center justify-center rounded-full text-muted hover:text-ink"
+    >
+      <IconAddSet />
+    </button>
+  );
+}
+
 /**
  * Searchable exercise picker over the static library plus custom exercises.
  * Fuzzy matches name and aliases; offers a create-custom escape hatch.
@@ -346,7 +361,7 @@ export function ExerciseCombobox({
           className={
             inline
               ? "exercise-title h-11 max-w-full shrink-0 text-lg font-semibold tracking-tight text-ink"
-              : "h-11 w-full rounded-md border border-hairline bg-bg px-3 text-base text-ink placeholder:text-muted focus:border-muted"
+              : "exercise-search"
           }
         />
       </div>

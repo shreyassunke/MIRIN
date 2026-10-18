@@ -20,7 +20,7 @@ import {
 import { MANUAL_STEP, toCanonical, toDisplay } from "../lib/units";
 import { useUnit } from "../lib/settings";
 import { ensureExerciseRow, type ExerciseLibraryEntry } from "../lib/library";
-import { ExerciseCombobox } from "../components/ExerciseCombobox";
+import { AddExerciseButton, ExerciseCombobox } from "../components/ExerciseCombobox";
 import { Stepper } from "../components/Stepper";
 import { NoteEditor } from "../components/NoteEditor";
 import { FormVideoPanel } from "../components/FormVideo";
@@ -359,7 +359,6 @@ export function SessionDetail() {
       <div className="mt-8 space-y-4">
         {addingExercise ? (
           <ExerciseCombobox
-            label="Add exercise"
             placeholder="Search exercises"
             autoFocus
             excludeIds={data.excludeIds}
@@ -367,13 +366,7 @@ export function SessionDetail() {
             onCancel={() => setAddingExercise(false)}
           />
         ) : (
-          <button
-            type="button"
-            className={secondaryBtn}
-            onClick={() => setAddingExercise(true)}
-          >
-            Add exercise
-          </button>
+          <AddExerciseButton onClick={() => setAddingExercise(true)} />
         )}
 
         <div>
