@@ -1870,11 +1870,14 @@ html[data-mode="light"] .contrib {
 }
 
 .contrib-scroll {
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--color-hairline) transparent;
-  padding-bottom: 2px;
+  padding-right: 3px;
+  padding-bottom: 3px;
 }
 
 .contrib-scroll::-webkit-scrollbar {
@@ -1887,25 +1890,21 @@ html[data-mode="light"] .contrib {
   border-radius: 99px;
 }
 
-.contrib-months,
-.contrib-body {
+.contrib-split {
   display: flex;
-  width: max-content;
+  align-items: flex-start;
+  min-width: 0;
 }
 
-.contrib-body {
-  padding-right: 3px;
-  padding-bottom: 3px;
-}
-
-.contrib-gutter,
-.contrib-dow {
-  position: sticky;
-  left: 0;
-  z-index: 1;
+.contrib-dow-col {
   flex: none;
   width: var(--contrib-label);
   background: var(--color-bg);
+}
+
+.contrib-dow-spacer {
+  height: 16px;
+  margin-bottom: 4px;
 }
 
 .contrib-month-track {
@@ -1931,7 +1930,6 @@ html[data-mode="light"] .contrib {
   display: grid;
   grid-template-rows: repeat(7, var(--contrib-cell));
   row-gap: var(--contrib-gap);
-  padding-right: 8px;
   font-size: 11px;
   line-height: 1;
   color: var(--color-muted);

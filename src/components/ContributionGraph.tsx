@@ -116,18 +116,25 @@ export function ContributionGraph({
 
   return (
     <div className="contrib">
-      <div
-        ref={scrollerRef}
-        className="contrib-scroll"
-        onScroll={() => setTip(null)}
-      >
+      <div className="contrib-split">
+        <div className="contrib-dow-col" aria-hidden="true">
+          <div className="contrib-dow-spacer" />
+          <div className="contrib-dow">
+            {DOW.map((label, index) => (
+              <span key={index}>{label}</span>
+            ))}
+          </div>
+        </div>
         <div
-          className="contrib-months"
-          aria-hidden="true"
-          style={{ "--weeks": String(calendar.columns.length) } as CSSProperties}
+          ref={scrollerRef}
+          className="contrib-scroll"
+          onScroll={() => setTip(null)}
         >
-          <div className="contrib-gutter" />
-          <div className="contrib-month-track">
+          <div
+            className="contrib-month-track"
+            aria-hidden="true"
+            style={{ "--weeks": String(calendar.columns.length) } as CSSProperties}
+          >
             {calendar.months.map((month) => (
               <span
                 key={`${month.column}-${month.label}`}
@@ -136,13 +143,6 @@ export function ContributionGraph({
               >
                 {month.label}
               </span>
-            ))}
-          </div>
-        </div>
-        <div className="contrib-body">
-          <div className="contrib-dow" aria-hidden="true">
-            {DOW.map((label, index) => (
-              <span key={index}>{label}</span>
             ))}
           </div>
           <div
