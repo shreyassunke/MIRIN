@@ -1098,9 +1098,9 @@ textarea {
 }
 
 /* Phone column. The stage keeps the top half, so the dot marks sit on
-   the halfway line and a short instrument is not dropped into the
-   middle of the screen. The log key sits under that half. Logged sets
-   fill in beneath the key, above the tab bar. */
+   the halfway line. The lower half is the logging dock: the key sits
+   in the thumb zone, and the set wheel follows it with a clear pause
+   between them, above the tab bar. */
 .today-phone-frame,
 .today-phone-scroll,
 .today-lower {
@@ -1198,14 +1198,14 @@ textarea {
     display: flex;
     flex: none;
     justify-content: center;
-    padding-top: 0.35rem;
+    padding-top: 0;
     pointer-events: none;
     background: var(--color-bg);
   }
 
   .set-finish {
     width: min(100%, 18rem);
-    margin-top: 0.65rem;
+    margin-top: 0;
   }
 
 }
@@ -1219,12 +1219,14 @@ textarea {
    and dim as they leave it. The bar stays hidden. */
 .set-column {
   display: flex;
-  flex: none;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-end;
   width: 100%;
   min-height: 0;
-  gap: 0.35rem;
+  gap: 1.5rem;
+  padding-bottom: 0.75rem;
 }
 
 .logbook-wheel {
