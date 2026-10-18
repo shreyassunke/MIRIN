@@ -94,7 +94,7 @@ import {
   type StageDraft,
 } from "../lib/stageDraft";
 import { useUnit } from "../lib/settings";
-import { RestTimer } from "../components/RestTimer";
+import { RestClockProvider } from "../components/RestTimer";
 import { UnitToggle } from "../components/UnitToggle";
 import { DaySwitcher } from "../components/DaySwitcher";
 import { LoggedSets } from "../components/LoggedSetGhost";
@@ -926,6 +926,18 @@ export function Today() {
     editingNote?.id === activeId ? editingNote.kind : null;
 
   return (
+    <RestClockProvider
+      active={timerVisible}
+      runId={timerRun}
+      duration={restDuration}
+      onAdjustDuration={(seconds) => {
+        setRestDuration(seconds);
+        if (timerExerciseId) {
+          void patchExercisePref(timerExerciseId, { restSeconds: seconds });
+        }
+      }}
+      onDismiss={() => setTimerVisible(false)}
+    >
     <div className="today-phone-frame">
       <div className="today-phone-scroll">
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -1157,6 +1169,7 @@ export function Today() {
                         dropAria={`Add a drop to set ${(logsByExercise.get(exercise.id) ?? []).length} of ${exercise.name}`}
                         onLog={() => logCurrent(exercise.id)}
                         onDrop={() => void logDrop(exercise.id)}
+                        rest={timerVisible && exercise.id === timerExerciseId}
                       />
                     }
                   />
@@ -1251,23 +1264,7 @@ export function Today() {
         </div>
       )}
 
-      {/* Desktop timer floats, so the last control needs room to scroll clear. */}
-      {timerVisible && <div aria-hidden="true" className="hidden h-24 md:block" />}
       </div>
-
-      {timerVisible && (
-        <RestTimer
-          runId={timerRun}
-          duration={restDuration}
-          onAdjustDuration={(seconds) => {
-            setRestDuration(seconds);
-            if (timerExerciseId) {
-              void patchExercisePref(timerExerciseId, { restSeconds: seconds });
-            }
-          }}
-          onDismiss={() => setTimerVisible(false)}
-        />
-      )}
 
       {phone ? (
         <div className="set-column">
@@ -1276,5 +1273,6 @@ export function Today() {
         </div>
       ) : null}
     </div>
+    </RestClockProvider>
   );
 }

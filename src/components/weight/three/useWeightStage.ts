@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  type PointerEvent,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import {
   attachCanvas,

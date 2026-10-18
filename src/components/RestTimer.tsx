@@ -1,124 +1,197 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 
-const RING_SIZE = 44;
-const RING_RADIUS = 20;
-const CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const STEP_PX = 36;
+const NUDGE_SECONDS = 15;
 
-interface RestTimerProps {
-  /** Changing this key restarts the timer (a new set was logged). */
-  runId: number;
-  duration: number;
-  onAdjustDuration: (seconds: number) => void;
-  onDismiss: () => void;
+interface RestClock {
+  remaining: number;
+  total: number;
+  /** Vertical drag on the time. Finger up adds rest. */
+  nudge: (delta: number) => void;
+  dismiss: () => void;
 }
 
-export function RestTimer({
+const RestContext = createContext<RestClock | null>(null);
+
+export function useRestClock() {
+  return useContext(RestContext);
+}
+
+function tickHaptic() {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+  try {
+    navigator.vibrate(12);
+  } catch {
+    /* The document may not be allowed to vibrate. */
+  }
+}
+
+/**
+ * One rest clock for the workout. The log pill reads it. A new `runId`
+ * starts the countdown; changing the duration does not.
+ */
+export function RestClockProvider({
+  active,
   runId,
   duration,
   onAdjustDuration,
   onDismiss,
-}: RestTimerProps) {
+  children,
+}: {
+  active: boolean;
+  runId: number;
+  duration: number;
+  onAdjustDuration: (seconds: number) => void;
+  onDismiss: () => void;
+  children: ReactNode;
+}) {
   const [remaining, setRemaining] = useState(duration);
   const [total, setTotal] = useState(duration);
   const endRef = useRef(Date.now() + duration * 1000);
-  const reducedMotion = useRef(
-    typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  ).current;
+  const totalRef = useRef(duration);
+  const onAdjustRef = useRef(onAdjustDuration);
+  const onDismissRef = useRef(onDismiss);
+  const endedRef = useRef(false);
+  const runSeenRef = useRef(runId);
+  onAdjustRef.current = onAdjustDuration;
+  onDismissRef.current = onDismiss;
 
   useEffect(() => {
     endRef.current = Date.now() + duration * 1000;
+    totalRef.current = duration;
+    endedRef.current = false;
     setRemaining(duration);
     setTotal(duration);
-    // Restart only when a new set is logged, not when duration is adjusted.
+    // A logged set restarts the clock. An adjustment does not.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
   useEffect(() => {
-    const tick = window.setInterval(() => {
-      setRemaining(
-        Math.max(0, Math.round((endRef.current - Date.now()) / 1000)),
-      );
+    if (!active) return;
+    const id = window.setInterval(() => {
+      setRemaining(Math.max(0, Math.round((endRef.current - Date.now()) / 1000)));
     }, 250);
-    return () => window.clearInterval(tick);
-  }, [runId]);
+    return () => window.clearInterval(id);
+  }, [active, runId]);
 
-  // Shift the running countdown and persist the new default for future sets.
-  function adjust(delta: number) {
+  useEffect(() => {
+    // The restart effect clears the clock after this render, so the
+    // leftover zero from the previous run is not the end of the new one.
+    if (runSeenRef.current !== runId) {
+      runSeenRef.current = runId;
+      return;
+    }
+    if (!active || remaining !== 0 || endedRef.current) return;
+    endedRef.current = true;
+    tickHaptic();
+    onDismissRef.current();
+  }, [active, remaining, runId]);
+
+  const nudge = (delta: number) => {
     endRef.current = Math.max(Date.now(), endRef.current + delta * 1000);
-    setTotal((t) => Math.max(15, t + delta));
+    const next = Math.max(NUDGE_SECONDS, totalRef.current + delta);
+    totalRef.current = next;
+    setTotal(next);
     setRemaining(Math.max(0, Math.round((endRef.current - Date.now()) / 1000)));
-    onAdjustDuration(Math.max(15, duration + delta));
-  }
+    onAdjustRef.current(next);
+  };
 
-  const done = remaining === 0;
-  const progress = total > 0 ? Math.min(1, remaining / total) : 0;
+  const value: RestClock | null = active
+    ? { remaining, total, nudge, dismiss: () => onDismissRef.current() }
+    : null;
+
+  return <RestContext.Provider value={value}>{children}</RestContext.Provider>;
+}
+
+/** Stadium outline, starting at the top center and running clockwise. */
+export function stadiumPath(width: number, height: number, inset: number) {
+  const w = Math.max(0, width - inset * 2);
+  const h = Math.max(0, height - inset * 2);
+  const r = h / 2;
+  const x = inset;
+  const y = inset;
+  const right = x + w - r;
+  const left = x + r;
+  const bottom = y + h;
+  const top = y;
+  const mid = x + w / 2;
+  return `M ${mid} ${top} H ${right} A ${r} ${r} 0 0 1 ${right} ${bottom} H ${left} A ${r} ${r} 0 0 1 ${left} ${top} H ${mid}`;
+}
+
+export function stadiumLength(width: number, height: number, inset: number) {
+  const w = Math.max(0, width - inset * 2);
+  const h = Math.max(0, height - inset * 2);
+  return 2 * Math.max(0, w - h) + Math.PI * h;
+}
+
+/** The time on the pill. Tap dismisses. A vertical drag changes the rest. */
+export function RestReadout({
+  remaining,
+  onDismiss,
+  onNudge,
+}: {
+  remaining: number;
+  onDismiss: () => void;
+  onNudge: (delta: number) => void;
+}) {
+  const dragRef = useRef<{ y: number; moved: boolean } | null>(null);
   const mm = Math.floor(remaining / 60);
   const ss = String(remaining % 60).padStart(2, "0");
+  const label = `Rest ${mm}:${ss}. Drag up or down to change it. Tap to dismiss.`;
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    dragRef.current = { y: event.clientY, moved: false };
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = dragRef.current;
+    if (!start) return;
+    let dy = event.clientY - start.y;
+    if (!start.moved) {
+      if (Math.abs(dy) < 12) return;
+      start.moved = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    while (Math.abs(dy) >= STEP_PX) {
+      const dir = dy > 0 ? 1 : -1;
+      onNudge(dir === 1 ? -NUDGE_SECONDS : NUDGE_SECONDS);
+      start.y += dir * STEP_PX;
+      dy = event.clientY - start.y;
+    }
+  };
+
+  const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = dragRef.current;
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (!start || start.moved) return;
+    onDismiss();
+  };
 
   return (
-    <div
-      role="timer"
-      aria-live="off"
-      className="rest-timer fixed inset-x-3 bottom-[7.25rem] z-40 mx-auto flex max-w-md items-center gap-3 rounded-xl glass px-4 py-3 shadow-glass md:bottom-6"
+    <button
+      type="button"
+      className="log-pill-rest"
+      aria-label={label}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
-      {!reducedMotion && (
-        <svg
-          width={RING_SIZE}
-          height={RING_SIZE}
-          viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
-          className="-rotate-90 shrink-0"
-          aria-hidden="true"
-        >
-          <circle
-            cx={RING_SIZE / 2}
-            cy={RING_SIZE / 2}
-            r={RING_RADIUS}
-            fill="none"
-            stroke="var(--color-hairline)"
-            strokeWidth="1.5"
-          />
-          <circle
-            cx={RING_SIZE / 2}
-            cy={RING_SIZE / 2}
-            r={RING_RADIUS}
-            fill="none"
-            stroke="var(--color-accent)"
-            strokeWidth="1.5"
-            strokeDasharray={CIRCUMFERENCE}
-            strokeDashoffset={CIRCUMFERENCE * (1 - progress)}
-            strokeLinecap="round"
-          />
-        </svg>
-      )}
-      <div className="flex-1">
-        <div className="tnum text-xl font-semibold tracking-tight">
-          {done ? "Rest over" : `${mm}:${ss}`}
-        </div>
-        <div className="text-[13px] font-medium text-muted">Rest</div>
-      </div>
-      <button
-        type="button"
-        onClick={() => adjust(-15)}
-        className="glass-btn h-11 rounded-pill px-3 text-[13px] font-medium text-ink"
-      >
-        &minus;15s
-      </button>
-      <button
-        type="button"
-        onClick={() => adjust(15)}
-        className="glass-btn h-11 rounded-pill px-3 text-[13px] font-medium text-ink"
-      >
-        +15s
-      </button>
-      <button
-        type="button"
-        onClick={onDismiss}
-        aria-label="Dismiss rest timer"
-        className="glass-btn h-11 w-11 rounded-pill text-muted hover:text-ink"
-      >
-        &times;
-      </button>
-    </div>
+      <span role="timer" aria-live="off">
+        {mm}:{ss}
+      </span>
+    </button>
   );
 }

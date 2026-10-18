@@ -836,13 +836,6 @@ textarea {
     background: var(--color-bg);
   }
 
-  .today-phone-frame .rest-timer {
-    position: static;
-    inset: auto;
-    width: auto;
-    max-width: none;
-    margin: 0 0 0.75rem;
-  }
 }
 
 .set-line {
@@ -1219,6 +1212,59 @@ textarea {
   transition-duration: var(--motion-fast);
 }
 
+.log-pill-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.log-pill-ring-track,
+.log-pill-ring-value {
+  fill: none;
+  stroke-width: 1.25;
+}
+
+.log-pill-ring-track {
+  stroke: rgb(255 255 255 / 0.16);
+}
+
+.log-pill-ring-value {
+  stroke: var(--color-accent);
+  stroke-linecap: round;
+}
+
+.log-pill-rest {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  margin-left: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.log-pill-rest:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
 .log-pill-hit {
   position: absolute;
   inset: 0;
@@ -1422,6 +1468,10 @@ html[data-mode="light"] {
   --shadow-glass: 0 8px 24px rgb(0 0 0 / 0.08);
   --color-accent: #1a1a1a;
   --color-on-accent: #f6f5f2;
+}
+
+html[data-mode="light"] .log-pill-ring-track {
+  stroke: rgb(22 22 22 / 0.16);
 }
 
 html[data-mode="light"] .log-pill {

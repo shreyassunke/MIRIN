@@ -8,6 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import { usePagerGesture } from "../hooks/usePagerGesture";
+import {
+  RestReadout,
+  stadiumLength,
+  stadiumPath,
+  useRestClock,
+} from "./RestTimer";
 
 interface LogActionSwipeProps {
   /** A set exists to drop onto. Otherwise the control is only Log. */
@@ -16,6 +22,8 @@ interface LogActionSwipeProps {
   dropAria: string;
   onLog: () => void;
   onDrop: () => void;
+  /** This pill carries the rest clock. It starts when a set is logged. */
+  rest?: boolean;
   /** The live weight and reps. They are the button. */
   children?: ReactNode;
 }
@@ -51,17 +59,63 @@ const PAGES = [
   { id: "drop-next", kind: "drop" },
 ] as const;
 
+const RING_INSET = 1.25;
+
 function PillFace({
   children,
   label,
   onClick,
+  rest,
 }: {
   children: ReactNode;
   label: string;
   onClick: () => void;
+  rest: boolean;
 }) {
+  const faceRef = useRef<HTMLDivElement>(null);
+  const clock = useRestClock();
+  const show = rest && clock != null && clock.remaining > 0;
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  useLayoutEffect(() => {
+    const el = faceRef.current;
+    if (!el || !show) return;
+    const sync = () => {
+      const rect = el.getBoundingClientRect();
+      setSize({ w: rect.width, h: rect.height });
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [show]);
+
+  const length = size.w > 0 ? stadiumLength(size.w, size.h, RING_INSET) : 0;
+  const progress =
+    show && clock && clock.total > 0
+      ? Math.min(1, clock.remaining / clock.total)
+      : 0;
+
   return (
-    <div className="log-pill">
+    <div ref={faceRef} className="log-pill">
+      {show && length > 0 && (
+        <svg
+          className="log-pill-ring"
+          viewBox={`0 0 ${size.w} ${size.h}`}
+          aria-hidden="true"
+        >
+          <path
+            className="log-pill-ring-track"
+            d={stadiumPath(size.w, size.h, RING_INSET)}
+          />
+          <path
+            className="log-pill-ring-value"
+            d={stadiumPath(size.w, size.h, RING_INSET)}
+            strokeDasharray={length}
+            strokeDashoffset={length * (1 - progress)}
+          />
+        </svg>
+      )}
       <button
         type="button"
         className="log-pill-hit"
@@ -70,7 +124,16 @@ function PillFace({
       />
       <div className="log-pill-face">
         <span className="log-pill-sheen" aria-hidden="true" />
-        <div className="flex min-w-0 items-center whitespace-nowrap">{children}</div>
+        <div className="flex min-w-0 items-center whitespace-nowrap">
+          {children}
+          {show && clock && (
+            <RestReadout
+              remaining={clock.remaining}
+              onDismiss={clock.dismiss}
+              onNudge={clock.nudge}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -98,6 +161,7 @@ export function LogActionSwipe({
   dropAria,
   onLog,
   onDrop,
+  rest = false,
   children,
 }: LogActionSwipeProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -183,7 +247,7 @@ export function LogActionSwipe({
     return (
       <LogPillContext.Provider value={gesture}>
         <div data-log-bar="" onClick={onShellClick}>
-          <PillFace label={logLabel} onClick={log}>
+          <PillFace label={logLabel} onClick={log} rest={rest}>
             {children}
           </PillFace>
         </div>
@@ -225,7 +289,7 @@ export function LogActionSwipe({
                   {isDrop ? (
                     <DropFace label={dropAria} onClick={drop} />
                   ) : (
-                    <PillFace label={logLabel} onClick={log}>
+                    <PillFace label={logLabel} onClick={log} rest={rest}>
                       {children}
                     </PillFace>
                   )}
