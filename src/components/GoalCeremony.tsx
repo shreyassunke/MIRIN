@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import { ConfirmDelete } from "./ConfirmDelete";
-import { TrophyMark } from "./TrophyMark";
 import { db, type Goal } from "../db/db";
 import {
   deleteGoal,
@@ -224,7 +223,7 @@ function GoalCeremonyOverlay({
     >
       <div className="flex flex-1 flex-col items-center justify-center">
         <div key={entry.goalId} className="record-medal flex flex-col items-center text-ink">
-          <TrophyMark className="h-40 w-40" />
+          <div className="record-logo" role="img" aria-label="Mirin" />
           <p className="tnum mt-6 text-2xl font-semibold leading-none tracking-tight">
             {weight}
             <span className="ml-1 text-[13px] font-medium text-muted">{unit}</span>
@@ -237,6 +236,10 @@ function GoalCeremonyOverlay({
           {entry.name}
         </h2>
         <p className="mt-1 text-[13px] font-medium text-muted">{date}</p>
+        <blockquote className="record-line">
+          <p>WE'RE ALL GONNA MAKE IT BRAH</p>
+          <footer>— Zyzz</footer>
+        </blockquote>
       </div>
       <div className="mx-auto flex w-full max-w-xs flex-col items-center gap-4">
         <button

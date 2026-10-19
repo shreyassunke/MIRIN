@@ -2699,10 +2699,89 @@ html[data-mode="light"] .trophy {
   --trophy-mouth: #b7b3ab;
 }
 
-/* Struck record. The veil fades; the cup settles. */
+/* Struck record. The veil fades; the mark settles. */
 
 .record-veil {
+  --metal-hi: #f7f7f7;
+  --metal-mid: #cfcfcf;
+  --metal-shade: #8a8a8a;
+  --metal-edge: #6a6a6a;
+  --metal-type-hi: #f2f2f2;
+  --metal-type-mid: #c4c4c4;
+  --metal-type-shade: #8a8a8a;
   animation: record-veil-in 220ms var(--ease-out-expo) both;
+}
+
+html[data-mode="light"] .record-veil {
+  --metal-hi: #f7f4ef;
+  --metal-mid: #b7b2a8;
+  --metal-shade: #6e6b64;
+  --metal-edge: #4a4844;
+  --metal-type-hi: #5e5c58;
+  --metal-type-mid: #454340;
+  --metal-type-shade: #2c2b29;
+}
+
+/* The logbook mark, one specular pass. Same light as the quote under the date. */
+.record-logo {
+  width: 10rem;
+  height: 10rem;
+  background: linear-gradient(
+    105deg,
+    var(--metal-edge) 0%,
+    var(--metal-shade) 20%,
+    var(--metal-hi) 46%,
+    var(--metal-mid) 58%,
+    var(--metal-shade) 80%,
+    var(--metal-edge) 100%
+  );
+  -webkit-mask-image: url("/icons/mirin-mark.png");
+  mask-image: url("/icons/mirin-mark.png");
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.record-line {
+  margin: 2rem 0 0;
+  max-width: 18rem;
+  background-image: linear-gradient(
+    105deg,
+    var(--metal-type-shade) 0%,
+    var(--metal-type-hi) 42%,
+    var(--metal-type-mid) 58%,
+    var(--metal-type-hi) 76%,
+    var(--metal-type-shade) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-style: normal;
+  text-align: center;
+  -webkit-text-fill-color: transparent;
+}
+
+.record-line p,
+.record-line footer {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.record-line p {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.record-line footer {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .record-veil[data-phase="out"] {
