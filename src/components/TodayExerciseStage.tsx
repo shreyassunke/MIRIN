@@ -238,7 +238,6 @@ export function TodayExerciseStage({
                   min={0}
                   layout="readout"
                   inlineSuffix={unit}
-                  unitSwitch
                   size="lead"
                   drag
                   onDragStep={(direction, current) =>
@@ -269,7 +268,6 @@ export function TodayExerciseStage({
                 min={0}
                 layout="readout"
                 inlineSuffix={unit}
-                unitSwitch
                 size="lead"
                 drag
                 onChange={onManual}
