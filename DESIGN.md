@@ -171,6 +171,7 @@ The signature control. A weight/reps stepper is a horizontal group — minus but
 ### Inputs / Fields
 - **Style:** #0a0a0a fill, 1px #232323 border, 8px radius, ink text. Rare by design — steppers replace typing.
 - **Focus:** Border shifts to #8a8a8a plus a visible outline. No glow.
+- **Auth fields:** Email, password, and the sign-up name are a writing line, not a box. Transparent fill, no radius, no border. Focus is the caret alone — the field does not brighten and no outline is drawn. Browser autofill keeps the page ground.
 
 ### Navigation
 - **Mobile:** Floating pill tab bar above the safe area — frosted glass, icon-only tabs, active item seated in a translucent highlight pill. Selected icon fills solid ink from the outline (a center bloom); inactive stays outline. Accent fill stays on the log action, not the nav.
