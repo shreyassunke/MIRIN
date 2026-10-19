@@ -564,6 +564,7 @@ export function Today() {
             <span className="rest-day-layer rest-day-z rest-day-z-2" />
             <span className="rest-day-layer rest-day-z rest-day-z-1" />
           </div>
+          <p className="rest-day-caption">relax.</p>
         </div>
       </div>
     );

@@ -279,28 +279,39 @@ a,
   min-height: calc(100dvh - max(1.25rem, env(safe-area-inset-top)) - 10rem);
 }
 
-.rest-day > .today-header,
-.rest-day-stage {
-  grid-area: 1 / 1;
-}
-
 .rest-day > .today-header {
+  grid-area: 1 / 1;
   align-self: start;
 }
 
+/* iOS screen center: the midpoint of the phone, not the box above the tab bar. */
 .rest-day-stage {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 1rem;
+  margin: 0;
   pointer-events: none;
+  transform: translate(-50%, -50%);
 }
 
 .rest-day-mark {
   position: relative;
   width: min(36vw, 11rem);
   aspect-ratio: 212 / 229;
-  /* The page box ends above the tab bar, so this lands the mark on the screen. */
-  transform: translateY(calc((10rem - max(1.25rem, env(safe-area-inset-top))) / 2));
+}
+
+.rest-day-caption {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
 }
 
 .rest-day-layer {
@@ -383,8 +394,8 @@ a,
     min-height: calc(100dvh - 2.5rem - 3rem);
   }
 
-  .rest-day-mark {
-    transform: translateY(0.25rem);
+  .rest-day-stage {
+    left: calc(12rem + (100vw - 12rem) / 2);
   }
 }
 
