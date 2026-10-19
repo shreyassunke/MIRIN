@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   contributionLevel,
   type ContributionCalendar,
@@ -32,7 +32,7 @@ function neighborKey(
   return days[index + delta]?.key ?? null;
 }
 
-export function ContributionGraph({
+export const ContributionGraph = memo(function ContributionGraph({
   calendar,
   setsByDay,
   selectedKey,
@@ -54,14 +54,27 @@ export function ContributionGraph({
   useLayoutEffect(() => {
     const root = scrollerRef.current;
     if (!root) return;
-    const selected = root.querySelector<HTMLElement>('[aria-pressed="true"]');
-    if (!selected) {
-      root.scrollLeft = root.scrollWidth;
-      return;
-    }
-    const rootRect = root.getBoundingClientRect();
-    const rect = selected.getBoundingClientRect();
-    root.scrollLeft = Math.max(0, root.scrollLeft + (rect.right - rootRect.right) + 4);
+    const align = () => {
+      if (root.clientWidth === 0) return false;
+      const selected = root.querySelector<HTMLElement>('[aria-pressed="true"]');
+      if (!selected) {
+        root.scrollLeft = root.scrollWidth;
+        return true;
+      }
+      const rootRect = root.getBoundingClientRect();
+      const rect = selected.getBoundingClientRect();
+      root.scrollLeft = Math.max(
+        0,
+        root.scrollLeft + (rect.right - rootRect.right) + 4,
+      );
+      return true;
+    };
+    if (align()) return;
+    const ro = new ResizeObserver(() => {
+      if (align()) ro.disconnect();
+    });
+    ro.observe(root);
+    return () => ro.disconnect();
   }, [calendar.startKey, calendar.endKey]);
 
   const showTip = (element: HTMLElement, date: Date, sets: number) => {
@@ -213,4 +226,4 @@ export function ContributionGraph({
       ) : null}
     </div>
   );
-}
+});

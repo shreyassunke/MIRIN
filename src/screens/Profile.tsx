@@ -1,5 +1,5 @@
-import { Suspense, useEffect, useState } from "react";
-import { Link, useOutlet } from "react-router-dom";
+import { memo, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Avatar } from "../components/Avatar";
 import { AvatarEditor } from "../components/AvatarEditor";
 import { chipClass } from "../components/chip";
@@ -13,11 +13,12 @@ import {
 } from "../lib/appearance";
 import { AVATAR_KEY, useSettingValue } from "../lib/profile";
 import { getContactLine, getDisplayName } from "../lib/user";
+import { Trends } from "./Trends";
 import { Chevron, ProfileBack } from "./profile/chrome";
 
-export function Profile() {
-  const outlet = useOutlet();
+const TrendsPane = memo(Trends);
 
+export function Profile() {
   return (
     <div className="flex h-[calc(100dvh-max(1.25rem,env(safe-area-inset-top))-10rem)] min-h-0 flex-col md:h-[calc(100dvh-5.5rem)]">
       <header className="mb-4 flex shrink-0 items-center justify-between gap-3">
@@ -31,9 +32,7 @@ export function Profile() {
         </Link>
       </header>
       <div className="relative min-h-0 flex-1">
-        <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
-          {outlet}
-        </Suspense>
+        <TrendsPane />
       </div>
     </div>
   );

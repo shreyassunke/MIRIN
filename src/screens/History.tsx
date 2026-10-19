@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ConfirmDelete } from "../components/ConfirmDelete";
@@ -69,18 +69,29 @@ export function History() {
     useState<ExerciseLibraryEntry | null>(null);
   const [goalWeight, setGoalWeight] = useState(135);
 
-  const patchParams = (patch: Record<string, string | null>) => {
-    const next = new URLSearchParams(searchParams);
-    for (const [key, value] of Object.entries(patch)) {
-      if (value == null || value === "") next.delete(key);
-      else next.set(key, value);
-    }
-    setSearchParams(next, { replace: true });
-  };
+  const patchParams = useCallback(
+    (patch: Record<string, string | null>) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          for (const [key, value] of Object.entries(patch)) {
+            if (value == null || value === "") next.delete(key);
+            else next.set(key, value);
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
-  const selectDay = (key: string) => {
-    patchParams({ day: key === todayKey ? null : key });
-  };
+  const selectDay = useCallback(
+    (key: string) => {
+      patchParams({ day: key === todayKey ? null : key });
+    },
+    [patchParams, todayKey],
+  );
 
   const data = useLiveQuery(async () => {
     const [sessions, logs, templates, goals, exercises] = await Promise.all([

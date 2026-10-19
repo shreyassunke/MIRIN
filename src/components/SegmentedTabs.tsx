@@ -1,5 +1,6 @@
-import type { MouseEvent } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import type { MouseEvent, PointerEvent } from "react";
+import { flushSync } from "react-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { chipClass, chipTrackClass } from "./chip";
 
 export interface SegmentedTab {
@@ -28,6 +29,16 @@ function isPlainClick(event: MouseEvent<HTMLAnchorElement>) {
   );
 }
 
+function isPlainPointer(event: PointerEvent<HTMLAnchorElement>) {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
+
 export function SegmentedTabs({
   items,
   ariaLabel,
@@ -43,21 +54,35 @@ export function SegmentedTabs({
   onPaneSwitch?: (to: string, direction: "forward" | "back") => void;
 }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const current = items.findIndex((item) => tabMatches(pathname, item));
 
   return (
     <div role="group" aria-label={ariaLabel} className={chipTrackClass}>
       {items.map((item, index) => {
-        const leaving = onPaneSwitch != null && index !== current;
+        const isCurrent = index === current;
+        const leaving = onPaneSwitch != null && !isCurrent;
         return (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
+            onPointerDown={(event) => {
+              if (isCurrent || !isPlainPointer(event)) return;
+              if (leaving) {
+                onPaneSwitch?.(item.to, index > current ? "forward" : "back");
+                return;
+              }
+                flushSync(() => {
+                  navigate(item.to);
+                });
+            }}
             onClick={(event) => {
-              if (!leaving || !isPlainClick(event)) return;
-              event.preventDefault();
-              onPaneSwitch?.(item.to, index > current ? "forward" : "back");
+              if (!isPlainClick(event)) return;
+              if (leaving) {
+                event.preventDefault();
+                onPaneSwitch?.(item.to, index > current ? "forward" : "back");
+              }
             }}
             className={tabClass}
           >

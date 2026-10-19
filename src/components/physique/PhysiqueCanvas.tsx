@@ -169,13 +169,15 @@ export function PhysiqueCanvas({
     };
 
     const render = () => {
+      if (host.clientWidth < 2 || host.clientHeight < 2) return;
       renderer.render(scene, camera);
     };
     renderRef.current = render;
 
     const applyFit = () => {
-      const w = Math.max(1, host.clientWidth);
-      const h = Math.max(1, host.clientHeight);
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      if (w < 2 || h < 2) return;
       if (envelope) {
         fitPhysiqueCamera(camera, envelope, w, h, zoom, { x: panX, y: panY });
       }
@@ -245,8 +247,9 @@ export function PhysiqueCanvas({
     };
 
     const fit = () => {
-      const w = Math.max(1, host.clientWidth);
-      const h = Math.max(1, host.clientHeight);
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      if (w < 2 || h < 2) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       renderer.setPixelRatio(dpr);
       renderer.setSize(w, h, false);
@@ -508,6 +511,7 @@ export function PhysiqueCanvas({
     applyPivot();
     const stage = host.parentElement;
     const onOutside = (e: PointerEvent) => {
+      if (host.clientWidth < 2 || selectedRef.current === null) return;
       if (stage && e.target instanceof Node && stage.contains(e.target)) return;
       // The chart under the figure is the reading of the selection, not a dismiss.
       const target = e.target;

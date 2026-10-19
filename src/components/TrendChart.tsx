@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   Line,
   LineChart,
@@ -46,6 +47,31 @@ export function TrendChart({
   formatValue,
   emptyLabel = "Not enough sessions yet — log two to see a trend",
 }: TrendChartProps) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [hasBox, setHasBox] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    if (el.clientWidth > 0 && el.clientHeight > 0) {
+      setHasBox(true);
+      return;
+    }
+    if (typeof ResizeObserver === "undefined") {
+      setHasBox(true);
+      return;
+    }
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect && rect.width > 0 && rect.height > 0) {
+        setHasBox(true);
+        ro.disconnect();
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [data.length]);
+
   if (data.length < 2) {
     return (
       <div
@@ -60,7 +86,8 @@ export function TrendChart({
   const scalable = xDomain != null && data.every((point) => point.i != null);
 
   return (
-    <div style={{ height }}>
+    <div ref={hostRef} style={{ height }}>
+      {hasBox ? (
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
@@ -143,6 +170,7 @@ export function TrendChart({
           />
         </LineChart>
       </ResponsiveContainer>
+      ) : null}
     </div>
   );
 }

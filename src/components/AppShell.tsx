@@ -1,5 +1,13 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
+import { flushSync } from "react-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { AVATAR_KEY, useSettingValue } from "../lib/profile";
 import { getContactLine, getDisplayName } from "../lib/user";
@@ -55,8 +63,38 @@ function navClass({ isActive }: { isActive: boolean }) {
   ].join(" ");
 }
 
+function isPlainPointer(event: PointerEvent<HTMLAnchorElement>) {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
+
+function isPlainClick(event: MouseEvent<HTMLAnchorElement>) {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
+
+function prefersReducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const switchedOnDownRef = useRef<string | null>(null);
   const displayName = getDisplayName(user);
   const contact = getContactLine(user);
   const avatar = useSettingValue(AVATAR_KEY);
@@ -66,6 +104,38 @@ export function AppShell({ children }: { children: ReactNode }) {
     const id = requestAnimationFrame(() => setCanAnimate(true));
     return () => cancelAnimationFrame(id);
   }, []);
+
+  const handleTabPointerDown = (
+    to: string,
+    event: PointerEvent<HTMLAnchorElement>,
+  ) => {
+    if (!isPlainPointer(event)) return;
+    if (pathname === to) {
+      switchedOnDownRef.current = null;
+      return;
+    }
+    switchedOnDownRef.current = to;
+    flushSync(() => {
+      navigate(to);
+    });
+  };
+
+  const handleTabClick = (to: string, event: MouseEvent<HTMLAnchorElement>) => {
+    if (!isPlainClick(event)) return;
+    if (switchedOnDownRef.current === to) {
+      switchedOnDownRef.current = null;
+      event.preventDefault();
+      return;
+    }
+    switchedOnDownRef.current = null;
+    if (pathname === to && window.scrollY > 0) {
+      event.preventDefault();
+      window.scrollTo({
+        top: 0,
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      });
+    }
+  };
 
   return (
     <GoalCeremonyProvider>
@@ -84,7 +154,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="text-lg font-semibold tracking-tight">MIRIN</span>
           </span>
           {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} className={navClass}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={navClass}
+              onPointerDown={(event) => handleTabPointerDown(item.to, event)}
+              onClick={(event) => handleTabClick(item.to, event)}
+            >
               {({ isActive }) => (
                 <>
                   <NavGlyph
@@ -142,6 +218,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               to={to}
               aria-label={label}
               className="nav-pill-item relative min-w-0 flex-1"
+              onPointerDown={(event) => handleTabPointerDown(to, event)}
+              onClick={(event) => handleTabClick(to, event)}
             >
               {({ isActive }) => (
                 <span className="nav-pill-label flex h-12 w-full items-center justify-center rounded-pill">
