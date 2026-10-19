@@ -348,18 +348,27 @@ a,
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
+.rest-day-z {
+  animation-name: rest-zzz-float;
+  animation-duration: 4.2s;
+  animation-timing-function: var(--ease-in-out);
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+.rest-day-z-2 {
+  animation-delay: -1.4s;
+}
+
+.rest-day-z-1 {
+  animation-delay: -2.8s;
+}
+
+/* The page-wide reduced-motion clamp collapses every loop. This one stays. */
+@media (prefers-reduced-motion: reduce) {
   .rest-day-z {
-    animation: rest-zzz-float 4.2s var(--ease-in-out) infinite;
-    will-change: transform, opacity;
-  }
-
-  .rest-day-z-2 {
-    animation-delay: -1.4s;
-  }
-
-  .rest-day-z-1 {
-    animation-delay: -2.8s;
+    animation-duration: 4.2s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 
