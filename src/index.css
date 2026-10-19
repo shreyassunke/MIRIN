@@ -323,51 +323,57 @@ a,
 .rest-day-z-1 {
   -webkit-mask-image: url("/icons/rest-day-z-1.png");
   mask-image: url("/icons/rest-day-z-1.png");
+  transform-origin: 51.7% 8.7%;
 }
 
 .rest-day-z-2 {
   -webkit-mask-image: url("/icons/rest-day-z-2.png");
   mask-image: url("/icons/rest-day-z-2.png");
+  transform-origin: 40.3% 21%;
 }
 
 .rest-day-z-3 {
   -webkit-mask-image: url("/icons/rest-day-z-3.png");
   mask-image: url("/icons/rest-day-z-3.png");
+  transform-origin: 30.4% 34.9%;
 }
 
-/* Rest-state breath, not a control response: the letters lift off the sleeper. */
-@keyframes rest-zzz-float {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-    opacity: 1;
+/* Dream bubble: born small at the sleeper, swell on the way up, gone at the top. */
+@keyframes rest-zzz-bubble {
+  0% {
+    opacity: 0;
+    transform: translate3d(-6%, 14%, 0) scale(0.9);
   }
-  50% {
-    transform: translate3d(2.4%, -7%, 0);
-    opacity: 0.78;
+  28% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(11%, -30%, 0) scale(1.16);
   }
 }
 
 .rest-day-z {
-  animation-name: rest-zzz-float;
-  animation-duration: 4.2s;
+  animation-name: rest-zzz-bubble;
+  animation-duration: 4.8s;
   animation-timing-function: var(--ease-in-out);
   animation-iteration-count: infinite;
   will-change: transform, opacity;
 }
 
 .rest-day-z-2 {
-  animation-delay: -1.4s;
+  animation-delay: -1.6s;
 }
 
 .rest-day-z-1 {
-  animation-delay: -2.8s;
+  animation-delay: -3.2s;
 }
 
 /* The page-wide reduced-motion clamp collapses every loop. This one stays. */
 @media (prefers-reduced-motion: reduce) {
   .rest-day-z {
-    animation-duration: 4.2s !important;
+    animation-duration: 4.8s !important;
     animation-iteration-count: infinite !important;
   }
 }
