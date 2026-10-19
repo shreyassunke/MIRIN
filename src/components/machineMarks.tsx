@@ -102,6 +102,12 @@ function Mark({ id }: { id: GymMachineId }) {
           <path {...stroke} d="M6 18h12M8 18V8h8v6M5 10h4M15 10h4" />
         </Frame>
       );
+    case "shoulder-press":
+      return (
+        <Frame>
+          <path {...stroke} d="M4 20V5.5h3.2V20M9.2 20v-7h6.2V7.2M8 6.8h11M7.2 6.8v2.2M17.6 6.8v2.2" />
+        </Frame>
+      );
     case "cable":
       return (
         <Frame>

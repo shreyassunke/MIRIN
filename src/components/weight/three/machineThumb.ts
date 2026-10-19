@@ -3,6 +3,7 @@ import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import type { GymMachineId } from "../../../lib/library";
 import { GYM_MACHINE_URL } from "../gymMachine";
 import { createChestPressModel } from "./createChestPressModel";
+import { createShoulderPressModel } from "./createShoulderPressModel";
 import { loadGymMachine } from "./loadGymMachine";
 import { frameMaterial } from "./materials";
 import { fitFixedCamera, LAT_PULLDOWN_CAM } from "./scale";
@@ -34,7 +35,7 @@ export function machineThumb(id: GymMachineId): Promise<HTMLCanvasElement> {
   if (pending) return pending;
 
   const job = (
-    id === "chest-press"
+    id === "chest-press" || id === "shoulder-press"
       ? Promise.resolve(null)
       : loadGymMachine(GYM_MACHINE_URL[id])
   ).then(
@@ -42,7 +43,13 @@ export function machineThumb(id: GymMachineId): Promise<HTMLCanvasElement> {
       new Promise<HTMLCanvasElement>((resolve, reject) => {
         enqueue(async () => {
           try {
-            const canvas = gltf ? renderThumb(gltf) : renderObject(createChestPressModel());
+            const canvas = gltf
+              ? renderThumb(gltf)
+              : renderObject(
+                  id === "shoulder-press"
+                    ? createShoulderPressModel()
+                    : createChestPressModel(),
+                );
             cache.set(id, canvas);
             resolve(canvas);
           } catch (err) {

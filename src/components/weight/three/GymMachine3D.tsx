@@ -3,6 +3,7 @@ import * as THREE from "three";
 import type { GymMachineId } from "../../../lib/library";
 import { GYM_MACHINE_STAGE, GYM_MACHINE_URL } from "../gymMachine";
 import { createChestPressModel } from "./createChestPressModel";
+import { createShoulderPressModel } from "./createShoulderPressModel";
 import { loadGymMachine } from "./loadGymMachine";
 import { frameMaterial } from "./materials";
 import { LAT_PULLDOWN_CAM } from "./scale";
@@ -31,8 +32,8 @@ export function GymMachine3D({
       pivot.add(object);
       fitRef.current();
     };
-    if (machine === "chest-press") {
-      place(createChestPressModel());
+    if (machine === "chest-press" || machine === "shoulder-press") {
+      place(machine === "shoulder-press" ? createShoulderPressModel() : createChestPressModel());
       return () => {
         cancelled = true;
         const dispose = root?.userData.dispose;

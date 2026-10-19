@@ -51,6 +51,47 @@ describe("gymMachineFor selectorized stations", () => {
     );
   });
 
+  it("maps the selectorized shoulder press and leaves free-weight presses alone", () => {
+    expect(
+      gymMachineFor({
+        id: "leverage-shoulder-press",
+        name: "Leverage Shoulder Press",
+      }),
+    ).toBe("shoulder-press");
+    expect(
+      gymMachineFor({
+        id: "machine-shoulder-military-press",
+        name: "Machine Shoulder (Military) Press",
+      }),
+    ).toBe("shoulder-press");
+    expect(
+      gymMachineFor({
+        id: "custom-shoulder-press",
+        name: "Shoulder press",
+        equipment: "machine",
+        isCustom: true,
+      }),
+    ).toBe("shoulder-press");
+    expect(
+      gymMachineFor({ id: "dumbbell-shoulder-press", name: "Dumbbell Shoulder Press" }),
+    ).toBeNull();
+    expect(
+      gymMachineFor({
+        id: "smith-machine-overhead-shoulder-press",
+        name: "Smith Machine Overhead Shoulder Press",
+      }),
+    ).toBeNull();
+    expect(
+      gymMachineFor({ id: "cable-shoulder-press", name: "Cable Shoulder Press" }),
+    ).toBe("cable");
+    expect(
+      gymMachineFor({
+        id: "calf-machine-shoulder-shrug",
+        name: "Calf-Machine Shoulder Shrug",
+      }),
+    ).toBeNull();
+  });
+
   it("shows the lateral raise station only for machine work", () => {
     expect(gymMachineFor({ id: "lateral-raise", name: "Lateral Raise" })).toBeNull();
     expect(
@@ -134,6 +175,10 @@ describe("gymMachineFor selectorized stations", () => {
       "t-bar-row",
     ]);
     expect(stationsForMuscle("quadriceps")).toEqual(["leg-extension", "leg-press"]);
+    expect(stationsForMuscle("shoulders")).toEqual([
+      "shoulder-press",
+      "lateral-raise",
+    ]);
     expect(stationsForMuscle("abdominals")).toEqual([]);
     expect(
       stationsForExercise({
@@ -149,6 +194,13 @@ describe("gymMachineFor selectorized stations", () => {
         muscleGroup: "Shoulders",
       }),
     ).toEqual(["lateral-raise"]);
+    expect(
+      stationsForExercise({
+        id: "leverage-shoulder-press",
+        name: "Leverage Shoulder Press",
+        muscleGroup: "Shoulders",
+      }),
+    ).toEqual(["shoulder-press"]);
     expect(
       gymMachineFor({
         id: "rear-delt-flye",

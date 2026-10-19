@@ -152,7 +152,8 @@ export type GymMachineId =
   | "preacher"
   | "seated-dip"
   | "lateral-raise"
-  | "chest-press";
+  | "chest-press"
+  | "shoulder-press";
 
 const GYM_MACHINE_IDS: readonly GymMachineId[] = [
   "lat-pulldown",
@@ -170,6 +171,7 @@ const GYM_MACHINE_IDS: readonly GymMachineId[] = [
   "seated-dip",
   "lateral-raise",
   "chest-press",
+  "shoulder-press",
 ];
 
 export function isGymMachineId(value: string): value is GymMachineId {
@@ -184,6 +186,7 @@ const STATION_MUSCLES: Partial<Record<GymMachineId, readonly string[]>> = {
   "lat-pulldown": ["lats", "middle back"],
   "seated-row": ["lats", "middle back"],
   "t-bar-row": ["lats", "middle back"],
+  "shoulder-press": ["shoulders"],
   "lateral-raise": ["shoulders"],
   preacher: ["biceps"],
   "leg-extension": ["quadriceps"],
@@ -201,6 +204,7 @@ const STATION_PICK_ORDER: readonly GymMachineId[] = [
   "lat-pulldown",
   "seated-row",
   "t-bar-row",
+  "shoulder-press",
   "lateral-raise",
   "preacher",
   "leg-extension",
@@ -221,7 +225,7 @@ export function stationsForMuscle(muscle: string): GymMachineId[] {
  * Stations for this lift when the lifter switches onto a machine.
  * A rear-delt fly shares the pec deck with chest flies, then the back
  * stations. The library files those lifts under shoulders, which would
- * otherwise offer only the lateral raise.
+ * otherwise offer the shoulder press and the lateral raise.
  */
 export function stationsForExercise(exercise: {
   id: string;
@@ -234,6 +238,10 @@ export function stationsForExercise(exercise: {
   }
   if (/face\s*pull|bent.?over\s*lateral/.test(text)) {
     return stationsForMuscle("lats");
+  }
+  if (/lateral[-\s]?raises?/.test(text)) return ["lateral-raise"];
+  if (/shoulder press|military[^a-z]{0,4}press|overhead press/.test(text)) {
+    return ["shoulder-press"];
   }
   return exercise.muscleGroup ? stationsForMuscle(exercise.muscleGroup) : [];
 }
@@ -272,6 +280,14 @@ export function gymMachineFor(exercise: {
   if (equipment === "cable") return "cable";
   if (equipment === "machine" && !/\bsmith\b/i.test(exercise.name)) {
     if (/\bchest press\b/i.test(exercise.name)) return "chest-press";
+    if (
+      exercise.id === "leverage-shoulder-press" ||
+      exercise.id === "machine-shoulder-military-press" ||
+      /\bshoulder press\b/i.test(exercise.name) ||
+      (/\bmilitary\b/i.test(exercise.name) && /\bpress\b/i.test(exercise.name))
+    ) {
+      return "shoulder-press";
+    }
     if (/\bleg press\b/i.test(exercise.name)) return "leg-press";
     if (exercise.id === "calf-raise" || /\bstanding calf raises?\b/i.test(exercise.name)) {
       return "calf-raise";

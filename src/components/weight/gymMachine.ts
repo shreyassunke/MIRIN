@@ -19,6 +19,7 @@ export const GYM_MACHINE_STAGE: Record<GymMachineId, string> = {
   "seated-dip": STAGE,
   "lateral-raise": STAGE,
   "chest-press": STAGE,
+  "shoulder-press": STAGE,
 };
 
 export const GYM_MACHINE_URL: Record<GymMachineId, string> = {
@@ -37,6 +38,7 @@ export const GYM_MACHINE_URL: Record<GymMachineId, string> = {
   "seated-dip": "/models/seated-dip.glb",
   "lateral-raise": "/models/lateral-raise.glb",
   "chest-press": "",
+  "shoulder-press": "",
 };
 
 export const GYM_MACHINE_LABEL: Record<GymMachineId, string> = {
@@ -55,4 +57,5 @@ export const GYM_MACHINE_LABEL: Record<GymMachineId, string> = {
   "seated-dip": "Seated dip",
   "lateral-raise": "Lateral raise",
   "chest-press": "Plate-loaded chest press",
+  "shoulder-press": "Shoulder press",
 };

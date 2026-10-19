@@ -11,6 +11,7 @@ export const STATION_LABEL: Partial<Record<GymMachineId, string>> = {
   "lat-pulldown": "Pulldown",
   "seated-row": "Row",
   "t-bar-row": "T-bar",
+  "shoulder-press": "Shoulder",
   "lateral-raise": "Lateral",
   preacher: "Preacher",
   "leg-extension": "Extension",
