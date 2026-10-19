@@ -3,15 +3,15 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
   type RefObject,
 } from "react";
-import { ConfirmDelete } from "./ConfirmDelete";
+import { flushSync } from "react-dom";
 import { db, type Goal } from "../db/db";
 import {
-  deleteGoal,
   formatRecordDate,
   priorBestExcluding,
   sealMetGoals,
@@ -60,9 +60,9 @@ function ceremonyKey(entry: Ceremony | null): string {
   return entry ? `${entry.mode}:${entry.goalId}` : "";
 }
 
-/** Start the film inside the click that opened it, so the browser allows sound. */
-function primeRecordFilm(video: HTMLVideoElement | null) {
-  if (!video || prefersReducedMotion()) return;
+/** Play after the film is on screen. Must run inside the opening click. */
+function playRecordFilm(video: HTMLVideoElement | null) {
+  if (!video) return;
   video.muted = false;
   try {
     video.currentTime = 0;
@@ -128,17 +128,14 @@ export function GoalCeremonyProvider({ children }: { children: ReactNode }) {
 
   const replay = useCallback((entry: Omit<Ceremony, "mode">) => {
     if (queueRef.current.some((item) => item.mode === "live")) return;
-    primeRecordFilm(filmRef.current);
-    setQueue([{ ...entry, mode: "replay" }]);
+    flushSync(() => {
+      setQueue([{ ...entry, mode: "replay" }]);
+    });
+    playRecordFilm(filmRef.current);
   }, []);
 
   const pop = useCallback(() => {
     setQueue((current) => current.slice(1));
-  }, []);
-
-  const remove = useCallback(async (goalId: string) => {
-    await deleteGoal(goalId);
-    setQueue((current) => current.filter((item) => item.goalId !== goalId));
   }, []);
 
   const api = useRef<GoalCeremonyApi>({ strikeMany, noteEditedWeight, replay });
@@ -161,7 +158,6 @@ export function GoalCeremonyProvider({ children }: { children: ReactNode }) {
         entry={queue[0] ?? null}
         filmRef={filmRef}
         onDone={pop}
-        onRemove={(goalId) => void remove(goalId)}
       />
     </GoalCeremonyContext.Provider>
   );
@@ -171,12 +167,10 @@ function GoalCeremonyOverlay({
   entry,
   filmRef,
   onDone,
-  onRemove,
 }: {
   entry: Ceremony | null;
   filmRef: RefObject<HTMLVideoElement>;
   onDone: () => void;
-  onRemove: (goalId: string) => void;
 }) {
   const [unit] = useUnit();
   const key = ceremonyKey(entry);
@@ -197,20 +191,30 @@ function GoalCeremonyOverlay({
   const skipRef = useRef<HTMLButtonElement>(null);
   const phaseRef = useRef(phase);
   const revealedRef = useRef(revealed);
+  const showFilmRef = useRef(showFilm);
+  const filmLeavingRef = useRef(filmLeaving);
+  const closedRef = useRef(false);
+  const exitTimer = useRef<number | null>(null);
   phaseRef.current = phase;
 
   if (key !== trackedKey) {
     const reduced = prefersReducedMotion();
     const open = key !== "";
+    const playFilm = open && (entry?.mode === "replay" || !reduced);
     setTrackedKey(key);
     setPhase("in");
-    setFromFilm(open && !reduced);
-    setShowFilm(open && !reduced);
+    setFromFilm(playFilm);
+    setShowFilm(playFilm);
     setFilmLeaving(false);
-    setRevealed(!open || reduced);
-    revealedRef.current = !open || reduced;
+    setRevealed(!playFilm);
+    revealedRef.current = !playFilm;
+    showFilmRef.current = playFilm;
+    filmLeavingRef.current = false;
+    closedRef.current = false;
   } else {
     revealedRef.current = revealed;
+    showFilmRef.current = showFilm;
+    filmLeavingRef.current = filmLeaving;
   }
 
   useEffect(() => {
@@ -230,13 +234,62 @@ function GoalCeremonyOverlay({
     else skipRef.current?.focus();
   }, [entry, revealed]);
 
-  const dissolve = () => {
-    if (revealedRef.current) return;
-    revealedRef.current = true;
-    filmRef.current?.pause();
-    setFilmLeaving(true);
-    setRevealed(true);
+  const clearExitTimer = () => {
+    if (exitTimer.current == null) return;
+    window.clearTimeout(exitTimer.current);
+    exitTimer.current = null;
   };
+
+  const hideFilm = () => {
+    clearExitTimer();
+    showFilmRef.current = false;
+    filmLeavingRef.current = false;
+    const video = filmRef.current;
+    if (video) {
+      video.style.opacity = "";
+      video.style.transition = "";
+    }
+    setShowFilm(false);
+    setFilmLeaving(false);
+  };
+
+  const dissolve = () => {
+    if (!showFilmRef.current) return;
+    revealedRef.current = true;
+    setRevealed(true);
+    filmRef.current?.pause();
+    // A second Skip drops the frame immediately if the fade is still up.
+    if (filmLeavingRef.current) {
+      hideFilm();
+      return;
+    }
+    filmLeavingRef.current = true;
+    setFilmLeaving(true);
+    exitTimer.current = window.setTimeout(hideFilm, prefersReducedMotion() ? 32 : 700);
+  };
+
+  useLayoutEffect(() => {
+    if (!showFilm || filmLeaving) return;
+    const video = filmRef.current;
+    if (!video) return;
+    video.style.transition = "none";
+    video.style.opacity = "1";
+    let settled = false;
+    const frame = requestAnimationFrame(() => {
+      settled = true;
+      video.style.transition = "";
+      video.style.opacity = "";
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (!settled) {
+        video.style.transition = "";
+        video.style.opacity = "";
+      }
+    };
+  }, [showFilm, filmLeaving, filmRef]);
+
+  useEffect(() => clearExitTimer, []);
 
   useEffect(() => {
     if (entry) return;
@@ -251,7 +304,7 @@ function GoalCeremonyOverlay({
   }, [entry, filmRef]);
 
   useEffect(() => {
-    if (!entry || !showFilm || revealed) return;
+    if (!entry || entry.mode === "replay" || !showFilm || revealed) return;
     const video = filmRef.current;
     if (!video || (!video.paused && !video.ended)) return;
     let cancelled = false;
@@ -274,22 +327,34 @@ function GoalCeremonyOverlay({
     void start();
     return () => {
       cancelled = true;
-      video.pause();
     };
   }, [entry, showFilm, revealed, filmRef]);
+
+  const close = () => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    clearExitTimer();
+    onDone();
+  };
 
   const finish = () => {
     if (!revealedRef.current) {
       dissolve();
       return;
     }
-    if (phaseRef.current === "out") return;
+    if (phaseRef.current === "out" || closedRef.current) return;
     if (prefersReducedMotion()) {
-      onDone();
+      close();
       return;
     }
     setPhase("out");
   };
+
+  useEffect(() => {
+    if (phase !== "out") return;
+    const timer = window.setTimeout(close, 240);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
 
   const weight = entry ? formatWeight(toDisplay(entry.weightLb, unit)) : "";
   const date = entry ? formatRecordDate(entry.achievedAt) : "";
@@ -320,7 +385,7 @@ function GoalCeremonyOverlay({
         if (!entry) return;
         if (event.target !== event.currentTarget) return;
         if (event.animationName !== "record-veil-out") return;
-        onDone();
+        close();
       }}
       onKeyDown={(event) => {
         if (!entry) return;
@@ -350,11 +415,12 @@ function GoalCeremonyOverlay({
       {filmOn ? (
         <div
           className={["record-film", filmClass].filter(Boolean).join(" ")}
-          onAnimationEnd={(event) => {
+          onTransitionEnd={(event) => {
             if (event.target !== event.currentTarget) return;
-            if (event.animationName !== "record-film-out") return;
+            if (event.propertyName !== "opacity") return;
+            if (!filmLeavingRef.current) return;
             event.stopPropagation();
-            setShowFilm(false);
+            hideFilm();
           }}
         />
       ) : null}
@@ -369,10 +435,17 @@ function GoalCeremonyOverlay({
         playsInline
         preload="auto"
         onEnded={() => {
-          if (filmOn) dissolve();
+          if (showFilmRef.current && !filmLeavingRef.current) dissolve();
         }}
         onError={() => {
-          if (filmOn) dissolve();
+          if (showFilmRef.current) dissolve();
+        }}
+        onTransitionEnd={(event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.propertyName !== "opacity") return;
+          if (!filmLeavingRef.current) return;
+          event.stopPropagation();
+          hideFilm();
         }}
       />
       {filmOn ? (
@@ -381,7 +454,6 @@ function GoalCeremonyOverlay({
           type="button"
           className={["record-film-skip", filmClass].filter(Boolean).join(" ")}
           onClick={dissolve}
-          disabled={filmLeaving}
         >
           Skip
         </button>
@@ -403,14 +475,14 @@ function GoalCeremonyOverlay({
           </p>
         </div>
         </div>
-        <div className="record-copy">
+        <div className="record-copy text-center">
         <h2
           id="record-title"
           className="mt-8 max-w-[18rem] text-balance text-center text-xl font-semibold tracking-tight"
         >
           {entry.name}
         </h2>
-        <p className="mt-1 text-[13px] font-medium text-muted">{date}</p>
+        <p className="mt-1 text-center text-[13px] font-medium text-muted">{date}</p>
         <blockquote className="record-line">
           <p>WE'RE ALL GONNA MAKE IT BRAH</p>
           <footer>— Zyzz</footer>
@@ -429,9 +501,6 @@ function GoalCeremonyOverlay({
         >
           {live ? "Continue" : "Close"}
         </button>
-        {live ? null : (
-          <ConfirmDelete onConfirm={() => onRemove(entry.goalId)} label="Remove" />
-        )}
       </div>
       </>
       ) : null}

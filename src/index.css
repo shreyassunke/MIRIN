@@ -2801,12 +2801,9 @@ html[data-mode="light"] .record-logo {
   inset: 0;
   z-index: 70;
   background: #0a0a0a;
+  opacity: 1;
   pointer-events: none;
-}
-
-.record-film-out {
-  animation: record-film-out 640ms var(--ease-out-expo) both;
-  pointer-events: none;
+  transition: opacity 640ms var(--ease-out-expo);
 }
 
 .record-film-video {
@@ -2817,7 +2814,15 @@ html[data-mode="light"] .record-logo {
   height: 100%;
   object-fit: contain;
   background: #0a0a0a;
+  opacity: 1;
   pointer-events: none;
+  transition: opacity 640ms var(--ease-out-expo);
+}
+
+.record-film.record-film-out,
+.record-film-video.record-film-out,
+.record-film-skip.record-film-out {
+  opacity: 0;
 }
 
 .record-film-parked {
@@ -2840,7 +2845,9 @@ html[data-mode="light"] .record-logo {
   color: #8a8a8a;
   font-size: 0.8125rem;
   font-weight: 500;
-  transition: color 150ms var(--ease-out-expo);
+  transition:
+    opacity 640ms var(--ease-out-expo),
+    color 150ms var(--ease-out-expo);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2962,11 +2969,6 @@ html[data-mode="light"] .record-logo {
   to { opacity: 1; }
 }
 
-@keyframes record-film-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
 @keyframes record-metal-flow {
   from { transform: translate3d(-6%, 0, 0); }
   to { transform: translate3d(22%, 0, 0); }
@@ -3007,9 +3009,7 @@ html[data-mode="light"] .record-logo {
   .record-veil.record-veil-from-film[data-revealed="true"] .record-actions,
   .record-veil.record-veil-from-film[data-revealed="true"] .record-medal,
   .record-medal,
-  .record-logo-live,
-  .record-film,
-  .record-film-out {
+  .record-logo-live {
     animation: none;
   }
 
