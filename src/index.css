@@ -2722,8 +2722,12 @@ html[data-mode="light"] .record-veil {
   --metal-type-shade: #2c2b29;
 }
 
-/* The logbook mark, one specular pass. Same light as the quote under the date. */
+/* The logbook mark, one specular pass. Tokens live on the mark so a row can use it too. */
 .record-logo {
+  --metal-hi: #f7f7f7;
+  --metal-mid: #cfcfcf;
+  --metal-shade: #8a8a8a;
+  --metal-edge: #6a6a6a;
   width: 10rem;
   height: 10rem;
   background: linear-gradient(
@@ -2743,6 +2747,18 @@ html[data-mode="light"] .record-veil {
   mask-repeat: no-repeat;
   -webkit-mask-size: contain;
   mask-size: contain;
+}
+
+html[data-mode="light"] .record-logo {
+  --metal-hi: #f7f4ef;
+  --metal-mid: #b7b2a8;
+  --metal-shade: #6e6b64;
+  --metal-edge: #4a4844;
+}
+
+.record-logo.record-logo-row {
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .record-line {

@@ -5,7 +5,6 @@ import { ConfirmDelete } from "../components/ConfirmDelete";
 import { ContributionGraph } from "../components/ContributionGraph";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
 import { useGoalCeremony } from "../components/GoalCeremony";
-import { TrophyMark } from "../components/TrophyMark";
 import { Stepper } from "../components/Stepper";
 import { db, type Goal } from "../db/db";
 import {
@@ -455,7 +454,7 @@ export function History() {
                     }
                   >
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center">
-                      <TrophyMark className="h-10 w-10" />
+                      <span className="record-logo record-logo-row" aria-hidden="true" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-semibold tracking-tight text-ink">
