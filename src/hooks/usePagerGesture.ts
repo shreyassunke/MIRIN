@@ -1,9 +1,28 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 
 const LOCK_PX = 8;
-const SETTLE_MS = 300;
-const FLICK_PX_MS = 0.35;
-const STALE_VX_MS = 80;
+const BASE_SETTLE_MS = 200;
+const MIN_SETTLE_MS = 110;
+const MAX_SETTLE_MS = 240;
+const FLICK_PX_MS = 0.25;
+const STALE_VX_MS = 90;
+
+/** Scale settle duration with remaining distance and flick velocity. */
+export function settleDurationMs(
+  distance: number,
+  vxPxMs = 0,
+  width = 360,
+): number {
+  const d = Math.max(0, distance);
+  if (d < 0.001) return 0;
+  const base =
+    d <= 1
+      ? MIN_SETTLE_MS + (BASE_SETTLE_MS - MIN_SETTLE_MS) * Math.sqrt(d)
+      : Math.min(MAX_SETTLE_MS, BASE_SETTLE_MS + (d - 1) * 20);
+  const vNorm = width > 0 ? (Math.abs(vxPxMs) * 1000) / width : 0;
+  const boost = 1 + Math.min(0.8, vNorm * 0.18);
+  return Math.round(Math.max(MIN_SETTLE_MS, base / boost));
+}
 
 function prefersReducedMotion() {
   return (
@@ -125,13 +144,14 @@ export function usePagerGesture({
   index: number;
   enabled?: boolean;
   rootRef: RefObject<HTMLElement | null>;
-  onProgress: (progress: number, dragging: boolean) => void;
+  onProgress: (progress: number, dragging: boolean, targetIndex: number) => void;
   onIndexChange: (index: number) => void;
   getWidth?: () => number;
   /** `page` claims every horizontal drag; `controls` honors `[data-no-pager]`. */
   claim?: "controls" | "page";
 }): { goTo: (index: number, animate?: boolean) => void } {
   const progress = useRef(index);
+  const targetRef = useRef(index);
   const dragging = useRef(false);
   const settle = useRef<number | null>(null);
   const paintRaf = useRef<number | null>(null);
@@ -150,10 +170,13 @@ export function usePagerGesture({
   getWidthRef.current = getWidth;
   claimRef.current = claim;
 
-  const paint = useCallback((value: number, isDragging: boolean) => {
-    progress.current = value;
-    onProgressRef.current(value, isDragging);
-  }, []);
+  const paint = useCallback(
+    (value: number, isDragging: boolean, target = targetRef.current) => {
+      progress.current = value;
+      onProgressRef.current(value, isDragging, target);
+    },
+    [],
+  );
 
   const stopSettle = useCallback(() => {
     if (settle.current != null) {
@@ -170,29 +193,38 @@ export function usePagerGesture({
   }, []);
 
   const settleTo = useCallback(
-    (target: number, animate: boolean) => {
+    (target: number, animate: boolean, vxPxMs = 0, width = 360) => {
       stopSettle();
       stopPaintRaf();
       const max = Math.max(0, countRef.current - 1);
       const next = Math.max(0, Math.min(max, target));
+      targetRef.current = next;
       const from = progress.current;
       const reduced = prefersReducedMotion();
-      if (!animate || reduced || Math.abs(next - from) < 0.001) {
-        paint(next, false);
-        if (next !== indexRef.current) onIndexRef.current(next);
+      const duration = settleDurationMs(Math.abs(next - from), vxPxMs, width);
+      if (!animate || reduced || duration === 0) {
+        paint(next, false, next);
+        if (next !== indexRef.current) {
+          indexRef.current = next;
+          onIndexRef.current(next);
+        }
         return;
       }
+      paint(from, false, next);
       const start = performance.now();
       const tick = (now: number) => {
-        const t = Math.min(1, (now - start) / SETTLE_MS);
-        paint(from + (next - from) * easeOutExpo(t), false);
+        const t = Math.min(1, (now - start) / duration);
+        paint(from + (next - from) * easeOutExpo(t), false, next);
         if (t < 1) {
           settle.current = requestAnimationFrame(tick);
           return;
         }
         settle.current = null;
-        paint(next, false);
-        if (next !== indexRef.current) onIndexRef.current(next);
+        paint(next, false, next);
+        if (next !== indexRef.current) {
+          indexRef.current = next;
+          onIndexRef.current(next);
+        }
       };
       settle.current = requestAnimationFrame(tick);
     },
@@ -203,16 +235,21 @@ export function usePagerGesture({
     (next: number, animate = true) => {
       dragging.current = false;
       track.current = null;
-      settleTo(next, animate);
+      const width = getWidthRef.current?.() ?? 360;
+      settleTo(next, animate, 0, width);
     },
     [settleTo],
   );
 
   useEffect(() => {
     if (dragging.current || settle.current != null) return;
-    if (Math.abs(progress.current - index) < 0.001) return;
+    targetRef.current = index;
+    if (Math.abs(progress.current - index) < 0.001) {
+      paint(index, false, index);
+      return;
+    }
     settleTo(index, true);
-  }, [index, settleTo]);
+  }, [index, paint, settleTo]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -257,7 +294,7 @@ export function usePagerGesture({
       }
 
       if (!commit || !current.locked) {
-        settleTo(Math.round(progress.current), true);
+        settleTo(targetRef.current, true, 0, current.width);
         return;
       }
 
@@ -266,7 +303,7 @@ export function usePagerGesture({
       const next = prefersReducedMotion()
         ? commitIndex(current.origin, 0, countRef.current)
         : commitIndex(progress.current, vx, countRef.current);
-      settleTo(next, true);
+      settleTo(next, true, vx, current.width);
     };
 
     const onMove = (event: PointerEvent) => {
@@ -274,30 +311,42 @@ export function usePagerGesture({
       if (!current || current.id !== event.pointerId) return;
       const dx = event.clientX - current.x;
       const dy = event.clientY - current.y;
+      const max = Math.max(0, countRef.current - 1);
 
       if (!current.locked) {
         if (Math.hypot(dx, dy) < LOCK_PX) return;
         if (Math.abs(dx) <= Math.abs(dy)) {
           track.current = null;
           dropWindow();
+          if (Math.abs(progress.current - targetRef.current) > 0.001) {
+            settleTo(targetRef.current, true, 0, current.width);
+          }
           return;
         }
         if (!pageClaim() && canScrollNestedX(root, event.target, dx)) {
           track.current = null;
           dropWindow();
+          if (Math.abs(progress.current - targetRef.current) > 0.001) {
+            settleTo(targetRef.current, true, 0, current.width);
+          }
           return;
         }
         current.locked = true;
         dragging.current = true;
         suppressClick.current = true;
         if (event.cancelable) event.preventDefault();
-        paint(clampedFromFinger(current, event.clientX), true);
+        const first = clampedFromFinger(current, event.clientX);
+        const liveTarget = Math.max(0, Math.min(max, Math.round(first)));
+        targetRef.current = liveTarget;
+        paint(first, true, liveTarget);
       }
 
       if (event.cancelable) event.preventDefault();
       const dt = event.timeStamp - current.lastT;
       if (dt > 0 && dt < 100) {
-        current.vx = (event.clientX - current.lastX) / dt;
+        const instVx = (event.clientX - current.lastX) / dt;
+        current.vx =
+          current.vx === 0 ? instVx : current.vx * 0.35 + instVx * 0.65;
         current.lastX = event.clientX;
         current.lastT = event.timeStamp;
       } else if (dt >= 100) {
@@ -310,11 +359,13 @@ export function usePagerGesture({
         ? current.origin
         : clampedFromFinger(current, event.clientX);
       progress.current = next;
+      const liveTarget = Math.max(0, Math.min(max, Math.round(next)));
+      targetRef.current = liveTarget;
       if (paintRaf.current == null) {
         paintRaf.current = requestAnimationFrame(() => {
           paintRaf.current = null;
           if (!track.current) return;
-          paint(progress.current, true);
+          paint(progress.current, true, targetRef.current);
         });
       }
     };

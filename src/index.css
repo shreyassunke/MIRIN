@@ -1423,16 +1423,18 @@ html[data-mode="light"] .logbook-band {
   width: var(--dot, 6px);
   height: var(--dot, 6px);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-ink) 42%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-ink) var(--dot-ink, 42%),
+    transparent
+  );
   transform: translate(-50%, -50%);
-  transition:
-    width 160ms var(--ease-out-expo),
-    height 160ms var(--ease-out-expo),
-    background-color 160ms var(--ease-out-expo);
 }
 
-.exercise-dot:hover::after {
-  background: color-mix(in srgb, var(--color-ink) 70%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .exercise-dot:hover::after {
+    background: color-mix(in srgb, var(--color-ink) 70%, transparent);
+  }
 }
 
 .exercise-dot:focus-visible {

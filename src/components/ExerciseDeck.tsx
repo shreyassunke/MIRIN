@@ -34,6 +34,35 @@ function phoneBox() {
 }
 
 /**
+ * Continuous dot diameter (px): 6px within 2 steps, 4px at 3 steps,
+ * and 3px at 4+ steps, interpolating 1:1 during a swipe.
+ */
+export function dotSizeAt(distance: number): number {
+  const d = Math.abs(distance);
+  if (d <= 2) return 6;
+  if (d < 3) return 6 - (d - 2) * 2;
+  if (d < 4) return 4 - (d - 3);
+  return 3;
+}
+
+/**
+ * Ink percentage (42%–100%) for dot `i`.
+ * During finger drag, the incoming dot brightens 1:1 with finger progress and
+ * snaps to 100% the instant the midpoint is crossed or the flick commits.
+ */
+export function dotInkAt(
+  i: number,
+  progress: number,
+  activeDot: number,
+  dragging: boolean,
+): number {
+  if (i === activeDot) return 100;
+  if (!dragging) return 42;
+  const proximity = Math.max(0, 1 - Math.abs(i - progress));
+  return Math.round(42 + 46 * proximity);
+}
+
+/**
  * One frame, the way a multi-photo post keeps one box. On a phone the
  * box is the screen slot, so a swipe never changes its height. On a
  * wide layout the settled page sets the height, and mid-swipe the frame
@@ -54,51 +83,89 @@ export function ExerciseDeck({
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const dotRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const countRef = useRef(count);
+  countRef.current = count;
+  pageRefs.current.length = count;
+  dotRefs.current.length = count;
   const heights = useRef<number[]>([]);
   const progressRef = useRef(index);
+  const targetRef = useRef(index);
   const draggingRef = useRef(false);
   const fixedBox = useRef(phoneBox());
 
-  const paint = useCallback((progress: number, dragging: boolean) => {
-    progressRef.current = progress;
-    draggingRef.current = dragging;
-    const track = trackRef.current;
-    const viewport = viewportRef.current;
-    const reduced = prefersReducedMotion();
-    const width = viewport?.clientWidth ?? 0;
-    if (track) {
-      const x = reduced ? -Math.round(progress) * width : -progress * width;
-      track.style.transform = width
-        ? `translate3d(${x}px, 0, 0)`
-        : `translate3d(${-progress * 100}%, 0, 0)`;
-    }
-    const inMotion =
-      dragging || Math.abs(progress - Math.round(progress)) > 0.001;
-    rootRef.current?.classList.toggle("is-paging", inMotion);
-    if (!viewport) return;
-    if (fixedBox.current) {
-      if (viewport.style.height) viewport.style.height = "";
-      return;
-    }
-    const pages = heights.current;
-    const n = pages.length;
-    if (n === 0) return;
-    const clamped = Math.max(0, Math.min(n - 1, progress));
-    let next = 0;
-    if (!inMotion) {
-      next = pages[Math.round(clamped)] || 0;
-    } else {
-      const i = Math.floor(clamped);
-      next = Math.max(pages[i] || 0, pages[Math.min(n - 1, i + 1)] || 0);
-    }
-    if (next > 0) viewport.style.height = `${Math.round(next)}px`;
-  }, []);
+  const paint = useCallback(
+    (progress: number, dragging: boolean, target = targetRef.current) => {
+      progressRef.current = progress;
+      targetRef.current = target;
+      draggingRef.current = dragging;
+      const track = trackRef.current;
+      const viewport = viewportRef.current;
+      const reduced = prefersReducedMotion();
+      const width = viewport?.clientWidth ?? 0;
+      if (track) {
+        const x = reduced ? -Math.round(progress) * width : -progress * width;
+        track.style.transform = width
+          ? `translate3d(${x}px, 0, 0)`
+          : `translate3d(${-progress * 100}%, 0, 0)`;
+      }
+      const inMotion =
+        dragging || Math.abs(progress - Math.round(progress)) > 0.001;
+      rootRef.current?.classList.toggle("is-paging", inMotion);
+
+      const dots = dotRefs.current;
+      const dotCount = countRef.current;
+      if (dotCount > 0) {
+        const max = Math.max(0, dotCount - 1);
+        const clampedPos = Math.max(0, Math.min(max, progress));
+        const activeDot = Math.max(
+          0,
+          Math.min(max, dragging ? Math.round(clampedPos) : target),
+        );
+        const sizeAnchor = reduced ? activeDot : clampedPos;
+        for (let i = 0; i < dotCount; i++) {
+          const btn = dots[i];
+          if (!btn) continue;
+          const size = dotSizeAt(Math.abs(i - sizeAnchor));
+          const ink = dotInkAt(i, clampedPos, activeDot, dragging && !reduced);
+          btn.style.setProperty("--dot", `${Math.round(size * 100) / 100}px`);
+          btn.style.setProperty("--dot-ink", `${ink}%`);
+          if (i === activeDot) {
+            if (btn.getAttribute("aria-current") !== "true") {
+              btn.setAttribute("aria-current", "true");
+            }
+          } else if (btn.hasAttribute("aria-current")) {
+            btn.removeAttribute("aria-current");
+          }
+        }
+      }
+
+      if (!viewport) return;
+      if (fixedBox.current) {
+        if (viewport.style.height) viewport.style.height = "";
+        return;
+      }
+      const pages = heights.current;
+      const n = pages.length;
+      if (n === 0) return;
+      const clamped = Math.max(0, Math.min(n - 1, progress));
+      let next = 0;
+      if (!inMotion) {
+        next = pages[Math.round(clamped)] || 0;
+      } else {
+        const i = Math.floor(clamped);
+        next = Math.max(pages[i] || 0, pages[Math.min(n - 1, i + 1)] || 0);
+      }
+      if (next > 0) viewport.style.height = `${Math.round(next)}px`;
+    },
+    [],
+  );
 
   useEffect(() => {
     const mq = window.matchMedia(PHONE_BOX);
     const onChange = () => {
       fixedBox.current = mq.matches;
-      paint(progressRef.current, draggingRef.current);
+      paint(progressRef.current, draggingRef.current, targetRef.current);
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
@@ -122,7 +189,7 @@ export function ExerciseDeck({
       next[i] = page.scrollHeight;
     });
     heights.current = next;
-    paint(progressRef.current, draggingRef.current);
+    paint(progressRef.current, draggingRef.current, targetRef.current);
   }, [paint]);
 
   useLayoutEffect(() => {
@@ -201,13 +268,21 @@ export function ExerciseDeck({
           const selected = i === index;
           const distance = Math.abs(i - index);
           const name = pageLabels?.[i] ?? `Exercise ${i + 1}`;
-          const dot = distance >= 4 ? 3 : distance === 3 ? 4 : 6;
+          const dot = dotSizeAt(distance);
           return (
             <button
               key={i}
+              ref={(el) => {
+                dotRefs.current[i] = el;
+              }}
               type="button"
               className="exercise-dot"
-              style={{ "--dot": `${dot}px` } as CSSProperties}
+              style={
+                {
+                  "--dot": `${dot}px`,
+                  "--dot-ink": selected ? "100%" : "42%",
+                } as CSSProperties
+              }
               aria-label={`${name}, ${i + 1} of ${count}`}
               aria-current={selected ? "true" : undefined}
               onClick={() => goTo(i)}
