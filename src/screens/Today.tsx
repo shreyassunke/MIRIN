@@ -522,8 +522,8 @@ export function Today() {
 
   if (data.isRestDay) {
     return (
-      <div>
-        <header className="today-header mb-6 flex flex-nowrap items-start justify-between gap-3">
+      <div className="rest-day">
+        <header className="today-header flex flex-nowrap items-start justify-between gap-3">
           <div className="shrink-0 pr-2">
             <DaySwitcher
               dayName={data.dayName}
@@ -557,16 +557,14 @@ export function Today() {
             )}
           </div>
         </header>
-        <p className="mb-4 text-sm leading-relaxed text-muted">
-          No workout scheduled for today.
-          {data.nextUp &&
-            ` Next: ${data.nextUp.dayName} ${
-              data.nextUp.daysAway === 1
-                ? "tomorrow"
-                : `in ${data.nextUp.daysAway} days`
-            }.`}{" "}
-          Adjust the rotation on the Split screen if this looks wrong.
-        </p>
+        <div className="rest-day-stage">
+          <div className="rest-day-mark" role="img" aria-label="Rest day">
+            <span className="rest-day-layer rest-day-bed" />
+            <span className="rest-day-layer rest-day-z rest-day-z-3" />
+            <span className="rest-day-layer rest-day-z rest-day-z-2" />
+            <span className="rest-day-layer rest-day-z rest-day-z-1" />
+          </div>
+        </div>
       </div>
     );
   }

@@ -32,6 +32,7 @@
 
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --blur-glass: 14px;
   --motion-fast: 100ms;
   --motion-snap: 140ms;
@@ -270,6 +271,106 @@ a,
 .today-header {
   position: relative;
   z-index: 5;
+}
+
+/* The sleep glyph is the uploaded rest mark, masked so it takes ink. */
+.rest-day {
+  display: grid;
+  min-height: calc(100dvh - max(1.25rem, env(safe-area-inset-top)) - 10rem);
+}
+
+.rest-day > .today-header,
+.rest-day-stage {
+  grid-area: 1 / 1;
+}
+
+.rest-day > .today-header {
+  align-self: start;
+}
+
+.rest-day-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.rest-day-mark {
+  position: relative;
+  width: min(36vw, 11rem);
+  aspect-ratio: 212 / 229;
+  /* The page box ends above the tab bar, so this lands the mark on the screen. */
+  transform: translateY(calc((10rem - max(1.25rem, env(safe-area-inset-top))) / 2));
+}
+
+.rest-day-layer {
+  position: absolute;
+  inset: 0;
+  background: var(--color-ink);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
+
+.rest-day-bed {
+  -webkit-mask-image: url("/icons/rest-day-bed.png");
+  mask-image: url("/icons/rest-day-bed.png");
+}
+
+.rest-day-z-1 {
+  -webkit-mask-image: url("/icons/rest-day-z-1.png");
+  mask-image: url("/icons/rest-day-z-1.png");
+}
+
+.rest-day-z-2 {
+  -webkit-mask-image: url("/icons/rest-day-z-2.png");
+  mask-image: url("/icons/rest-day-z-2.png");
+}
+
+.rest-day-z-3 {
+  -webkit-mask-image: url("/icons/rest-day-z-3.png");
+  mask-image: url("/icons/rest-day-z-3.png");
+}
+
+/* Rest-state breath, not a control response: the letters lift off the sleeper. */
+@keyframes rest-zzz-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  50% {
+    transform: translate3d(2.4%, -7%, 0);
+    opacity: 0.78;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rest-day-z {
+    animation: rest-zzz-float 4.2s var(--ease-in-out) infinite;
+    will-change: transform, opacity;
+  }
+
+  .rest-day-z-2 {
+    animation-delay: -1.4s;
+  }
+
+  .rest-day-z-1 {
+    animation-delay: -2.8s;
+  }
+}
+
+@media (min-width: 48rem) {
+  .rest-day {
+    min-height: calc(100dvh - 2.5rem - 3rem);
+  }
+
+  .rest-day-mark {
+    transform: translateY(0.25rem);
+  }
 }
 
 .header-search-field {
