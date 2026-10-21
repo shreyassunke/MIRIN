@@ -57,6 +57,7 @@ export function Auth() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState(remembered);
   const [password, setPassword] = useState("");
+  const [revealPassword, setRevealPassword] = useState(false);
   const [remember, setRemember] = useState(Boolean(remembered));
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -246,7 +247,7 @@ export function Auth() {
               <LineField
                 id="auth-password"
                 label={recovery ? "New password" : "Password"}
-                type="password"
+                type={revealPassword ? "text" : "password"}
                 name="password"
                 autoComplete={
                   recovery
@@ -255,20 +256,38 @@ export function Auth() {
                       ? "current-password"
                       : "new-password"
                 }
+                autoCapitalize="off"
+                spellCheck={false}
                 value={password}
-                onChange={setPassword}
+                onChange={(value) => {
+                  setPassword(value);
+                  if (!value) setRevealPassword(false);
+                }}
                 minLength={6}
                 trailing={
-                  mode === "sign-in" && !recovery ? (
-                    <button
-                      type="button"
-                      className="auth-forgot"
-                      onClick={() => void onForgot()}
-                      disabled={submitting}
-                    >
-                      Forgot?
-                    </button>
-                  ) : null
+                  <>
+                    {password ? (
+                      <button
+                        type="button"
+                        className="auth-reveal"
+                        aria-label={revealPassword ? "Hide password" : "Show password"}
+                        aria-pressed={revealPassword}
+                        onClick={() => setRevealPassword((open) => !open)}
+                      >
+                        <EyeIcon slashed={revealPassword} />
+                      </button>
+                    ) : null}
+                    {mode === "sign-in" && !recovery ? (
+                      <button
+                        type="button"
+                        className="auth-forgot"
+                        onClick={() => void onForgot()}
+                        disabled={submitting}
+                      >
+                        Forgot?
+                      </button>
+                    ) : null}
+                  </>
                 }
               />
 
@@ -419,6 +438,28 @@ function LineField({
         {trailing}
       </div>
     </div>
+  );
+}
+
+function EyeIcon({ slashed }: { slashed: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <path
+        d="M1.6 9.1C3.2 6.3 5.8 4.7 9 4.7s5.8 1.6 7.4 4.4c-1.6 2.8-4.2 4.4-7.4 4.4s-5.8-1.6-7.4-4.4Z"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinejoin="round"
+      />
+      <circle cx="9" cy="9.1" r="1.7" stroke="currentColor" strokeWidth="1.25" />
+      {slashed ? (
+        <path
+          d="M3.4 14.2 14.6 4"
+          stroke="currentColor"
+          strokeWidth="1.25"
+          strokeLinecap="round"
+        />
+      ) : null}
+    </svg>
   );
 }
 

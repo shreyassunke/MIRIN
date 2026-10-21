@@ -286,6 +286,32 @@ a,
   box-shadow: 0 0 0 1000px #1a1a1a inset;
 }
 
+.auth-reveal {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--motion-fast) var(--ease-out-expo);
+}
+
+.auth-reveal:active {
+  transform: scale(0.94);
+}
+
+.auth-reveal:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
 .auth-forgot {
   flex: none;
   margin: 0;
@@ -2328,6 +2354,7 @@ html.reorder-active [data-reorder-index] {
   .glass-chip:active,
   .btn-primary:active,
   .auth-glass:active,
+  .auth-reveal:active,
   .unit-switch:active,
   .unit-mark:active,
   .log-pill:active .log-pill-face,
