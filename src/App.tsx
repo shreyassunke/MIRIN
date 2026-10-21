@@ -22,6 +22,7 @@ import { RequireAuth } from "./auth/RequireAuth";
 import { AppShell } from "./components/AppShell";
 import { BootSplash } from "./components/BootSplash";
 import { Auth } from "./screens/Auth";
+import { Privacy } from "./screens/Privacy";
 import { History } from "./screens/History";
 import { Log } from "./screens/Log";
 import { Profile, ProfileAccount } from "./screens/Profile";
@@ -343,6 +344,7 @@ function ProtectedLayout() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/auth" element={<Auth />} />
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<Navigate to="/today" replace />} />
