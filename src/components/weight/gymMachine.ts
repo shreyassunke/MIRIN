@@ -1,7 +1,7 @@
 import type { GymMachineId } from "../../lib/library";
 
 /** Same resting height as the bar. The number sits on it; Log sits under it. */
-const STAGE = "mx-auto h-[104px] w-full max-w-xs";
+const STAGE = "weight-stage weight-stage-machine";
 
 export const GYM_MACHINE_STAGE: Record<GymMachineId, string> = {
   "lat-pulldown": STAGE,

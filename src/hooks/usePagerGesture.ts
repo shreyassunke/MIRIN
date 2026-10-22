@@ -88,6 +88,8 @@ function isExemptTarget(
   root: HTMLElement,
 ) {
   if (!(target instanceof Element)) return false;
+  // The logged-set line scrolls and swipes on its own. A parent pager leaves it.
+  if (target.closest("[data-ledger]")) return true;
   if (target.closest("input, textarea, select, [contenteditable='true']")) {
     // The log pill is the figures. Its own sideways swipe still owns them.
     if (pageClaim && root.hasAttribute("data-log-bar")) return false;

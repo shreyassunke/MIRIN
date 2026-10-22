@@ -8,7 +8,7 @@ import {
 import { CABLE_CAM } from "./scale";
 import { useWeightStage } from "./useWeightStage";
 
-const STAGE = "mx-auto h-36 w-full max-w-sm md:h-48";
+const STAGE = "weight-stage weight-stage-cable";
 
 interface CableAttachment3DProps {
   attachment: CableAttachmentId;

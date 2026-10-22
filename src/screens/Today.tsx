@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGoalCeremony } from "../components/GoalCeremony";
+import { confirmSetHaptic } from "../lib/native";
 import { heaviest } from "../lib/goals";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -31,6 +32,7 @@ import {
   ensureExerciseRow,
   equipmentForExercise,
   isGymMachineId,
+  renameExercise,
   type ExerciseLibraryEntry,
 } from "../lib/library";
 import type { CableAttachmentId } from "../lib/cableAttachment";
@@ -532,7 +534,7 @@ export function Today() {
               options={data.switchOptions}
               onSwitch={handleDaySwitch}
             />
-            <p className="mt-1 text-sm text-muted">
+            <p className="today-date">
               {new Date().toLocaleDateString(undefined, {
                 weekday: "long",
                 month: "long",
@@ -697,6 +699,7 @@ export function Today() {
       variationId: options?.variationId,
       variationLabel: options?.variationLabel,
     });
+    void confirmSetHaptic();
     void strikeMany([
       { exerciseId, weightLb, priorBestLb: heaviest(existing) },
     ]);
@@ -989,7 +992,7 @@ export function Today() {
             options={data.switchOptions}
             onSwitch={handleDaySwitch}
           />
-          <p className="mt-1 text-sm text-muted">
+          <p className="today-date">
             {new Date().toLocaleDateString(undefined, {
               weekday: "long",
               month: "long",
@@ -1064,10 +1067,14 @@ export function Today() {
                     <ExerciseCombobox
                       inline
                       placeholder={displayName}
+                      selfId={exercise.id}
                       excludeIds={data.exerciseIds.filter(
                         (id) => id !== exercise.id,
                       )}
                       onCancel={() => setSwappingIndex(null)}
+                      onRename={(name) => {
+                        void renameExercise(exercise.id, name);
+                      }}
                       onPick={(entry) =>
                         void handleSwapExercise(index, entry)
                       }
@@ -1291,11 +1298,10 @@ export function Today() {
 
       {phone ? (
         <div className="set-column">
-          <div ref={assignDock} className="set-dock" />
-          <LoggedSets sets={loggedSets} unit={unit} />
-          {loggedSets.length === 0 ? (
-            <div className="logbook-reserve" aria-hidden="true" />
-          ) : null}
+          <div className="set-log">
+            <LoggedSets key={activeId ?? "none"} sets={loggedSets} unit={unit} />
+            <div ref={assignDock} className="set-dock" />
+          </div>
           {completeControl}
         </div>
       ) : null}

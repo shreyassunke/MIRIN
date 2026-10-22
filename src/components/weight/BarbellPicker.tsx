@@ -34,10 +34,8 @@ interface BarbellPickerProps {
   onChange: (barWeight: number, plates: number[]) => void;
 }
 
-const BAR_STAGE_H = 104;
-
 function BarStageFallback() {
-  return <div className="w-full" style={{ height: BAR_STAGE_H, pointerEvents: "none" }} aria-hidden="true" />;
+  return <div className="weight-stage weight-stage-bar" style={{ pointerEvents: "none" }} aria-hidden="true" />;
 }
 
 function LoadedBar({

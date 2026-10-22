@@ -6,7 +6,7 @@ import {
 import type { Unit } from "../../lib/units";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
 
-const STAGE = "mx-auto h-36 w-full max-w-sm md:h-48";
+const STAGE = "weight-stage weight-stage-cable";
 
 const loadCableAttachment3D = () =>
   import("./three/CableAttachment3D").then((m) => ({

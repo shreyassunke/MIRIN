@@ -16,7 +16,7 @@ interface DumbbellPickerProps {
 }
 
 function BellStageFallback() {
-  return <div className="mx-auto h-36 w-full max-w-xs" style={{ pointerEvents: "none" }} aria-hidden="true" />;
+  return <div className="weight-stage weight-stage-bell" style={{ pointerEvents: "none" }} aria-hidden="true" />;
 }
 
 export function DumbbellPicker({

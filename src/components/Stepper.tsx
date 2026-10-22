@@ -8,10 +8,34 @@ import {
 } from "react";
 import { formatWeight } from "../lib/workout";
 import { LogPillContext } from "./LogActionSwipe";
+import { REEL_STEP_PX, reelSnap, settleReel } from "./reel";
 
 /** Same claim and travel as the weight stage drag. Up increases. */
 const DRAG_TAP_PX = 12;
-const DRAG_STEP_PX = 36;
+
+function prefersReducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+function tickHaptic() {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") {
+    return;
+  }
+  try {
+    navigator.vibrate(8);
+  } catch {
+    /* Vibration throws when the document is not allowed to vibrate. */
+  }
+}
+
+function easeOutExpo(t: number) {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  return 1 - Math.pow(2, -10 * t);
+}
 
 interface StepperProps {
   label: string;
@@ -74,12 +98,17 @@ export function Stepper({
   const dragRef = useRef<{
     pointerId: number;
     x: number;
+    downY: number;
     y: number;
     captured: boolean;
     discarded: boolean;
+    carried: boolean;
   } | null>(null);
+  const reelOffsetRef = useRef(0);
+  const snapRef = useRef<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [reel, setReel] = useState({ live: false, offset: 0 });
   const pill = useContext(LogPillContext);
   const holdRef = useRef<number | null>(null);
   valueRef.current = value;
@@ -90,7 +119,24 @@ export function Stepper({
     holdRef.current = null;
   };
 
-  useEffect(() => clearHold, []);
+  const stopSnap = () => {
+    if (snapRef.current == null) return;
+    cancelAnimationFrame(snapRef.current);
+    snapRef.current = null;
+  };
+
+  const setOffset = (offset: number, live = true) => {
+    reelOffsetRef.current = offset;
+    setReel({ live, offset });
+  };
+
+  useEffect(
+    () => () => {
+      clearHold();
+      stopSnap();
+    },
+    [],
+  );
 
   const display = format ? format(value) : formatWeight(value);
   const shown = editing ? draft : display;
@@ -120,25 +166,74 @@ export function Stepper({
     setEditing(false);
   };
 
+  const preview = (direction: -1 | 1, from = valueRef.current) => {
+    const raw = onDragStep ? onDragStep(direction, from) : from + direction * step;
+    return clamp(raw, min, max);
+  };
+
   const stepBy = (direction: -1 | 1) => {
-    const raw = onDragStep
-      ? onDragStep(direction, valueRef.current)
-      : valueRef.current + direction * step;
-    const next = clamp(raw, min, max);
-    if (next === valueRef.current) return;
+    const next = preview(direction);
+    if (next === valueRef.current) return false;
     valueRef.current = next;
     onChange(next);
+    tickHaptic();
+    return true;
+  };
+
+  const markReel = (host: HTMLElement, on: boolean) => {
+    host.closest(".log-pill")?.classList.toggle("is-reeling", on);
+  };
+
+  const finishReel = (host: HTMLElement, offset: number) => {
+    if (!pill) {
+      setOffset(0, false);
+      return;
+    }
+    const decision = reelSnap(offset, REEL_STEP_PX, (direction) => preview(direction) !== valueRef.current);
+    if (!decision.direction && Math.abs(offset) < 0.5) {
+      setOffset(0, false);
+      markReel(host, false);
+      return;
+    }
+    if (prefersReducedMotion()) {
+      if (decision.direction) stepBy(decision.direction);
+      setOffset(0, false);
+      markReel(host, false);
+      return;
+    }
+    stopSnap();
+    const from = offset;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / 180);
+      const next = from + (decision.target - from) * easeOutExpo(t);
+      if (t < 1) {
+        setOffset(next);
+        snapRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      snapRef.current = null;
+      if (decision.direction) stepBy(decision.direction);
+      setOffset(0, false);
+      markReel(host, false);
+    };
+    setOffset(from);
+    snapRef.current = requestAnimationFrame(tick);
   };
 
   const onDragDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drag || editing || event.button !== 0) return;
     event.preventDefault();
+    stopSnap();
+    const carried = reelOffsetRef.current;
     dragRef.current = {
       pointerId: event.pointerId,
       x: event.clientX,
-      y: event.clientY,
+      downY: event.clientY,
+      y: event.clientY - carried,
       captured: false,
       discarded: false,
+      carried: Math.abs(carried) > 0.5,
     };
     if (pill) {
       clearHold();
@@ -146,6 +241,8 @@ export function Stepper({
         const start = dragRef.current;
         if (!start || start.captured || start.discarded) return;
         pill.skipClick.current = true;
+        setOffset(0, false);
+        markReel(event.currentTarget, false);
         inputRef.current?.focus();
       }, 450);
     }
@@ -155,29 +252,34 @@ export function Stepper({
     const start = dragRef.current;
     if (!start || start.pointerId !== event.pointerId || start.discarded) return;
     const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
+    const dy = event.clientY - start.downY;
     if (Math.hypot(dx, dy) > 4) clearHold();
     if (!start.captured) {
-      if (Math.hypot(dx, dy) <= DRAG_TAP_PX) return;
-      if (Math.abs(dx) > Math.abs(dy)) {
+      const travel = Math.hypot(dx, dy);
+      if (travel <= DRAG_TAP_PX) {
+        if (!start.carried) return;
+      } else if (Math.abs(dx) > Math.abs(dy)) {
         start.discarded = true;
+        finishReel(event.currentTarget, reelOffsetRef.current);
         return;
+      } else {
+        start.captured = true;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        inputRef.current?.blur();
+        setEditing(false);
+        if (pill) markReel(event.currentTarget, true);
       }
-      start.captured = true;
-      start.y = event.clientY;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      inputRef.current?.blur();
-      setEditing(false);
     }
     event.preventDefault();
-    let remain = event.clientY - start.y;
-    while (Math.abs(remain) >= DRAG_STEP_PX) {
-      const dir = remain > 0 ? 1 : -1;
-      // Finger up (negative dy) raises the count, matching the weight stage.
-      stepBy((dir === 1 ? -1 : 1) as -1 | 1);
-      start.y += dir * DRAG_STEP_PX;
-      remain = event.clientY - start.y;
+    const remain = event.clientY - start.y;
+    const settled = settleReel(remain, REEL_STEP_PX, preview, valueRef.current);
+    if (settled.steps.length > 0) {
+      for (const direction of settled.steps) stepBy(direction);
+      start.y += settled.steps.reduce((px, direction) => px - direction * REEL_STEP_PX, 0);
     }
+    // Outside the pill the digit still steps. Reduced motion skips the track.
+    if (!pill || prefersReducedMotion()) return;
+    setOffset(settled.offset);
   };
 
   const onDragEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -189,13 +291,27 @@ export function Stepper({
     if (host.hasPointerCapture(event.pointerId)) {
       host.releasePointerCapture(event.pointerId);
     }
-    if (start.captured || start.discarded) {
+    if (start.captured || start.discarded || start.carried) {
       if (pill) pill.skipClick.current = true;
+      if (!start.discarded) finishReel(host, reelOffsetRef.current);
       return;
     }
     const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    if (Math.hypot(dx, dy) > DRAG_TAP_PX) return;
+    const dy = event.clientY - start.downY;
+    if (Math.hypot(dx, dy) > DRAG_TAP_PX) {
+      // A flick can arrive as down then up, with no move in between.
+      if (Math.abs(dy) <= Math.abs(dx)) return;
+      const settled = settleReel(
+        event.clientY - start.y,
+        REEL_STEP_PX,
+        preview,
+        valueRef.current,
+      );
+      for (const direction of settled.steps) stepBy(direction);
+      if (pill) pill.skipClick.current = true;
+      if (pill && !prefersReducedMotion()) finishReel(host, settled.offset);
+      return;
+    }
     if (pill) {
       if (pill.skipClick.current) return;
       pill.skipClick.current = true;
@@ -267,6 +383,19 @@ export function Stepper({
   );
 
   if (layout === "readout") {
+    const textFor = (next: number) => (format ? format(next) : formatWeight(next));
+    const lower = preview(-1);
+    const higher = preview(1);
+    const lowerText = lower === value ? "" : textFor(lower);
+    const higherText = higher === value ? "" : textFor(higher);
+    const widest = [textFor(value), lowerText, higherText].reduce((best, text) =>
+      text.length > best.length ? text : best,
+    );
+    const reelType =
+      size === "lead" || size !== "compact"
+        ? "text-3xl"
+        : "text-base";
+    const showReel = Boolean(pill) && reel.live && !editing;
     return (
       <div
         data-no-pager=""
@@ -280,7 +409,29 @@ export function Stepper({
           drag ? "cursor-ns-resize touch-none" : "",
         ].join(" ")}
       >
-        {valueControl}
+        {showReel ? (
+          <span className="numeral-reel">
+            <span className={`numeral-reel-sizer tnum font-semibold tracking-tight ${reelType}`}>
+              {widest}
+            </span>
+            <span
+              className="numeral-reel-track"
+              style={{
+                transform: `translate3d(0, calc(-50% + ${reel.offset}px), 0)`,
+              }}
+            >
+              <span className={`numeral-reel-slot tnum font-semibold tracking-tight ${reelType}`} aria-hidden="true">
+                {lowerText}
+              </span>
+              {valueControl}
+              <span className={`numeral-reel-slot tnum font-semibold tracking-tight ${reelType}`} aria-hidden="true">
+                {higherText}
+              </span>
+            </span>
+          </span>
+        ) : (
+          valueControl
+        )}
         {suffix}
       </div>
     );

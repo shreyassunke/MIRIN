@@ -157,9 +157,9 @@ function DropFace({ label, onClick }: { label: string; onClick: () => void }) {
 }
 
 /**
- * The live weight × reps is the log control: a frosted metal pill.
- * A sideways swipe, either way, slides into Drop. A drag on a numeral
- * still changes that number, and does not log.
+ * The live weight × reps is the log control: a machined pill.
+ * A vertical drag on either numeral reels that number and does not log.
+ * A sideways swipe, either way, slides into Drop.
  */
 export function LogActionSwipe({
   canDrop,

@@ -174,7 +174,7 @@ export function TodayExerciseStage({
   };
 
   return (
-    <div ref={anchorRef}>
+    <div ref={anchorRef} className="exercise-stage-body">
       {logbook}
       <LoadInstrument
         unit={unit}

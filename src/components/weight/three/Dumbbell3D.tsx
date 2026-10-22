@@ -126,7 +126,7 @@ export function Dumbbell3D({
   return (
     <div
       ref={hostRef}
-      className="pointer-events-none mx-auto h-36 w-full max-w-xs"
+      className="weight-stage weight-stage-bell pointer-events-none"
       style={{ pointerEvents: "none" }}
       aria-hidden="true"
     />

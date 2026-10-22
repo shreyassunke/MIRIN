@@ -7,9 +7,9 @@ interface TodayExercisePageProps {
   overflow?: ReactNode;
   children?: ReactNode;
   title?: string;
-  /** Opens replace for this exercise. */
+  /** Opens the title editor: correct the name, or swap to another exercise. */
   onReplace?: () => void;
-  /** Replace search, shown in place of the title while active. */
+  /** Title editor, shown in place of the title while active. */
   replacing?: ReactNode;
 }
 
@@ -56,7 +56,7 @@ export function TodayExercisePage({
                 type="button"
                 data-no-pager=""
                 className="h-11 max-w-full min-w-0 truncate text-lg font-semibold tracking-tight [-webkit-tap-highlight-color:transparent]"
-                aria-label={`Replace ${name}`}
+                aria-label={`Edit ${name}`}
                 onClick={onReplace}
               >
                 {name}

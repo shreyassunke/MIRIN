@@ -592,6 +592,46 @@ a.auth-switch {
   z-index: 5;
 }
 
+/* Day name and date are one field. The date tucks under the name. */
+.today-date {
+  margin-top: 0.125rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+/* Instrument hosts. Wide layout keeps the resting size of each object.
+   Phone sizes live with the half-screen frame, below. */
+.weight-stage {
+  width: 100%;
+  margin-inline: auto;
+}
+
+.weight-stage-bell {
+  height: 9rem;
+  max-width: 20rem;
+}
+
+.weight-stage-bar {
+  height: 104px;
+}
+
+.weight-stage-machine {
+  height: 104px;
+  max-width: 20rem;
+}
+
+.weight-stage-cable {
+  height: 9rem;
+  max-width: 24rem;
+}
+
+@media (min-width: 48rem) {
+  .weight-stage-cable {
+    height: 12rem;
+  }
+}
+
 /* The sleep glyph is the uploaded rest mark, masked so it takes ink. */
 .rest-day {
   display: grid;
@@ -1684,9 +1724,8 @@ textarea {
 }
 
 /* Phone column. The stage keeps the top half, so the dot marks sit on
-   the halfway line. The log key stays above the set wheel. The wheel's
-   place is held before the first set, so the key does not drop onto
-   the tab bar. */
+   the halfway line. The ledger holds one row above the log key, including
+   before the first set, so the key does not move when a set prints. */
 .today-phone-frame,
 .today-phone-scroll,
 .today-lower {
@@ -1794,6 +1833,50 @@ textarea {
     margin-top: 0;
   }
 
+  /* The date sits in the day control's lower padding, so the pair reads
+     as one line group. The unit stays on the day name's midline. */
+  .today-header .today-date {
+    margin-top: -0.35rem;
+  }
+
+  .today-header .unit-switch {
+    font-size: 0.875rem;
+  }
+
+  /* The lift name sits under the day. The instrument takes the rest of
+     the slot, stopping short of the dots on the halfway line. */
+  .exercise-deck-page > [data-exercise-stage] {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0.25rem;
+    padding-top: 0.35rem;
+  }
+
+  .exercise-stage-body,
+  .exercise-stage-body > .flex,
+  .exercise-stage-body .load-readout {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* A taller host scales a height-bound object. The bar stays short and
+     wide — a taller box would only zoom it out. */
+  .exercise-stage-body .weight-stage-bell,
+  .exercise-stage-body .weight-stage-machine,
+  .exercise-stage-body .weight-stage-cable {
+    flex: 1 1 0;
+    width: min(100%, 17.5rem);
+    max-width: none;
+    height: auto;
+    min-height: 11rem;
+    max-height: 14.5rem;
+  }
+
 }
 
 .set-line {
@@ -1801,8 +1884,16 @@ textarea {
   max-width: 100%;
 }
 
-/* Logged sets sit in a wheel. The band stays put; rows scroll through it
-   and dim as they leave it. The bar stays hidden. */
+/* Logged sets are one line above the pill. The row is always reserved. */
+.set-log {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 100%;
+}
+
 .set-column {
   display: flex;
   flex: 1 1 auto;
@@ -1815,130 +1906,121 @@ textarea {
   padding-bottom: 0.75rem;
 }
 
-.logbook-wheel {
-  --log-row: 2.125rem;
-  position: relative;
-  width: max-content;
+.ledger-block {
+  width: min(100%, 28rem);
   max-width: 100%;
-  margin: 0 auto;
+  margin-inline: auto;
+  margin-bottom: 0.75rem;
 }
 
-/* Same height as the wheel, so an empty log keeps the key where a set would. */
-.logbook-reserve {
-  height: calc(2.125rem * 3);
+.set-log .ledger-block,
+.set-log .ledger-reserve {
+  margin-bottom: 0;
+}
+
+.ledger-reserve {
+  height: 2.75rem;
   flex: none;
+  margin-bottom: 0.75rem;
 }
 
-.logbook-band {
-  position: absolute;
-  z-index: 0;
-  top: 50%;
-  right: 0;
-  left: 0;
-  height: var(--log-row);
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.08);
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.logbook {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: 1.5rem max-content 2.75rem;
-  align-content: start;
-  height: calc(var(--log-row) * 3);
+.ledger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  height: 2.75rem;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   list-style: none;
   scrollbar-width: none;
-  scroll-snap-type: y mandatory;
-  mask-image: linear-gradient(
-    180deg,
-    transparent 0%,
-    #000 18%,
-    #000 82%,
-    transparent 100%
-  );
+  touch-action: pan-x;
 }
 
-.logbook::-webkit-scrollbar {
+.ledger::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;
 }
 
-.logbook-pad {
-  grid-column: 1 / -1;
-  height: var(--log-row);
+.ledger.is-overflow {
+  justify-content: flex-start;
+  mask-image: linear-gradient(90deg, transparent, #000 14%, #000 100%);
 }
 
-.logbook-row {
-  --log-scale: clamp(0.82, calc(1.12 - abs(var(--wheel, 0)) * 0.26), 1.12);
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
-  height: var(--log-row);
-  scroll-snap-align: center;
-  opacity: clamp(0.22, calc(1 - abs(var(--wheel, 0)) * 0.58), 1);
-}
-
-.logbook-index {
-  justify-self: center;
-  color: var(--color-muted);
-  font-size: calc(13px * var(--log-scale));
-  font-weight: 500;
-  letter-spacing: 0;
-  line-height: 1;
-}
-
-.logbook-figures {
+.ledger-item {
   display: flex;
+  flex: none;
+  align-items: center;
+  height: 2.75rem;
+}
+
+.ledger-token,
+.ledger-edit {
+  display: inline-flex;
   align-items: baseline;
-  justify-content: center;
-  min-width: 0;
-  padding: 0 0.65rem;
-}
-
-.logbook-figures [data-no-pager] {
-  min-height: var(--log-row);
-}
-
-.logbook-figures .numeral {
-  height: auto;
-  font-size: calc(1.0625rem * var(--log-scale));
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.9375rem;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.logbook-unit,
-.logbook-times {
+.ledger-edit {
+  align-items: center;
+  cursor: default;
+}
+
+.ledger-item.is-warmup .ledger-token {
   color: var(--color-muted);
-  font-size: calc(0.8125rem * var(--log-scale));
+}
+
+.ledger-times,
+.ledger-arrow {
+  margin: 0 0.28rem;
+  color: var(--color-muted);
   font-weight: 500;
-  letter-spacing: 0;
 }
 
-.logbook-times {
-  margin: 0 0.35rem;
+.ledger-drop {
+  display: inline-flex;
+  align-items: baseline;
 }
 
-.logbook-remove {
+.ledger-edit [data-no-pager] {
+  min-height: 0;
+  height: 2.75rem;
+}
+
+.ledger-edit .numeral {
+  height: 2.75rem;
+  font-size: 0.9375rem;
+}
+
+.ledger-remove,
+.ledger-drop-remove {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 2.75rem;
-  height: var(--log-row);
+  height: 2.75rem;
   border: 0;
   background: transparent;
   color: var(--color-muted);
   font-family: inherit;
-  font-size: calc(1.0625rem * var(--log-scale));
+  font-size: 1.0625rem;
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -1947,26 +2029,66 @@ textarea {
     transform var(--motion-fast) var(--ease-out-quint);
 }
 
-.logbook-remove:active {
+.ledger-remove:active,
+.ledger-drop-remove:active {
   transform: scale(0.97);
   color: var(--color-ink);
   transition-duration: var(--motion-fast);
 }
 
-.logbook-remove:focus-visible {
+.ledger-token:focus-visible,
+.ledger-remove:focus-visible,
+.ledger-drop-remove:focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
   border-radius: 999px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .logbook-remove:hover {
+  .ledger-remove:hover,
+  .ledger-drop-remove:hover {
     color: var(--color-ink);
   }
 }
 
-html[data-mode="light"] .logbook-band {
-  background: rgb(22 22 22 / 0.06);
+/* Detent reel inside the log pill. Neighbors sit one step above and below. */
+.numeral-reel {
+  position: relative;
+  display: grid;
+  height: 2.75rem;
+  overflow: hidden;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+
+.numeral-reel-sizer {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.numeral-reel-track {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.numeral-reel-slot,
+.numeral-reel .numeral {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 36px;
+  line-height: 1;
+}
+
+.numeral-reel-slot {
+  color: var(--color-muted);
 }
 
 .exercise-deck {
@@ -2195,6 +2317,7 @@ html[data-mode="light"] .logbook-band {
 }
 
 .log-pill .numeral,
+.log-pill .numeral-reel-slot,
 .log-pill .set-times,
 .log-pill-rest {
   text-shadow:
@@ -2216,6 +2339,7 @@ html[data-mode="light"] .logbook-band {
 }
 
 .log-pill:active .numeral,
+.log-pill:active .numeral-reel-slot,
 .log-pill:active .set-times,
 .log-pill:active .log-pill-rest {
   text-shadow:
@@ -2238,7 +2362,28 @@ html[data-mode="light"] .logbook-band {
 }
 
 .log-pill:has(.unit-mark:active):active .numeral,
+.log-pill:has(.unit-mark:active):active .numeral-reel-slot,
 .log-pill:has(.unit-mark:active):active .set-times {
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 0.22),
+    0 -1px 0 rgb(0 0 0 / 0.72);
+}
+
+/* A reel tracks the thumb. The key stays seated so the digit does not dip. */
+.log-pill.is-reeling:active .log-pill-face {
+  transform: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.26),
+    inset 0 -1px 0 rgb(0 0 0 / 0.65);
+}
+
+.log-pill.is-reeling:active .log-pill-sheen {
+  opacity: 0;
+}
+
+.log-pill.is-reeling:active .numeral,
+.log-pill.is-reeling:active .numeral-reel-slot,
+.log-pill.is-reeling:active .set-times {
   text-shadow:
     0 1px 0 rgb(255 255 255 / 0.22),
     0 -1px 0 rgb(0 0 0 / 0.72);
@@ -2477,7 +2622,8 @@ html.reorder-active [data-reorder-index] {
   .unit-mark:active,
   .log-pill:active .log-pill-face,
   .log-pill:active .log-pill-sheen,
-  .logbook-remove:active {
+  .ledger-remove:active,
+  .ledger-drop-remove:active {
     transform: none;
   }
 
@@ -2633,6 +2779,7 @@ html[data-mode="light"] .log-pill-face {
 }
 
 html[data-mode="light"] .log-pill .numeral,
+html[data-mode="light"] .log-pill .numeral-reel-slot,
 html[data-mode="light"] .log-pill .set-times,
 html[data-mode="light"] .log-pill-rest {
   text-shadow:
@@ -2649,6 +2796,7 @@ html[data-mode="light"] .log-pill:hover:active .log-pill-face {
 }
 
 html[data-mode="light"] .log-pill:active .numeral,
+html[data-mode="light"] .log-pill:active .numeral-reel-slot,
 html[data-mode="light"] .log-pill:active .set-times,
 html[data-mode="light"] .log-pill:active .log-pill-rest {
   text-shadow: 0 1px 0 rgb(22 22 22 / 0.2);
@@ -2665,6 +2813,7 @@ html[data-mode="light"] .log-pill:has(.unit-mark:active):hover:active .log-pill-
 }
 
 html[data-mode="light"] .log-pill:has(.unit-mark:active):active .numeral,
+html[data-mode="light"] .log-pill:has(.unit-mark:active):active .numeral-reel-slot,
 html[data-mode="light"] .log-pill:has(.unit-mark:active):active .set-times {
   text-shadow:
     0 1px 0 rgb(255 255 255 / 0.9),
@@ -2676,6 +2825,22 @@ html[data-mode="light"] .log-action.is-paging .log-pill:active .log-pill-face {
   box-shadow:
     inset 0 1px 0 #fff,
     inset 0 -1px 0 rgb(22 22 22 / 0.1);
+}
+
+html[data-mode="light"] .log-pill.is-reeling:active .log-pill-face {
+  background: linear-gradient(180deg, #fffcf8 0%, #f3f1ec 52%, #e7e4de 100%);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -1px 0 rgb(22 22 22 / 0.1);
+  transform: none;
+}
+
+html[data-mode="light"] .log-pill.is-reeling:active .numeral,
+html[data-mode="light"] .log-pill.is-reeling:active .numeral-reel-slot,
+html[data-mode="light"] .log-pill.is-reeling:active .set-times {
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9),
+    0 -1px 0 rgb(22 22 22 / 0.14);
 }
 
 html[data-mode="light"] .nav-glyph-raster {

@@ -100,10 +100,10 @@ export function LoadedBar3D({
       data-plates={plates.join(",")}
       className={
         interactive
-          ? "loaded-bar w-full cursor-pointer"
-          : "pointer-events-none w-full"
+          ? "weight-stage weight-stage-bar loaded-bar w-full cursor-pointer"
+          : "weight-stage weight-stage-bar pointer-events-none w-full"
       }
-      style={{ height: 104, touchAction: "pan-y" }}
+      style={{ touchAction: "pan-y" }}
       aria-hidden={interactive ? undefined : true}
       role={interactive ? "group" : undefined}
       aria-label={
