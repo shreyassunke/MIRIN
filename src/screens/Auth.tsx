@@ -1,11 +1,14 @@
 import {
+  useEffect,
+  useRef,
   useState,
   type FormEvent,
   type InputHTMLAttributes,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../auth/AuthProvider";
+import { authHandoffPending, useAuth } from "../auth/AuthProvider";
 import { GoogleMark } from "../components/GoogleMark";
 
 type Mode = "sign-in" | "sign-up";
@@ -44,6 +47,7 @@ export function Auth() {
     updatePassword,
     signInWithGoogle,
     signInWithApple,
+    handoff,
   } = useAuth();
   const location = useLocation();
   const from =
@@ -62,16 +66,20 @@ export function Auth() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  useAuthDepth(stageRef);
 
   if (loading) {
     return (
       <div className="auth-stage flex min-h-dvh items-center justify-center px-7">
-        <p className="text-sm text-muted">Loading…</p>
+        {authHandoffPending() ? null : (
+          <p className="text-sm text-muted">Loading…</p>
+        )}
       </div>
     );
   }
 
-  if (session && !recovery) {
+  if (session && !recovery && !handoff) {
     return <Navigate to={from} replace />;
   }
 
@@ -178,9 +186,15 @@ export function Auth() {
   }
 
   return (
-    <div className="auth-stage flex min-h-dvh flex-col">
-      <div className="auth-sheet mx-auto flex min-w-0 w-full max-w-[22.5rem] flex-1 flex-col px-7 pt-[max(2.25rem,5.5dvh)] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <img src="/mark.png" alt="MIRIN" className="auth-mark" />
+    <div
+      ref={stageRef}
+      className={`auth-stage flex min-h-dvh flex-col${handoff ? " is-leaving" : ""}`}
+    >
+      <div className="auth-depth" aria-hidden="true">
+        <img src="/mark.png" alt="" className="auth-depth-figure auth-depth-far" />
+        <img src="/mark.png" alt="" className="auth-depth-figure auth-depth-near" />
+      </div>
+      <div className="auth-sheet mx-auto flex min-w-0 w-full max-w-[22.5rem] flex-1 flex-col px-7 pt-[max(4.5rem,12dvh)] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <h1 className="text-[2rem] font-semibold leading-[1.12] tracking-[-0.03em]">
           {recovery ? (
             <>
@@ -189,11 +203,7 @@ export function Auth() {
               password
             </>
           ) : mode === "sign-in" ? (
-            <>
-              Log in to
-              <br />
-              your account
-            </>
+            "Log in"
           ) : (
             <>
               Create your
@@ -330,25 +340,25 @@ export function Auth() {
                   <>
                     <button
                       type="button"
-                      className={providerBtn}
+                      className={`${providerBtn} auth-provider`}
                       disabled={submitting}
                       onClick={() => void onApple()}
                     >
-                      <span className="auth-pill-icon auth-pill-icon-apple">
+                      <span className="auth-pill-icon">
                         <AppleMark />
                       </span>
-                      Continue with Apple
+                      <ProviderLabel>Continue with Apple</ProviderLabel>
                     </button>
                     <button
                       type="button"
-                      className={providerBtn}
+                      className={`${providerBtn} auth-provider`}
                       disabled={submitting}
                       onClick={() => void onGoogle()}
                     >
                       <span className="auth-pill-icon">
                         <GoogleMark />
                       </span>
-                      Continue with Google
+                      <ProviderLabel>Continue with Google</ProviderLabel>
                     </button>
                   </>
                 )}
@@ -441,6 +451,51 @@ function LineField({
   );
 }
 
+function useAuthDepth(stageRef: RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let frame = 0;
+    let x = 0;
+    let y = 0;
+    const paint = () => {
+      frame = 0;
+      stage.style.setProperty("--depth-x", x.toFixed(3));
+      stage.style.setProperty("--depth-y", y.toFixed(3));
+    };
+    const aim = (nx: number, ny: number) => {
+      x = Math.max(-1, Math.min(1, nx));
+      y = Math.max(-1, Math.min(1, ny));
+      if (!frame) frame = requestAnimationFrame(paint);
+    };
+
+    const onPointer = (event: PointerEvent) => {
+      const box = stage.getBoundingClientRect();
+      if (!box.width || !box.height) return;
+      aim(
+        ((event.clientX - box.left) / box.width - 0.5) * 2,
+        ((event.clientY - box.top) / box.height - 0.5) * 2,
+      );
+    };
+    const onOrient = (event: DeviceOrientationEvent) => {
+      if (event.gamma == null || event.beta == null) return;
+      aim(event.gamma / 26, (event.beta - 42) / 30);
+    };
+
+    const fine = window.matchMedia("(pointer: fine)").matches;
+    stage.addEventListener("pointermove", onPointer);
+    if (!fine) window.addEventListener("deviceorientation", onOrient);
+
+    return () => {
+      stage.removeEventListener("pointermove", onPointer);
+      window.removeEventListener("deviceorientation", onOrient);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [stageRef]);
+}
+
 function EyeIcon({ slashed }: { slashed: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -463,12 +518,30 @@ function EyeIcon({ slashed }: { slashed: boolean }) {
   );
 }
 
+function ProviderLabel({ children }: { children: string }) {
+  return (
+    <span className="auth-provider-label">
+      <span className="auth-provider-sizer" aria-hidden="true">
+        Continue with Google
+      </span>
+      <span className="auth-provider-word">{children}</span>
+    </span>
+  );
+}
+
 function AppleMark() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+    <svg
+      className="auth-mark-apple"
+      width="18"
+      height="21"
+      viewBox="2.9 3.2 16.1 18.9"
+      aria-hidden="true"
+      focusable="false"
+    >
       <path
         fill="currentColor"
-        d="M13.2 9.5c0-1.9 1.6-2.8 1.6-2.9-0.9-1.3-2.3-1.5-2.8-1.5-1.2-.1-2.3.7-2.9.7s-1.5-.7-2.5-.7c-1.3 0-2.5.8-3.1 1.9-1.3 2.3-.3 5.7.9 7.6.6.9 1.4 1.9 2.4 1.9 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.7-.9 2.3-1.8c.7-1.1 1-2.1 1-2.2-.1 0-2-.8-2-3zm-1.8-5.3c.5-.6.9-1.5.8-2.3-.7 0-1.6.5-2.2 1.1-.5.5-.9 1.4-.8 2.2.8.1 1.6-.4 2.2-1z"
+        d="M16.37 12.73c-.03-2.48 2.03-3.67 2.12-3.73-1.16-1.69-2.96-1.92-3.6-1.95-1.53-.16-3 .9-3.78.9-.78 0-1.98-.88-3.26-.85-1.67.02-3.22.97-4.08 2.47-1.74 3.02-.45 7.49 1.25 9.94.83 1.2 1.82 2.54 3.12 2.49 1.25-.05 1.72-.81 3.23-.81s1.94.81 3.26.78c1.35-.02 2.2-1.22 3.02-2.42.95-1.39 1.34-2.74 1.36-2.81-.03-.01-2.61-1-2.64-3.97zM14.32 6.3c.69-.83 1.15-1.99 1.02-3.15-1 .04-2.2.66-2.91 1.5-.64.74-1.2 1.92-1.05 3.05 1.11.09 2.25-.56 2.94-1.4z"
       />
     </svg>
   );

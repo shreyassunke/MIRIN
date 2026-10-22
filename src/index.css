@@ -407,32 +407,124 @@ a.auth-switch {
 }
 
 /*
-  Auth stage. A darker smoked-glass field: near-black ground, a low sheen
-  at the top, and one quiet falloff. No blur and no motion — it paints once.
+  Auth stage. Near-black glass, with the mark held behind the form at two
+  depths. The far copy is softer and moves less; the near copy is the figure.
 */
 .auth-stage {
+  position: relative;
+  isolation: isolate;
   width: 100%;
-  overflow-x: clip;
+  overflow: clip;
   background-color: #030303;
   background-image:
-    radial-gradient(ellipse 100% 46% at 50% -18%, rgb(255 255 255 / 0.1), transparent 56%),
-    radial-gradient(ellipse 78% 52% at 50% 22%, rgb(42 42 46 / 0.72), transparent 64%),
-    linear-gradient(180deg, #161618 0%, #0a0a0c 42%, #030303 100%);
+    radial-gradient(ellipse 100% 46% at 50% -18%, rgb(255 255 255 / 0.08), transparent 56%),
+    radial-gradient(ellipse 78% 52% at 50% 22%, rgb(42 42 46 / 0.55), transparent 64%),
+    linear-gradient(180deg, #121214 0%, #08080a 42%, #030303 100%);
   color: var(--color-ink);
 }
 
+.auth-depth {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.auth-depth-figure {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: min(92vw, calc(86dvh * 485 / 928));
+  height: auto;
+  max-width: none;
+  user-select: none;
+  transform: translate3d(
+    calc(-50% + var(--depth-x, 0) * 16px),
+    calc(-50% + var(--depth-y, 0) * 20px),
+    0
+  );
+}
+
+.auth-depth-near {
+  opacity: 0.11;
+}
+
+.auth-depth-far {
+  width: min(108vw, calc(102dvh * 485 / 928));
+  opacity: 0.05;
+  filter: blur(20px);
+  transform: translate3d(
+    calc(-50% + var(--depth-x, 0) * 7px),
+    calc(-48% + var(--depth-y, 0) * 9px),
+    0
+  );
+}
+
 .auth-sheet {
+  position: relative;
+  z-index: 1;
   min-width: 0;
 }
 
-.auth-mark {
-  display: block;
-  width: calc(4rem * 485 / 928);
-  height: 4rem;
+/*
+  Sign-in leaves through the mark, then Today is uncovered. Opacity and
+  transform only, on the existing motion tokens, so the fade stays on the
+  compositor while the session resolves. The overlay lives above the route.
+*/
+.auth-stage.is-leaving {
+  opacity: 0;
+  transform: scale(0.985);
+  pointer-events: none;
+  transition:
+    opacity var(--motion-nav) var(--ease-out-expo),
+    transform var(--motion-nav) var(--ease-out-expo);
+}
+
+.auth-passage {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  pointer-events: auto;
+  transition: opacity var(--motion-snap) var(--ease-out-expo);
+}
+
+.auth-passage[data-phase="hold"],
+.auth-passage[data-phase="out"] {
+  background: var(--color-bg);
+}
+
+.auth-passage[data-phase="out"] {
+  opacity: 0;
+}
+
+.auth-passage-mark {
+  height: 7rem;
+  width: auto;
   max-width: none;
-  margin-bottom: 1.25rem;
-  object-fit: contain;
-  object-position: left center;
+  opacity: 0;
+  transform: scale(0.96);
+  user-select: none;
+  pointer-events: none;
+}
+
+.auth-passage[data-phase="hold"] .auth-passage-mark,
+.auth-passage[data-phase="out"] .auth-passage-mark {
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity var(--motion-nav) var(--ease-out-expo),
+    transform var(--motion-nav) var(--ease-out-expo);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-depth-figure,
+  .auth-depth-far {
+    transform: translate3d(-50%, -50%, 0);
+  }
 }
 
 .auth-stage ::selection {
@@ -1047,12 +1139,35 @@ textarea {
     transform var(--motion-fast) var(--ease-out-expo);
 }
 
+.auth-provider {
+  display: grid;
+  grid-template-columns: 1.125rem max-content;
+  column-gap: 0.625rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-provider-label {
+  display: grid;
+  justify-items: start;
+}
+
+.auth-provider-sizer,
+.auth-provider-word {
+  grid-area: 1 / 1;
+}
+
+.auth-provider-sizer {
+  visibility: hidden;
+}
+
 .auth-pill-icon {
   display: grid;
   flex: none;
   place-items: center;
   width: 1.125rem;
   height: 1.125rem;
+  overflow: visible;
 }
 
 .auth-pill-icon svg {
@@ -1061,8 +1176,9 @@ textarea {
   height: 1.125rem;
 }
 
-.auth-pill-icon-apple svg {
-  transform: translateY(0.5px);
+.auth-pill-icon .auth-mark-apple {
+  width: 1.125rem;
+  height: calc(1.125rem * 18.9 / 16.1);
 }
 
 .auth-glass:active {
@@ -2355,6 +2471,8 @@ html.reorder-active [data-reorder-index] {
   .btn-primary:active,
   .auth-glass:active,
   .auth-reveal:active,
+  .auth-stage.is-leaving,
+  .auth-passage-mark,
   .unit-switch:active,
   .unit-mark:active,
   .log-pill:active .log-pill-face,
@@ -2403,8 +2521,14 @@ html[data-mode="light"] .auth-stage {
   color: var(--color-ink);
 }
 
-html[data-mode="light"] .auth-mark {
+html[data-mode="light"] .auth-depth-near {
   filter: invert(1);
+  opacity: 0.09;
+}
+
+html[data-mode="light"] .auth-depth-far {
+  filter: invert(1) blur(20px);
+  opacity: 0.04;
 }
 
 html[data-mode="light"] .auth-stage ::selection {

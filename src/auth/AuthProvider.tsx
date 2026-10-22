@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -31,9 +32,73 @@ interface AuthContextValue {
   deleteAccount: () => Promise<{ error: string | null }>;
   updateDisplayName: (name: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<{ error: string | null }>;
+  /** True while the sign-in screen should stay mounted and fade out. */
+  handoff: boolean;
 }
 
 const RECOVERY_KEY = "mirin.auth.recovery";
+const HANDOFF_KEY = "mirin.auth.handoff";
+/** Same key as BootSplash. Set before Today mounts so the logo does not play twice. */
+const BOOT_SPLASH_KEY = "mirin-boot-splash";
+
+/** Matches --motion-nav, --motion-snap, and the passage rules in index.css. */
+const PASSAGE_FADE_MS = 180;
+const PASSAGE_MARK_MS = 180;
+const PASSAGE_REST_MS = 80;
+const PASSAGE_EXIT_MS = 140;
+
+type Passage = "off" | "fade" | "hold" | "out";
+
+function readHandoff(): boolean {
+  try {
+    return sessionStorage.getItem(HANDOFF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function authHandoffPending(): boolean {
+  return readHandoff();
+}
+
+function armHandoff() {
+  try {
+    sessionStorage.setItem(HANDOFF_KEY, "1");
+  } catch {
+    /* Private mode can block storage; the in-memory passage still covers this visit. */
+  }
+}
+
+function disarmHandoff() {
+  try {
+    sessionStorage.removeItem(HANDOFF_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function markBootSeen() {
+  try {
+    sessionStorage.setItem(BOOT_SPLASH_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function oauthCallbackPending() {
+  const search = new URLSearchParams(window.location.search);
+  if (search.has("code")) return true;
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return (
+    hash.has("access_token") ||
+    hash.has("error") ||
+    hash.has("error_description")
+  );
+}
 
 function readRecoveryFlag(): boolean {
   try {
@@ -88,6 +153,7 @@ async function startOAuth(
 ): Promise<{ error: string | null }> {
   const supabase = getSupabase();
   if (!supabase) return { error: "Supabase is not configured." };
+  armHandoff();
   const native = isNativeApp();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
@@ -96,7 +162,10 @@ async function startOAuth(
       skipBrowserRedirect: native,
     },
   });
-  if (error) return { error: error.message };
+  if (error) {
+    disarmHandoff();
+    return { error: error.message };
+  }
   if (native && data.url) {
     const { Browser } = await import("@capacitor/browser");
     await Browser.open({ url: data.url });
@@ -108,6 +177,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [session, setSession] = useState<Session | null>(null);
   const [recovery, setRecovery] = useState(readRecoveryFlag);
+  const [passage, setPassage] = useState<Passage>("off");
+  const [release, setRelease] = useState(0);
+  const armedOnLoad = useRef(readHandoff());
+  const playing = useRef(false);
+  const phase = useRef<Passage>("off");
+  const entry = useRef<"return" | "inplace" | null>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -118,14 +193,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let mounted = true;
 
+    const noteSession = (next: Session | null) => {
+      if (next && readHandoff() && !readRecoveryFlag()) markBootSeen();
+      setSession(next);
+      setLoading(false);
+    };
+
     void supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
-      setSession(data.session);
       if (!data.session) {
         writeRecoveryFlag(false);
         setRecovery(false);
       }
-      setLoading(false);
+      noteSession(data.session);
     });
 
     const {
@@ -135,8 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         writeRecoveryFlag(true);
         setRecovery(true);
       }
-      setSession(next);
-      setLoading(false);
+      noteSession(next);
     });
 
     let removeUrl: (() => void) | undefined;
@@ -159,6 +238,115 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const signedIn = Boolean(session);
+  const reduced = prefersReducedMotion();
+  const handoff =
+    !reduced &&
+    !loading &&
+    signedIn &&
+    !recovery &&
+    (passage === "fade" || (passage === "off" && readHandoff()));
+
+  useEffect(() => {
+    if (playing.current || !readHandoff()) return;
+
+    if (loading || !signedIn || recovery) {
+      if (
+        !recovery &&
+        armedOnLoad.current &&
+        oauthCallbackPending() &&
+        !reduced &&
+        phase.current === "off"
+      ) {
+        phase.current = "hold";
+        entry.current = "return";
+        setPassage("hold");
+      }
+      return;
+    }
+
+    if (!entry.current) {
+      entry.current =
+        armedOnLoad.current && phase.current === "hold" ? "return" : "inplace";
+    }
+    const returning = entry.current === "return";
+    playing.current = true;
+    markBootSeen();
+
+    if (reduced) {
+      disarmHandoff();
+      playing.current = false;
+      entry.current = null;
+      armedOnLoad.current = false;
+      setRelease((n) => n + 1);
+      return;
+    }
+
+    const fadeMs = returning ? 0 : PASSAGE_FADE_MS;
+    if (!returning) {
+      phase.current = "fade";
+      setPassage("fade");
+    }
+
+    let finished = false;
+    const holdTimer = window.setTimeout(() => {
+      phase.current = "hold";
+      setPassage("hold");
+    }, fadeMs);
+    const outAt = returning
+      ? 220
+      : fadeMs + PASSAGE_MARK_MS + PASSAGE_REST_MS;
+    const outTimer = window.setTimeout(() => {
+      phase.current = "out";
+      setPassage("out");
+    }, outAt);
+    const doneTimer = window.setTimeout(() => {
+      finished = true;
+      playing.current = false;
+      entry.current = null;
+      armedOnLoad.current = false;
+      phase.current = "off";
+      disarmHandoff();
+      setPassage("off");
+    }, outAt + PASSAGE_EXIT_MS);
+
+    return () => {
+      window.clearTimeout(holdTimer);
+      window.clearTimeout(outTimer);
+      window.clearTimeout(doneTimer);
+      playing.current = false;
+      if (finished || !readHandoff()) {
+        entry.current = null;
+        phase.current = "off";
+        setPassage("off");
+        return;
+      }
+      // Strict mode replays the effect immediately. Keep the same entry so
+      // the second setup continues this passage instead of starting another.
+      phase.current = returning ? "hold" : "fade";
+      setPassage(phase.current);
+    };
+  }, [loading, signedIn, recovery, release, reduced]);
+
+  useEffect(() => {
+    if (loading || signedIn || !readHandoff()) return;
+    if (oauthCallbackPending()) {
+      const id = window.setTimeout(() => {
+        disarmHandoff();
+        armedOnLoad.current = false;
+        phase.current = "off";
+        setPassage("off");
+        setRelease((n) => n + 1);
+      }, 8000);
+      return () => window.clearTimeout(id);
+    }
+    disarmHandoff();
+    armedOnLoad.current = false;
+    phase.current = "off";
+    setPassage("off");
+    if (!readHandoff()) setRelease((n) => n + 1);
+  }, [loading, signedIn, release]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       configured: isSupabaseConfigured,
@@ -166,14 +354,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user: session?.user ?? null,
       recovery,
+      handoff,
 
       async signIn(email, password) {
         const supabase = getSupabase();
         if (!supabase) return { error: "Supabase is not configured." };
+        armHandoff();
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         });
+        if (error) disarmHandoff();
         return { error: error?.message ?? null };
       },
 
@@ -186,6 +377,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
         }
         const fullName = name.trim();
+        armHandoff();
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -193,6 +385,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             data: fullName ? { full_name: fullName } : undefined,
           },
         });
+        if (error || !data.session) disarmHandoff();
         if (error) {
           return { error: error.message, needsEmailConfirmation: false };
         }
@@ -216,12 +409,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (password.length < 6) {
           return { error: "Use at least 6 characters." };
         }
+        armHandoff();
         const { error } = await supabase.auth.updateUser({ password });
-        if (!error) {
-          writeRecoveryFlag(false);
-          setRecovery(false);
+        if (error) {
+          disarmHandoff();
+          return { error: error.message };
         }
-        return { error: error?.message ?? null };
+        markBootSeen();
+        writeRecoveryFlag(false);
+        setRecovery(false);
+        return { error: null };
       },
 
       signInWithGoogle() {
@@ -230,6 +427,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       async signInWithApple() {
         if (isNativeApp()) {
+          armHandoff();
           try {
             const { SignInWithApple } = await import(
               "@capacitor-community/apple-sign-in"
@@ -240,14 +438,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               scopes: "email name",
             });
             const token = result.response.identityToken;
-            if (!token) return { error: "Apple did not return a token." };
+            if (!token) {
+              disarmHandoff();
+              return { error: "Apple did not return a token." };
+            }
             const supabase = getSupabase();
-            if (!supabase) return { error: "Supabase is not configured." };
+            if (!supabase) {
+              disarmHandoff();
+              return { error: "Supabase is not configured." };
+            }
             const { error } = await supabase.auth.signInWithIdToken({
               provider: "apple",
               token,
             });
-            if (error) return { error: error.message };
+            if (error) {
+              disarmHandoff();
+              return { error: error.message };
+            }
             const name = [result.response.givenName, result.response.familyName]
               .filter(Boolean)
               .join(" ");
@@ -256,6 +463,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             return { error: null };
           } catch (err) {
+            disarmHandoff();
             const message =
               err instanceof Error ? err.message : "Apple sign-in was cancelled.";
             if (/cancel|1001|1000/i.test(message)) return { error: null };
@@ -289,15 +497,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const supabase = getSupabase();
         if (!supabase) return { error: "Supabase is not configured." };
         writeRecoveryFlag(false);
+        disarmHandoff();
         setRecovery(false);
         const { error } = await supabase.auth.signOut();
         return { error: error?.message ?? null };
       },
     }),
-    [loading, session, recovery],
+    [loading, session, recovery, handoff],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {passage !== "off" ? <AuthPassage phase={passage} /> : null}
+    </AuthContext.Provider>
+  );
+}
+
+function AuthPassage({ phase }: { phase: Exclude<Passage, "off"> }) {
+  return (
+    <div className="auth-passage" data-phase={phase} role="status" aria-live="polite">
+      <span className="sr-only">Loading</span>
+      <img
+        src="/mark.png"
+        alt=""
+        width={485}
+        height={928}
+        className="auth-passage-mark"
+      />
+    </div>
+  );
 }
 
 export function useAuth(): AuthContextValue {
