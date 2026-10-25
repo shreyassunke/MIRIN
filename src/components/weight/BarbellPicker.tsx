@@ -260,6 +260,7 @@ export function BarWeightControl({
           inlineSuffix={unit}
           size="lead"
           drag
+          spectrumAxis="weight"
           onChange={(next) =>
             onChange(barWeight, decomposePlates(next, barWeight, unit))
           }

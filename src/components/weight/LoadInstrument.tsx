@@ -86,7 +86,7 @@ function SetReps({
   return (
     <>
       <span
-        className="set-times mx-1.5 select-none text-3xl font-semibold tracking-tight text-muted"
+        className="set-times select-none font-semibold tracking-tight text-muted"
         aria-hidden="true"
       >
         ×
@@ -101,6 +101,7 @@ function SetReps({
         inlineSuffix="reps"
         suffixClassName="set-reps-suffix"
         drag
+        spectrumAxis="reps"
         onChange={onChange}
       />
     </>

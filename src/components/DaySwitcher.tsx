@@ -244,7 +244,7 @@ export function DaySwitcher({
               width: MENU_WIDTH,
               transformOrigin: coords.origin,
             }}
-            className="overflow-menu quiet-menu fixed z-50 max-h-[min(22rem,calc(100dvh-8rem))] overflow-y-auto rounded-xl"
+            className="overflow-menu quiet-menu menu-clear fixed z-50 max-h-[min(22rem,calc(100dvh-8rem))] overflow-y-auto rounded-xl"
           >
             {options.map((option, index) => {
               const selected = option.id === currentId;
@@ -263,7 +263,7 @@ export function DaySwitcher({
                 >
                   <span className="min-w-0 flex-1 truncate">{option.name}</span>
                   {selected ? (
-                    <span className="shrink-0 text-muted">
+                    <span className="shrink-0 text-ink">
                       <IconCheck />
                     </span>
                   ) : null}

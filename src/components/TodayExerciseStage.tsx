@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { Exercise } from "../db/db";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { Exercise, SetLog } from "../db/db";
 import type { CableAttachmentId } from "../lib/cableAttachment";
 import {
   equipmentForExercise,
@@ -17,7 +17,9 @@ import {
   supportsLaterality,
 } from "../lib/laterality";
 import { regionForExercise } from "../lib/muscleRegions";
-import type { StageDraft } from "../lib/stageDraft";
+import { spectrumAnchor } from "../lib/spectrum";
+import { stageTotal, type StageDraft } from "../lib/stageDraft";
+import { defaultRepsFor } from "../lib/workout";
 import {
   MANUAL_STEP,
   round2,
@@ -32,6 +34,7 @@ import {
   variationsFor,
   type VariationChoice,
 } from "../lib/variations";
+import { FigureSpectrumContext } from "./FigureSpectrum";
 import { MachineStationPicker } from "./MachineStationPicker";
 import { Stepper } from "./Stepper";
 import { VariationSheet, VariationWell } from "./VariationSheet";
@@ -70,6 +73,11 @@ interface TodayExerciseStageProps {
   variationRequest?: number;
   /** Logged sets for this exercise, on the desktop line. */
   logbook?: ReactNode;
+  /** Last session's sets for this exercise. The reel's tint is read from these. */
+  prior?: SetLog[];
+  /** Today's logs for this exercise, warm-ups included. */
+  todayLogs?: SetLog[];
+  dayTemplateId?: string | null;
 }
 
 /** The gloss on the live number, in the same words the stage prints. */
@@ -123,6 +131,9 @@ export function TodayExerciseStage({
   suppressHeader,
   variationRequest = 0,
   logbook,
+  prior = [],
+  todayLogs = [],
+  dayTemplateId = null,
 }: TodayExerciseStageProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const trayRef = useRef<HTMLDivElement>(null);
@@ -173,7 +184,21 @@ export function TodayExerciseStage({
     if (live) setOpen(true);
   };
 
+  const spectrum = useMemo(() => {
+    if (draft.loggingWarmup) return null;
+    const anchor = spectrumAnchor({
+      today: todayLogs,
+      prior,
+      mode,
+      unit,
+      fallbackReps: defaultRepsFor(dayTemplateId ?? ""),
+    });
+    if (!anchor) return null;
+    return { anchor, weight: stageTotal(draft), reps: draft.reps };
+  }, [draft, todayLogs, prior, mode, unit, dayTemplateId]);
+
   return (
+    <FigureSpectrumContext.Provider value={spectrum}>
     <div ref={anchorRef} className="exercise-stage-body">
       {logbook}
       <LoadInstrument
@@ -240,6 +265,7 @@ export function TodayExerciseStage({
                   inlineSuffix={unit}
                   size="lead"
                   drag
+                  spectrumAxis="weight"
                   onDragStep={(direction, current) =>
                     stepDumbbell(current, unit, direction)
                   }
@@ -270,6 +296,7 @@ export function TodayExerciseStage({
                 inlineSuffix={unit}
                 size="lead"
                 drag
+                spectrumAxis="weight"
                 onChange={onManual}
               />
             ),
@@ -328,5 +355,6 @@ export function TodayExerciseStage({
         </VariationSheet>
       )}
     </div>
+    </FigureSpectrumContext.Provider>
   );
 }

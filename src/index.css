@@ -1459,6 +1459,64 @@ textarea {
   scrollbar-color: var(--color-hairline) transparent;
 }
 
+/*
+  Day menu. Thin material, like an iOS context menu: the fill is a veil,
+  the blur separates the words, and the instrument behind stays visible.
+*/
+.quiet-menu.menu-clear {
+  background: color-mix(in srgb, var(--color-bg) 22%, transparent);
+  border-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
+  backdrop-filter: blur(32px) saturate(1.7);
+  -webkit-backdrop-filter: blur(32px) saturate(1.7);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-ink) 28%, transparent),
+    inset 0 -1px 0 rgb(0 0 0 / 0.22),
+    0 12px 36px rgb(0 0 0 / 0.22);
+  animation: mirin-menu-material 200ms var(--ease-out-quint) both;
+}
+
+html[data-mode="light"] .quiet-menu.menu-clear {
+  background: color-mix(in srgb, var(--color-surface) 42%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 12px 36px rgb(0 0 0 / 0.1);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .quiet-menu.menu-clear,
+  html[data-mode="light"] .quiet-menu.menu-clear {
+    background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+.menu-clear .quiet-menu-item {
+  font-weight: 500;
+  letter-spacing: -0.012em;
+}
+
+.menu-clear .quiet-menu-item[aria-selected="true"] {
+  background: color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+.menu-clear .quiet-menu-item:active {
+  background: color-mix(in srgb, var(--color-ink) 16%, transparent);
+}
+
+@keyframes mirin-menu-material {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
 .quiet-menu::-webkit-scrollbar {
   width: 6px;
 }
@@ -1593,6 +1651,19 @@ textarea {
   .exercise-menu-rest-item {
     transition: none;
   }
+
+  .quiet-menu.menu-clear {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .quiet-menu.menu-clear,
+  html[data-mode="light"] .quiet-menu.menu-clear {
+    background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* Native confirm dialog — glass overlay, dim scrim, centered */
@@ -1724,8 +1795,9 @@ textarea {
 }
 
 /* Phone column. The stage keeps the top half, so the dot marks sit on
-   the halfway line. The ledger holds one row above the log key, including
-   before the first set, so the key does not move when a set prints. */
+   the halfway line. The ledger holds one row at the top of the bottom
+   half, including before the first set, so the figures do not move
+   when a set prints. */
 .today-phone-frame,
 .today-phone-scroll,
 .today-lower {
@@ -1821,11 +1893,15 @@ textarea {
     position: relative;
     z-index: 1;
     display: flex;
-    flex: none;
+    flex: 1 1 auto;
+    align-items: center;
     justify-content: center;
+    width: 100%;
+    min-height: 0;
     padding-top: 0;
     pointer-events: none;
     background: var(--color-bg);
+    container-type: inline-size;
   }
 
   .set-finish {
@@ -1881,17 +1957,29 @@ textarea {
 
 .set-line {
   pointer-events: auto;
+  width: 100%;
   max-width: 100%;
 }
 
-/* Logged sets are one line above the pill. The row is always reserved. */
-.set-log {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
+.set-line > .flex,
+[data-log-bar],
+.log-figure-clip {
   width: 100%;
   max-width: 100%;
+  min-width: 0;
+}
+
+/* Logged sets are one line above the figures. The row is always reserved. */
+.set-log {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
 }
 
 .set-column {
@@ -2252,11 +2340,12 @@ textarea {
   touch-action: none;
 }
 
-/*
+/* Log pill v1 (machined key). Kept for rollback.
+/ *
   A machined key. The housing stays. At rest the light sits on the top
   lip and the figures are struck proud of the face. On press the face
   seats 1px into the well and that light moves to a slit under the key.
-*/
+* /
 .log-pill {
   position: relative;
   display: inline-flex;
@@ -2348,7 +2437,7 @@ textarea {
   transition-duration: var(--motion-fast);
 }
 
-/* A unit tap is its own control. The key underneath stays seated. */
+/ * A unit tap is its own control. The key underneath stays seated. * /
 .log-pill:has(.unit-mark:active) .log-pill-face,
 .log-pill:has(.unit-mark:active):active .log-pill-face {
   transform: none;
@@ -2369,7 +2458,7 @@ textarea {
     0 -1px 0 rgb(0 0 0 / 0.72);
 }
 
-/* A reel tracks the thumb. The key stays seated so the digit does not dip. */
+/ * A reel tracks the thumb. The key stays seated so the digit does not dip. * /
 .log-pill.is-reeling:active .log-pill-face {
   transform: none;
   box-shadow:
@@ -2489,8 +2578,8 @@ textarea {
   flex: 0 0 auto;
 }
 
-/* At rest the neighboring Drop face must not paint a second cap.
-   It returns while the pill is actually sliding. */
+/ * At rest the neighboring Drop face must not paint a second cap.
+   It returns while the pill is actually sliding. * /
 .log-pill-page[aria-hidden="true"] {
   visibility: hidden;
 }
@@ -2513,7 +2602,7 @@ textarea {
   }
 }
 
-/* A seated key fights the sliding track. */
+/ * A seated key fights the sliding track. * /
 .log-action.is-paging .log-pill:active .log-pill-face {
   transform: none;
   box-shadow:
@@ -2523,6 +2612,306 @@ textarea {
 
 .log-action.is-paging .log-pill:active .log-pill-sheen {
   opacity: 0;
+}
+
+*/
+
+/*
+  The log figures. One line of weight × reps, no surface.
+  The dock is a size container, so the phone size is a share of that width.
+*/
+.set-times {
+  font-size: 1.875rem;
+  line-height: 1;
+}
+
+.log-figure {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: clip;
+  font-size: clamp(3rem, 12cqi, 4.5rem);
+  line-height: 1;
+  color: var(--color-ink);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.set-dock .log-figure {
+  font-size: clamp(3.5rem, 30cqi, 7rem);
+}
+
+.log-figure-slot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  white-space: nowrap;
+  transform: scale(var(--figure-scale, 1));
+  transform-origin: center;
+  transition:
+    transform 80ms var(--ease-out-quint),
+    opacity 80ms var(--ease-out-quint);
+}
+
+.log-figure [data-no-pager] {
+  height: 1.35em;
+}
+
+.log-figure-num {
+  height: 1.05em;
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.log-figure-num:focus {
+  user-select: text;
+}
+
+.log-figure-num::selection {
+  background: transparent;
+  color: inherit;
+}
+
+/*
+  The numerals are a satin rod under the same studio light as the bar.
+  The lighting strip is clipped to the strokes. Nothing else is painted:
+  no fill behind the glyphs, no shadow, no outline while the finger is down.
+  --figure-ink tints that metal for the reel, then the ink returns.
+*/
+.log-figure-glyph {
+  display: inline-grid;
+  align-items: center;
+  justify-items: center;
+}
+
+.log-figure-glyph > * {
+  grid-area: 1 / 1;
+}
+
+.log-figure-metal {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-color: transparent;
+  background-image: var(
+    --figure-metal-live,
+    var(--figure-metal, linear-gradient(180deg, #ffffff 0%, #c8c8cc 48%, #8d8d92 100%))
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  filter: none;
+  pointer-events: none;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.log-figure input.log-figure-num {
+  border: 0;
+  outline: none;
+  background: none;
+  box-shadow: none;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--color-ink);
+}
+
+.log-figure .log-figure-num:focus {
+  color: var(--color-ink);
+  -webkit-text-fill-color: currentColor;
+}
+
+.log-figure-glyph:focus-within .log-figure-metal {
+  visibility: hidden;
+}
+
+.log-figure .numeral-reel-slot.log-figure-metal {
+  display: block;
+  width: auto;
+  height: 1.05em;
+}
+
+.log-figure .set-times,
+.log-figure-suffix {
+  font-size: 0.24em;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--color-muted);
+}
+
+.log-figure .set-times {
+  margin-inline: 0.22em;
+}
+
+.log-figure-suffix {
+  margin-left: 0.14em;
+}
+
+.log-figure .numeral-reel {
+  height: 1.35em;
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 20%,
+    #000 80%,
+    transparent 100%
+  );
+}
+
+.log-figure .numeral-reel-sizer,
+.log-figure .numeral-reel-slot,
+.log-figure .numeral-reel .numeral {
+  height: 1.05em;
+  font-size: 1em;
+  line-height: 1;
+}
+
+.log-figure:active .log-figure-slot {
+  transform: scale(calc(var(--figure-scale, 1) * 0.97));
+  opacity: 0.85;
+  transition-duration: 80ms;
+}
+
+.log-figure.is-reeling:active .log-figure-slot,
+.log-action.is-paging .log-figure:active .log-figure-slot,
+.log-figure:has(.log-figure-slot button:active) .log-figure-slot {
+  transform: scale(var(--figure-scale, 1));
+  opacity: 1;
+}
+
+.log-figure-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.log-figure:focus-within,
+.log-figure-drop:focus-visible,
+.log-figure-rest:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 6px;
+  border-radius: 4px;
+}
+
+.log-figure.is-toned:focus-within,
+.log-figure.is-reeling:focus-within {
+  outline: none;
+}
+
+.log-figure.is-rest {
+  padding-bottom: 0.4em;
+}
+
+.log-figure.is-rest .log-figure-slot {
+  visibility: hidden;
+}
+
+.log-figure-hairline {
+  position: absolute;
+  right: 18%;
+  bottom: 0;
+  left: 18%;
+  z-index: 2;
+  height: 1.5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-ink) 16%, transparent);
+  pointer-events: none;
+}
+
+.log-figure-hairline-value {
+  display: block;
+  width: calc(var(--rest, 0) * 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+}
+
+.log-figure-rest {
+  position: absolute;
+  inset: 0 0 0.4em;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.log-figure-drop {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  transition:
+    transform 80ms var(--ease-out-quint),
+    opacity 80ms var(--ease-out-quint);
+}
+
+.log-figure-drop:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+  transition-duration: 80ms;
+}
+
+.log-action.is-paging .log-figure-drop:active {
+  transform: none;
+  opacity: 1;
+}
+
+.log-figure-clip {
+  overflow: clip;
+}
+
+.log-figure-track {
+  display: flex;
+  width: 300%;
+}
+
+.log-figure-page {
+  flex: 0 0 33.333333%;
+  min-width: 0;
+}
+
+.log-figure-page[aria-hidden="true"] {
+  visibility: hidden;
+}
+
+.log-action.is-paging .log-figure-page[aria-hidden="true"] {
+  visibility: visible;
 }
 
 .load-pager {
@@ -2620,11 +3009,15 @@ html.reorder-active [data-reorder-index] {
   .auth-passage-mark,
   .unit-switch:active,
   .unit-mark:active,
-  .log-pill:active .log-pill-face,
-  .log-pill:active .log-pill-sheen,
+  /* Log pill v1 — .log-pill:active .log-pill-face, .log-pill:active .log-pill-sheen */
+  .log-figure-drop:active,
   .ledger-remove:active,
   .ledger-drop-remove:active {
     transform: none;
+  }
+
+  .log-figure:active .log-figure-slot {
+    transform: scale(var(--figure-scale, 1));
   }
 
   .mirin-splash-mark,
@@ -2759,6 +3152,7 @@ html[data-mode="light"] {
   --color-on-accent: #f6f5f2;
 }
 
+/* Log pill v1, light mode. Kept for rollback.
 html[data-mode="light"] .log-pill-ring-track {
   stroke: rgb(22 22 22 / 0.16);
 }
@@ -2843,6 +3237,7 @@ html[data-mode="light"] .log-pill.is-reeling:active .set-times {
     0 -1px 0 rgb(22 22 22 / 0.14);
 }
 
+*/
 html[data-mode="light"] .nav-glyph-raster {
   filter: brightness(0);
 }

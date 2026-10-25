@@ -1220,6 +1220,9 @@ export function Today() {
                       phone && setDock && exercise.id !== activeId,
                     )}
                     variationRequest={variationTick[exercise.id] ?? 0}
+                    prior={data.prefills[exercise.id] ?? []}
+                    todayLogs={logsByExercise.get(exercise.id) ?? []}
+                    dayTemplateId={data.dayTemplateId}
                     logbook={
                       !phone && exercise.id === activeId ? (
                         <LoggedSets sets={loggedForActive} unit={unit} />

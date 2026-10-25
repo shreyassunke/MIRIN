@@ -1,19 +1,17 @@
 import {
   createContext,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent,
   type ReactNode,
 } from "react";
 import { usePagerGesture } from "../hooks/usePagerGesture";
-import {
-  RestReadout,
-  stadiumLength,
-  stadiumPath,
-  useRestClock,
-} from "./RestTimer";
+import { tintedMetalUrl } from "./weight/three/metalType";
+import { RestReadout, useRestClock } from "./RestTimer";
 
 interface LogActionSwipeProps {
   /** A set exists to drop onto. Otherwise the control is only Log. */
@@ -59,9 +57,89 @@ const PAGES = [
   { id: "drop-next", kind: "drop" },
 ] as const;
 
-const RING_INSET = 1.25;
+/*
+  Log pill v1 (machined key). Kept for rollback.
+  Restore RING_INSET, PillFace, and DropFace below, plus the
+  stadiumLength and stadiumPath imports from ./RestTimer.
+  The matching CSS is the "Log pill v1" block in index.css.
 
-function PillFace({
+  const RING_INSET = 1.25;
+
+  function PillFace({ children, label, onClick, rest }) {
+    const faceRef = useRef(null);
+    const clock = useRestClock();
+    const show = rest && clock != null && clock.remaining > 0;
+    const [size, setSize] = useState({ w: 0, h: 0 });
+
+    useLayoutEffect(() => {
+      const el = faceRef.current;
+      if (!el || !show) return;
+      const sync = () => {
+        const rect = el.getBoundingClientRect();
+        setSize({ w: rect.width, h: rect.height });
+      };
+      sync();
+      const ro = new ResizeObserver(sync);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, [show]);
+
+    const length = size.w > 0 ? stadiumLength(size.w, size.h, RING_INSET) : 0;
+    const progress =
+      show && clock && clock.total > 0
+        ? Math.min(1, clock.remaining / clock.total)
+        : 0;
+
+    return (
+      <div ref={faceRef} className={show ? "log-pill is-rest" : "log-pill"}>
+        {show && length > 0 && (
+          <svg className="log-pill-ring" viewBox={`0 0 ${size.w} ${size.h}`} aria-hidden="true">
+            <path className="log-pill-ring-track" d={stadiumPath(size.w, size.h, RING_INSET)} />
+            <path
+              className="log-pill-ring-value"
+              d={stadiumPath(size.w, size.h, RING_INSET)}
+              strokeDasharray={length}
+              strokeDashoffset={length * (1 - progress)}
+            />
+          </svg>
+        )}
+        {!show && (
+          <button type="button" className="log-pill-hit" aria-label={label} onClick={onClick} />
+        )}
+        <div className="log-pill-face">
+          <span className="log-pill-sheen" aria-hidden="true" />
+          <div
+            className="log-pill-slot"
+            aria-hidden={show || undefined}
+            {...(show ? { inert: "" } : {})}
+          >
+            {children}
+          </div>
+          {show && clock && (
+            <RestReadout
+              remaining={clock.remaining}
+              onDismiss={clock.dismiss}
+              onNudge={clock.nudge}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function DropFace({ label, onClick }) {
+    return (
+      <button type="button" className="log-pill log-pill-drop" onClick={onClick} aria-label={label}>
+        <span className="log-pill-face">
+          <span className="log-pill-sheen" aria-hidden="true" />
+          <span className="text-[15px] font-medium text-ink">Drop</span>
+        </span>
+      </button>
+    );
+  }
+*/
+
+function FigureFace({
   children,
   label,
   onClick,
@@ -75,91 +153,98 @@ function PillFace({
   const faceRef = useRef<HTMLDivElement>(null);
   const clock = useRestClock();
   const show = rest && clock != null && clock.remaining > 0;
-  const [size, setSize] = useState({ w: 0, h: 0 });
-
-  useLayoutEffect(() => {
-    const el = faceRef.current;
-    if (!el || !show) return;
-    const sync = () => {
-      const rect = el.getBoundingClientRect();
-      setSize({ w: rect.width, h: rect.height });
-    };
-    sync();
-    const ro = new ResizeObserver(sync);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [show]);
-
-  const length = size.w > 0 ? stadiumLength(size.w, size.h, RING_INSET) : 0;
   const progress =
     show && clock && clock.total > 0
       ? Math.min(1, clock.remaining / clock.total)
       : 0;
 
+  useLayoutEffect(() => {
+    const el = faceRef.current;
+    if (!el) return;
+    const fit = () => {
+      const slot = el.querySelector<HTMLElement>(".log-figure-slot");
+      if (!slot) return;
+      const available = el.clientWidth;
+      const needed = slot.scrollWidth;
+      const scale = available > 0 && needed > available ? available / needed : 1;
+      el.style.setProperty("--figure-scale", scale.toFixed(4));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    const slot = el.querySelector(".log-figure-slot");
+    if (slot) ro.observe(slot);
+    return () => ro.disconnect();
+  }, [show]);
+
+  useEffect(() => {
+    const el = faceRef.current;
+    if (!el) return;
+    const apply = () => {
+      const url = tintedMetalUrl(getComputedStyle(el).color);
+      if (url) el.style.setProperty("--figure-metal", `url("${url}")`);
+    };
+    apply();
+    const mode = new MutationObserver(apply);
+    mode.observe(document.documentElement, { attributes: true, attributeFilter: ["data-mode"] });
+    return () => mode.disconnect();
+  }, [show]);
+
   return (
-    <div ref={faceRef} className={show ? "log-pill is-rest" : "log-pill"}>
-      {show && length > 0 && (
-        <svg
-          className="log-pill-ring"
-          viewBox={`0 0 ${size.w} ${size.h}`}
-          aria-hidden="true"
-        >
-          <path
-            className="log-pill-ring-track"
-            d={stadiumPath(size.w, size.h, RING_INSET)}
-          />
-          <path
-            className="log-pill-ring-value"
-            d={stadiumPath(size.w, size.h, RING_INSET)}
-            strokeDasharray={length}
-            strokeDashoffset={length * (1 - progress)}
-          />
-        </svg>
-      )}
+    <div
+      ref={faceRef}
+      className={show ? "log-figure is-rest" : "log-figure"}
+      style={show ? ({ "--rest": String(progress) } as CSSProperties) : undefined}
+    >
       {!show && (
         <button
           type="button"
-          className="log-pill-hit"
+          className="log-figure-hit"
           aria-label={label}
           onClick={onClick}
         />
       )}
-      <div className="log-pill-face">
-        <span className="log-pill-sheen" aria-hidden="true" />
-        <div
-          className="log-pill-slot"
-          aria-hidden={show || undefined}
-          {...(show ? { inert: "" } : {})}
-        >
-          {children}
-        </div>
-        {show && clock && (
-          <RestReadout
-            remaining={clock.remaining}
-            onDismiss={clock.dismiss}
-            onNudge={clock.nudge}
-          />
-        )}
+      <div
+        className="log-figure-slot"
+        aria-hidden={show || undefined}
+        {...(show ? { inert: "" } : {})}
+      >
+        {children}
       </div>
+      {show && (
+        <span className="log-figure-hairline" aria-hidden="true">
+          <span className="log-figure-hairline-value" />
+        </span>
+      )}
+      {show && clock && (
+        <RestReadout
+          className="log-figure-rest"
+          remaining={clock.remaining}
+          onDismiss={clock.dismiss}
+          onNudge={clock.nudge}
+        />
+      )}
     </div>
   );
 }
 
-function DropFace({ label, onClick }: { label: string; onClick: () => void }) {
+function DropWord({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button type="button" className="log-pill log-pill-drop" onClick={onClick} aria-label={label}>
-      <span className="log-pill-face">
-        <span className="log-pill-sheen" aria-hidden="true" />
-        <span className="text-[15px] font-medium text-ink">Drop</span>
-      </span>
+    <button
+      type="button"
+      className="log-figure log-figure-drop"
+      onClick={onClick}
+      aria-label={label}
+    >
+      Drop
     </button>
   );
 }
 
 /**
- * The live weight × reps is the log control: a machined pill.
+ * The live weight × reps is the log control: chromeless figures.
  * A vertical drag on either numeral reels that number and does not log.
- * A sideways swipe, either way, slides into Drop.
+ * A sideways swipe, either way, slides into Drop. A tap logs.
  */
 export function LogActionSwipe({
   canDrop,
@@ -173,7 +258,6 @@ export function LogActionSwipe({
   const rootRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const logPageRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef(1);
   const draggingRef = useRef(false);
   const skipClick = useRef(false);
@@ -197,7 +281,7 @@ export function LogActionSwipe({
     const target = event.target;
     if (
       target instanceof Element &&
-      target.closest(".log-pill.is-rest, button, a")
+      target.closest(".log-figure.is-rest, button, a")
     ) {
       return;
     }
@@ -233,24 +317,14 @@ export function LogActionSwipe({
 
   useLayoutEffect(() => {
     if (!canDrop) return;
-    const page = logPageRef.current;
     const viewport = viewportRef.current;
-    if (!page || !viewport) return;
-    const sync = () => {
-      const pill = page.querySelector<HTMLElement>(".log-pill");
-      const width = Math.ceil((pill ?? page).getBoundingClientRect().width);
-      if (width <= 0) return;
-      viewport.style.width = `${width}px`;
-      viewport.querySelectorAll<HTMLElement>(".log-pill-page").forEach((el) => {
-        el.style.width = `${width}px`;
-      });
-      paint(progressRef.current, draggingRef.current);
-    };
+    if (!viewport) return;
+    const sync = () => paint(progressRef.current, draggingRef.current);
     sync();
     const ro = new ResizeObserver(sync);
-    ro.observe(page);
+    ro.observe(viewport);
     return () => ro.disconnect();
-  }, [canDrop, paint, children]);
+  }, [canDrop, paint]);
 
   const gesture = { skipClick, onLog: log };
 
@@ -258,9 +332,9 @@ export function LogActionSwipe({
     return (
       <LogPillContext.Provider value={gesture}>
         <div data-log-bar="" onClick={onShellClick}>
-          <PillFace label={logLabel} onClick={log} rest={rest}>
+          <FigureFace label={logLabel} onClick={log} rest={rest}>
             {children}
-          </PillFace>
+          </FigureFace>
         </div>
       </LogPillContext.Provider>
     );
@@ -280,10 +354,10 @@ export function LogActionSwipe({
         }
         onClick={onShellClick}
       >
-        <div ref={viewportRef} className="log-pill-clip">
+        <div ref={viewportRef} className="log-figure-clip">
           <div
             ref={trackRef}
-            className="log-pill-track"
+            className="log-figure-track"
             style={{ transform: "translate3d(-33.333333%, 0, 0)" }}
           >
             {PAGES.map((page, i) => {
@@ -292,17 +366,16 @@ export function LogActionSwipe({
               return (
                 <div
                   key={page.id}
-                  ref={page.kind === "log" ? logPageRef : undefined}
-                  className="log-pill-page"
+                  className="log-figure-page"
                   aria-hidden={!active}
                   {...(!active ? { inert: "" } : {})}
                 >
                   {isDrop ? (
-                    <DropFace label={dropAria} onClick={drop} />
+                    <DropWord label={dropAria} onClick={drop} />
                   ) : (
-                    <PillFace label={logLabel} onClick={log} rest={rest}>
+                    <FigureFace label={logLabel} onClick={log} rest={rest}>
                       {children}
-                    </PillFace>
+                    </FigureFace>
                   )}
                 </div>
               );

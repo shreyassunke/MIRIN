@@ -137,10 +137,13 @@ export function RestReadout({
   remaining,
   onDismiss,
   onNudge,
+  className = "log-pill-rest",
 }: {
   remaining: number;
   onDismiss: () => void;
   onNudge: (delta: number) => void;
+  /** Defaults to the v1 pill class so a rollback keeps its styles. */
+  className?: string;
 }) {
   const dragRef = useRef<{ y: number; moved: boolean } | null>(null);
   const skipClick = useRef(false);
@@ -182,7 +185,7 @@ export function RestReadout({
   return (
     <button
       type="button"
-      className="log-pill-rest"
+      className={className}
       aria-label={label}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

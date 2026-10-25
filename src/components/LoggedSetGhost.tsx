@@ -15,11 +15,11 @@ function prefersReducedMotion() {
 }
 
 function visibleLogPill(): HTMLElement | null {
-  const docked = document.querySelector(".set-dock .log-pill");
+  const docked = document.querySelector(".set-dock .log-figure");
   if (docked instanceof HTMLElement && docked.getBoundingClientRect().width > 0) {
     return docked;
   }
-  const pills = document.querySelectorAll("[data-log-bar] .log-pill");
+  const pills = document.querySelectorAll("[data-log-bar] .log-figure");
   for (const pill of pills) {
     if (!(pill instanceof HTMLElement)) continue;
     if (pill.closest("[inert]")) continue;
@@ -31,7 +31,7 @@ function visibleLogPill(): HTMLElement | null {
   return null;
 }
 
-/** The logged pair leaves the pill and settles into its place on the line. */
+/** The logged pair leaves the figures and settles into its place on the line. */
 function flyFromPill(node: HTMLElement) {
   if (prefersReducedMotion()) return;
   const pill = visibleLogPill();
@@ -41,7 +41,7 @@ function flyFromPill(node: HTMLElement) {
   if (from.width < 1 || to.width < 1) return;
   const dx = from.left + from.width / 2 - (to.left + to.width / 2);
   const dy = from.top + from.height / 2 - (to.top + to.height / 2);
-  const scale = Math.min(1.85, Math.max(1.05, from.height / Math.max(to.height, 1)));
+  const scale = Math.min(3.5, Math.max(1.05, from.height / Math.max(to.height, 1)));
   node.animate(
     [
       { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 0.92 },

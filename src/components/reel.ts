@@ -1,6 +1,9 @@
 /** One detent of the log-pill reel. Finger up raises the value. */
 export const REEL_STEP_PX = 36;
 
+/** One detent of the docked figures. Finger up raises the value. */
+export const FIGURE_REEL_STEP_PX = 56;
+
 /** Asymptote near half a detent, matching the pager's edge resistance. */
 export function rubberband(offset: number, dim: number) {
   if (dim <= 0) return 0;
