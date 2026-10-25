@@ -26,22 +26,41 @@ export type OverflowItem = {
 interface ItemOverflowProps {
   label: string;
   items: OverflowItem[];
+  /** Header group uses the horizontal ellipsis from the Stocks bar. */
+  glyph?: "vertical" | "horizontal";
 }
 
 const MENU_WIDTH = 260;
 const VIEW_PAD = 8;
 
-function IconEllipsis(props: SVGProps<SVGSVGElement>) {
+function IconEllipsis({
+  horizontal = false,
+  ...props
+}: SVGProps<SVGSVGElement> & { horizontal?: boolean }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <circle cx="12" cy="6" r="1.4" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.4" fill="currentColor" />
-      <circle cx="12" cy="18" r="1.4" fill="currentColor" />
+      {horizontal ? (
+        <>
+          <circle cx="5" cy="12" r="1.7" fill="currentColor" />
+          <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+          <circle cx="19" cy="12" r="1.7" fill="currentColor" />
+        </>
+      ) : (
+        <>
+          <circle cx="12" cy="6" r="1.4" fill="currentColor" />
+          <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+          <circle cx="12" cy="18" r="1.4" fill="currentColor" />
+        </>
+      )}
     </svg>
   );
 }
 
-export function ItemOverflow({ label, items }: ItemOverflowProps) {
+export function ItemOverflow({
+  label,
+  items,
+  glyph = "vertical",
+}: ItemOverflowProps) {
   const triggerId = useId();
   const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -193,7 +212,7 @@ export function ItemOverflow({ label, items }: ItemOverflowProps) {
             : "text-ink hover:text-muted active:text-muted",
         ].join(" ")}
       >
-        <IconEllipsis className="h-5 w-5" />
+        <IconEllipsis horizontal={glyph === "horizontal"} className="h-5 w-5" />
       </button>
       {open &&
         createPortal(

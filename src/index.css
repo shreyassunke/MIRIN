@@ -1,5 +1,15 @@
-@import "@fontsource-variable/inter";
 @import "tailwindcss";
+
+/* SF Pro, the system face behind Stocks and the iOS 27 UI kit.
+   One variable file: weight plus optical size. Browsers map opsz
+   from the used font-size when font-optical-sizing is auto. */
+@font-face {
+  font-family: "SF Pro";
+  src: url("/fonts/SF-Pro.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 @theme {
   --color-*: initial;
@@ -21,7 +31,7 @@
   --quote-up: #30d158;
   --quote-down: #ff453a;
 
-  --font-sans: "Inter Variable", Inter, system-ui, sans-serif;
+  --font-sans: "SF Pro", system-ui, sans-serif;
 
   --radius-*: initial;
   --radius-md: 8px;
@@ -45,6 +55,39 @@
 html {
   background: var(--color-bg);
   color-scheme: dark;
+  /* One Liquid Glass material, two weights.
+     Control floats over content. Panel is the thicker sheet.
+     A lens is a lighter fill inside its parent — never a second blur. */
+  --glass-control-fill:
+    linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.02) 46%, transparent),
+    rgb(28 28 30 / 0.62);
+  --glass-control-fill-hover:
+    linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.05) 46%, transparent),
+    rgb(44 44 46 / 0.72);
+  --glass-control-blur: blur(24px) saturate(1.6);
+  --glass-specular: rgb(255 255 255 / 0.28);
+  --glass-rim: rgb(255 255 255 / 0.14);
+  --glass-control-shadow:
+    inset 0 0.5px 0 var(--glass-specular),
+    inset 0 0 0 0.5px var(--glass-rim),
+    0 8px 24px rgb(0 0 0 / 0.32);
+  --glass-lens:
+    linear-gradient(180deg, rgb(255 255 255 / 0.24), rgb(255 255 255 / 0.1));
+  --glass-lens-shadow:
+    inset 0 0.5px 0 rgb(255 255 255 / 0.34),
+    0 1px 2px rgb(0 0 0 / 0.2);
+  --glass-panel-fill:
+    linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.02) 40%, transparent),
+    rgb(28 28 30 / 0.86);
+  --glass-panel-fill-hover:
+    linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.04) 40%, transparent),
+    rgb(36 36 38 / 0.9);
+  --glass-panel-blur: blur(40px) saturate(1.8);
+  --glass-panel-shadow:
+    inset 0 0.5px 0 var(--glass-specular),
+    inset 0 0 0 0.5px var(--glass-rim),
+    0 18px 48px rgb(0 0 0 / 0.38);
+  --glass-recess: color-mix(in srgb, var(--color-bg) 42%, transparent);
   overflow-x: clip;
   overscroll-behavior-x: none;
   scrollbar-width: none;
@@ -58,6 +101,7 @@ html::-webkit-scrollbar {
 
 body {
   font-family: var(--font-sans);
+  font-optical-sizing: auto;
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
@@ -594,17 +638,69 @@ a.auth-switch {
   z-index: 5;
 }
 
-/* Stocks subtitle. Same cap size as the day name, regular against that
-   semibold, flat secondary gray, and a short gap under the glyphs.
+/* Stocks date. Same size as the day name, semibold so the gray line
+   has the stroke of the reference, not a thin regular.
    The 44px switcher stays the hit target; this line uses its lower padding. */
 .today-date {
   margin-top: -0.75rem;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-bg));
+  color: #8e8e93;
   font-size: 1.25rem;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.022em;
   font-optical-sizing: auto;
+}
+
+html[data-mode="light"] .today-date {
+  color: var(--color-muted);
+}
+
+/* iOS 27 toolbar button group: 44px capsule, 6px end inset,
+   two controls sharing one glass. Dark fill matches the Stocks crop
+   on a near-black page; light mode uses the kit's pale glass. */
+.header-pill {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  height: 44px;
+  padding-inline: 6px;
+  gap: 2px;
+  border-radius: 999px;
+  background: var(--glass-control-fill);
+  box-shadow: var(--glass-control-shadow);
+  backdrop-filter: var(--glass-control-blur);
+  -webkit-backdrop-filter: var(--glass-control-blur);
+}
+
+.header-pill .unit-switch,
+.header-pill button[aria-haspopup="menu"] {
+  height: 44px;
+  min-width: 44px;
+  padding-inline: 8px;
+  border-radius: 999px;
+  color: var(--color-ink);
+  font-size: 17px;
+  font-weight: 590;
+  letter-spacing: -0.022em;
+}
+
+.header-pill button[aria-haspopup="menu"] {
+  width: 44px;
+  padding-inline: 0;
+}
+
+.header-pill button[aria-haspopup="menu"] svg {
+  width: 18px;
+  height: 18px;
+}
+
+.header-pill button:active {
+  background: color-mix(in srgb, var(--color-ink) 12%, transparent);
+}
+
+.header-pill button:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: -4px;
 }
 
 /* Instrument hosts. Wide layout keeps the resting size of each object.
@@ -834,29 +930,34 @@ textarea {
   caret-color: var(--color-ink);
 }
 
-/* Glass surfaces — frosted panels, nav, cards */
+/* Panel weight — menus, sheets, dialogs, identity and exercise cards. */
 .glass {
-  background: var(--color-glass);
-  border: 1px solid var(--color-glass-border);
-  box-shadow:
-    inset 0 1px 0 var(--color-sheen),
-    var(--shadow-glass);
-  backdrop-filter: blur(var(--blur-glass)) saturate(1.2);
-  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.2);
+  background: var(--glass-panel-fill);
+  border: none;
+  box-shadow: var(--glass-panel-shadow);
+  backdrop-filter: var(--glass-panel-blur);
+  -webkit-backdrop-filter: var(--glass-panel-blur);
+}
+
+/* Control weight — tab bar, header pill, chip tracks, steppers, icon buttons. */
+.glass-control {
+  background: var(--glass-control-fill);
+  border: none;
+  box-shadow: var(--glass-control-shadow);
+  backdrop-filter: var(--glass-control-blur);
+  -webkit-backdrop-filter: var(--glass-control-blur);
 }
 
 /*
-  Glass buttons — specular edge, press scale, quick highlight.
-  Used for steppers, secondary actions, icon buttons, segment chips.
+  Glass buttons — the control material, press scale, one blur.
+  Used for steppers, secondary actions, and icon buttons.
 */
 .glass-btn {
-  background: var(--color-wash);
-  border: 1px solid var(--color-glass-border);
-  box-shadow:
-    inset 0 1px 0 var(--color-sheen),
-    var(--shadow-float);
-  backdrop-filter: blur(16px) saturate(1.15);
-  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  background: var(--glass-control-fill);
+  border: none;
+  box-shadow: var(--glass-control-shadow);
+  backdrop-filter: var(--glass-control-blur);
+  -webkit-backdrop-filter: var(--glass-control-blur);
   transition:
     background-color var(--motion-fast) var(--ease-out-expo),
     border-color var(--motion-fast) var(--ease-out-expo),
@@ -867,19 +968,14 @@ textarea {
 }
 
 .glass-btn:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, transparent);
-  border-color: color-mix(in srgb, var(--color-ink) 16%, transparent);
-  box-shadow:
-    inset 0 1px 0 var(--color-sheen),
-    var(--shadow-float);
+  background: var(--glass-control-fill-hover);
 }
 
 .glass-btn:active {
-  background: color-mix(in srgb, var(--color-ink) 18%, transparent);
-  border-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.28);
+  background: var(--glass-lens);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.28);
   transform: scale(0.94);
-  filter: brightness(1.06);
+  filter: none;
 }
 
 .glass-btn:disabled {
@@ -890,14 +986,44 @@ textarea {
 }
 
 .glass-btn-active {
-  background: var(--color-wash-strong);
-  border-color: var(--color-glass-border);
-  box-shadow:
-    inset 0 1px 0 var(--color-sheen),
-    var(--shadow-float);
+  background: var(--glass-lens);
+  box-shadow: var(--glass-lens-shadow);
 }
 
-/* Segment chips inside a glass track (unit, mode, bar, pair) */
+/* A chip or button drawn on a panel is a lens. No second blur. */
+.glass .glass-control,
+.glass-dialog .glass-control,
+.quiet-menu .glass-control,
+.glass .glass-btn,
+.glass .glass-btn-active,
+.glass-dialog .glass-btn,
+.glass-dialog .glass-btn-active,
+.quiet-menu .glass-btn,
+.quiet-menu .glass-btn-active {
+  background: var(--glass-recess);
+  box-shadow: inset 0 0 0 0.5px var(--glass-rim);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.glass .glass-btn:hover,
+.glass-dialog .glass-btn:hover,
+.quiet-menu .glass-btn:hover {
+  background: var(--glass-lens);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.glass .glass-btn:active,
+.glass-dialog .glass-btn:active,
+.quiet-menu .glass-btn:active {
+  background: var(--glass-lens);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.28);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Segment chips. The track is the glass; the active chip is only a lens. */
 .glass-chip {
   transition:
     background-color var(--motion-fast) var(--ease-out-expo),
@@ -911,10 +1037,43 @@ textarea {
 }
 
 .glass-chip-active {
-  background: var(--color-glass-highlight);
-  box-shadow:
-    inset 0 1px 0 var(--color-sheen),
-    var(--shadow-float);
+  background: var(--glass-lens);
+  box-shadow: var(--glass-lens-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Off track is control glass. On track is chalk. The knob stays solid. */
+.switch-track {
+  background: var(--glass-control-fill);
+  box-shadow: var(--glass-control-shadow);
+  backdrop-filter: var(--glass-control-blur);
+  -webkit-backdrop-filter: var(--glass-control-blur);
+  transition:
+    background-color 150ms var(--ease-out-quint),
+    box-shadow 150ms var(--ease-out-quint);
+}
+
+.switch-track-on {
+  background: var(--color-accent);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.35);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.switch-knob {
+  background: var(--color-ink);
+  box-shadow: var(--shadow-float);
+  transition: left 150ms var(--ease-out-quint);
+}
+
+.switch-knob-on {
+  background: var(--color-bg);
+}
+
+.switch-hit:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
 }
 
 /* Today list hit: no chrome; press dims text along the locked ramp. */
@@ -933,16 +1092,39 @@ textarea {
   color: var(--color-muted);
 }
 
-/* Pill nav — one glass bar. The active tab is the filled icon, not a second pill. */
+/* Pill nav — control glass. The selection lens moves; the glyph still fills solid. */
 .nav-pill-track {
+  position: relative;
+  isolation: isolate;
   padding: 0.25rem;
-  border-color: var(--color-glass-border);
-  box-shadow:
-    inset 0 1px 0 var(--color-sheen),
-    var(--shadow-glass);
+  background: var(--glass-control-fill);
+  box-shadow: var(--glass-control-shadow);
+  backdrop-filter: var(--glass-control-blur);
+  -webkit-backdrop-filter: var(--glass-control-blur);
+}
+
+.nav-pill-lens {
+  position: absolute;
+  z-index: 0;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 0.25rem;
+  width: calc((100% - 0.5rem) / 5);
+  border-radius: 999px;
+  background: var(--glass-lens);
+  box-shadow: var(--glass-lens-shadow);
+  pointer-events: none;
+  transform: translate3d(calc(var(--nav-index, 0) * 100%), 0, 0);
+  transition: transform 320ms var(--ease-out-expo);
+}
+
+.nav-pill-lens[data-hidden] {
+  opacity: 0;
 }
 
 .nav-pill-item {
+  position: relative;
+  z-index: 1;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1156,21 +1338,11 @@ textarea {
   margin: 0;
   padding: 0 1.375rem;
   min-width: 0;
-  border: 1px solid rgb(255 255 255 / 0.22);
+  border: none;
   border-radius: 999px;
-  background:
-    linear-gradient(
-      180deg,
-      rgb(255 255 255 / 0.12) 0%,
-      rgb(255 255 255 / 0.045) 42%,
-      rgb(0 0 0 / 0.32) 100%
-    ),
-    rgb(12 12 14 / 0.72);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.22),
-    inset 0 -1px 0 rgb(0 0 0 / 0.45),
-    0 14px 28px -18px rgb(0 0 0 / 0.85);
-  color: #f4f4f2;
+  background: var(--glass-panel-fill);
+  box-shadow: var(--glass-panel-shadow);
+  color: var(--color-ink);
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
@@ -1178,8 +1350,8 @@ textarea {
   letter-spacing: -0.011em;
   white-space: nowrap;
   cursor: pointer;
-  backdrop-filter: blur(18px) saturate(1.15);
-  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  backdrop-filter: var(--glass-panel-blur);
+  -webkit-backdrop-filter: var(--glass-panel-blur);
   -webkit-tap-highlight-color: transparent;
   transition:
     background-color var(--motion-fast) var(--ease-out-expo),
@@ -1241,7 +1413,7 @@ textarea {
 .auth-glass-primary {
   color: #0c0c0c;
   background: linear-gradient(180deg, #f2f2f0 0%, #d6d6d4 48%, #c8c8c6 100%);
-  border-color: rgb(255 255 255 / 0.62);
+  border: 1px solid rgb(255 255 255 / 0.62);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.92),
     inset 0 -1px 0 rgb(0 0 0 / 0.16),
@@ -1252,14 +1424,7 @@ textarea {
 
 @media (hover: hover) and (pointer: fine) {
   .auth-glass:hover {
-    background:
-      linear-gradient(
-        180deg,
-        rgb(255 255 255 / 0.16) 0%,
-        rgb(255 255 255 / 0.06) 42%,
-        rgb(0 0 0 / 0.26) 100%
-      ),
-      rgb(22 22 24 / 0.78);
+    background: var(--glass-panel-fill-hover);
   }
 
   .auth-glass-primary:hover {
@@ -1380,14 +1545,22 @@ textarea {
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass {
+  .glass,
+  .quiet-menu,
+  .auth-glass:not(.auth-glass-primary) {
     background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
+  .glass-control,
   .glass-btn,
-  .glass-btn-active,
-  .glass-chip-active {
+  .header-pill,
+  .nav-pill-track,
+  .switch-track:not(.switch-track-on) {
     background: var(--color-surface-raised);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
@@ -1452,88 +1625,21 @@ textarea {
   animation: mirin-menu-in var(--motion-snap) var(--ease-out-quint) both;
 }
 
-/* Menus and result lists. The words lead; a row only warms when it is the one. */
+/* Menus and result lists. Same panel weight as sheets. A row only warms when it is the one. */
 .quiet-menu {
-  border: 1px solid var(--color-glass-border);
+  border: none;
   padding: 6px;
-  background: color-mix(in srgb, var(--color-bg) 86%, transparent);
-  backdrop-filter: blur(22px) saturate(1.2);
-  -webkit-backdrop-filter: blur(22px) saturate(1.2);
-  box-shadow:
-    inset 0 1px 0 var(--color-sheen),
-    0 18px 48px rgb(0 0 0 / 0.22);
+  background: var(--glass-panel-fill);
+  backdrop-filter: var(--glass-panel-blur);
+  -webkit-backdrop-filter: var(--glass-panel-blur);
+  box-shadow: var(--glass-panel-shadow);
   scrollbar-width: thin;
   scrollbar-color: var(--color-hairline) transparent;
 }
 
-/*
-  Day menu. Thin material, like an iOS context menu: the fill is a veil,
-  the blur separates the words, and the instrument behind stays visible.
-*/
+/* Day menu still arrives as a material, on the shared panel weight. */
 .quiet-menu.menu-clear {
-  background: color-mix(in srgb, var(--color-bg) 22%, transparent);
-  border-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
-  backdrop-filter: blur(32px) saturate(1.7);
-  -webkit-backdrop-filter: blur(32px) saturate(1.7);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--color-ink) 28%, transparent),
-    inset 0 -1px 0 rgb(0 0 0 / 0.22),
-    0 12px 36px rgb(0 0 0 / 0.22);
   animation: mirin-menu-material 200ms var(--ease-out-quint) both;
-}
-
-html[data-mode="light"] .quiet-menu.menu-clear {
-  background: color-mix(in srgb, var(--color-surface) 42%, transparent);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
-    0 12px 36px rgb(0 0 0 / 0.1);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .quiet-menu.menu-clear,
-  html[data-mode="light"] .quiet-menu.menu-clear {
-    background: var(--color-surface);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
-/* Exercise options. A veil, not a window and not a slab. */
-.quiet-menu.menu-ghost {
-  background: color-mix(in srgb, var(--color-bg) 68%, transparent);
-  border-color: color-mix(in srgb, var(--color-ink) 14%, transparent);
-  backdrop-filter: blur(28px) saturate(1.4);
-  -webkit-backdrop-filter: blur(28px) saturate(1.4);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--color-ink) 16%, transparent),
-    0 16px 40px rgb(0 0 0 / 0.32);
-}
-
-html[data-mode="light"] .quiet-menu.menu-ghost {
-  background: color-mix(in srgb, var(--color-surface) 76%, transparent);
-  border-color: color-mix(in srgb, var(--color-ink) 10%, transparent);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.72),
-    0 16px 40px rgb(22 22 22 / 0.12);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .quiet-menu.menu-ghost,
-  html[data-mode="light"] .quiet-menu.menu-ghost {
-    background: var(--color-surface);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .quiet-menu.menu-ghost,
-  html[data-mode="light"] .quiet-menu.menu-ghost {
-    background: color-mix(in srgb, var(--color-bg) 94%, transparent);
-    border-color: var(--color-glass-border);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
 }
 
 .menu-clear .quiet-menu-item {
@@ -1702,15 +1808,6 @@ html[data-mode="light"] .quiet-menu.menu-ghost {
   }
 }
 
-@media (prefers-reduced-transparency: reduce) {
-  .quiet-menu.menu-clear,
-  html[data-mode="light"] .quiet-menu.menu-clear {
-    background: color-mix(in srgb, var(--color-bg) 94%, transparent);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
 /* Native confirm dialog — glass overlay, dim scrim, centered */
 .glass-dialog {
   position: fixed;
@@ -1839,10 +1936,9 @@ html[data-mode="light"] .quiet-menu.menu-ghost {
   cursor: move;
 }
 
-/* Phone column. The stage keeps the top half, so the dot marks sit on
-   the halfway line. The ledger holds one row at the top of the bottom
-   half, including before the first set, so the figures do not move
-   when a set prints. */
+/* Phone column. The stage keeps the top half. The ledger holds one row
+   at the top of the bottom half, including before the first set, so the
+   figures do not move when a set prints. */
 .today-phone-frame,
 .today-phone-scroll,
 .today-lower {
@@ -1867,10 +1963,8 @@ html[data-mode="light"] .quiet-menu.menu-ghost {
     display: flex;
     flex: none;
     flex-direction: column;
-    /* The dot marks, not their hit area, sit on the halfway line of the page. */
-    height: calc(
-      50svh - max(1.25rem, env(safe-area-inset-top, 0px)) + 1.375rem
-    );
+    /* The instrument fills the top half, down to the figures. */
+    height: calc(58svh - max(1.25rem, env(safe-area-inset-top, 0px)));
     max-height: 100%;
     min-height: 0;
     overflow: hidden;
@@ -1934,7 +2028,8 @@ html[data-mode="light"] .quiet-menu.menu-ghost {
     display: flex;
     flex: 1 1 auto;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    padding-top: 0.25rem;
     width: 100%;
     min-height: 0;
     padding-top: 0;
@@ -1948,20 +2043,20 @@ html[data-mode="light"] .quiet-menu.menu-ghost {
     margin-top: 0;
   }
 
-  /* The unit stays on the day name's midline. The date keeps its own gap. */
-  .today-header .unit-switch {
-    font-size: 0.875rem;
+  /* The grouped pill keeps the 17px control size from the iOS 27 kit. */
+  .today-header .header-pill .unit-switch {
+    font-size: 17px;
   }
 
-  /* The lift name sits under the day. The instrument takes the rest of
-     the slot, stopping short of the dots on the halfway line. */
+  /* The lift name sits just under the day. The instrument takes the rest
+     of the slot and meets the figures. */
   .exercise-deck-page > [data-exercise-stage] {
     display: flex;
     height: 100%;
     min-height: 0;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 0.25rem;
+    gap: 0.5rem;
     padding-top: 0.35rem;
   }
 
@@ -1969,22 +2064,23 @@ html[data-mode="light"] .quiet-menu.menu-ghost {
   .exercise-stage-body > .flex,
   .exercise-stage-body .load-readout {
     display: flex;
-    flex: 1 1 0;
+    flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
   }
 
-  /* A taller host scales a height-bound object. The bar stays short and
-     wide — a taller box would only zoom it out. */
+  /* Bells, machines, and cables take a definite stage so they read at
+     the scale of the figures. The bar stays in flow at its own height —
+     a taller box would only zoom it out. */
   .exercise-stage-body .weight-stage-bell,
   .exercise-stage-body .weight-stage-machine,
   .exercise-stage-body .weight-stage-cable {
-    flex: 1 1 0;
-    width: min(100%, 17.5rem);
+    width: 100%;
     max-width: none;
-    height: auto;
-    min-height: 11rem;
-    max-height: 14.5rem;
+    height: min(22rem, 40svh);
+    min-height: 0;
+    max-height: none;
+    flex: none;
   }
 
 }
@@ -2215,70 +2311,6 @@ html[data-mode="light"] .quiet-menu.menu-ghost {
 
 .exercise-deck {
   overflow: hidden;
-}
-
-/* Carousel marks on a 10px pitch. Near the current exercise they are 6px;
-   three steps away they drop to 4px, and further marks are 3px. */
-.exercise-dots {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2rem;
-  margin-top: 0;
-}
-
-.exercise-dot {
-  position: relative;
-  width: 10px;
-  height: 10px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-}
-
-.exercise-dot::before {
-  content: "";
-  position: absolute;
-  inset: -17px 0;
-}
-
-.exercise-dot::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: var(--dot, 6px);
-  height: var(--dot, 6px);
-  border-radius: 999px;
-  background: color-mix(
-    in srgb,
-    var(--color-ink) var(--dot-ink, 42%),
-    transparent
-  );
-  transform: translate(-50%, -50%);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .exercise-dot:hover::after {
-    background: color-mix(in srgb, var(--color-ink) 70%, transparent);
-  }
-}
-
-.exercise-dot:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 3px;
-}
-
-.exercise-dot[aria-current="true"]::after,
-.exercise-dot[aria-current="true"]:hover::after {
-  background: var(--color-ink);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .exercise-dot::after {
-    transition: none;
-  }
 }
 
 /* Logged sets for the exercise in front. Figures only — undo is a text hit. */
@@ -3143,18 +3175,6 @@ html[data-mode="light"] .auth-stage .quiet-field:-webkit-autofill:active {
   box-shadow: 0 0 0 1000px #e7e1d9 inset;
 }
 
-html[data-mode="light"] .auth-glass {
-  color: #161616;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.78) 0%, rgb(255 252 248 / 0.4) 100%),
-    rgb(255 252 248 / 0.62);
-  border-color: rgb(22 22 22 / 0.12);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
-    inset 0 -1px 0 rgb(22 22 22 / 0.06),
-    0 10px 20px -16px rgb(0 0 0 / 0.35);
-}
-
 html[data-mode="light"] .auth-glass-primary {
   color: #f6f5f2;
   background: linear-gradient(180deg, #2a2a2a 0%, #141414 100%);
@@ -3166,12 +3186,6 @@ html[data-mode="light"] .auth-glass-primary {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  html[data-mode="light"] .auth-glass:hover {
-    background:
-      linear-gradient(180deg, rgb(255 255 255 / 0.92) 0%, rgb(255 252 248 / 0.62) 100%),
-      rgb(255 252 248 / 0.8);
-  }
-
   html[data-mode="light"] .auth-glass-primary:hover {
     background: linear-gradient(180deg, #333 0%, #1a1a1a 100%);
   }
@@ -3179,6 +3193,35 @@ html[data-mode="light"] .auth-glass-primary {
 
 html[data-mode="light"] {
   color-scheme: light;
+  --glass-control-fill:
+    linear-gradient(180deg, rgb(255 255 255 / 0.72), rgb(255 255 255 / 0.4)),
+    rgb(255 255 255 / 0.55);
+  --glass-control-fill-hover:
+    linear-gradient(180deg, rgb(255 255 255 / 0.88), rgb(255 255 255 / 0.62)),
+    rgb(255 255 255 / 0.72);
+  --glass-specular: rgb(255 255 255 / 0.95);
+  --glass-rim: rgb(22 22 22 / 0.1);
+  --glass-control-shadow:
+    inset 0 0.5px 0 var(--glass-specular),
+    inset 1.25px 0 0 -0.75px #d0d0d0,
+    inset -1.25px 0 0 -0.75px #d0d0d0,
+    inset 0 0 0 0.5px #e8e8e8,
+    0 8px 15px rgb(0 0 0 / 0.04);
+  --glass-lens: rgb(255 255 255 / 0.88);
+  --glass-lens-shadow:
+    inset 0 0.5px 0 #fff,
+    0 1px 2px rgb(0 0 0 / 0.06);
+  --glass-panel-fill:
+    linear-gradient(180deg, rgb(255 255 255 / 0.86), rgb(255 252 248 / 0.72)),
+    rgb(255 252 248 / 0.9);
+  --glass-panel-fill-hover:
+    linear-gradient(180deg, rgb(255 255 255 / 0.94), rgb(255 252 248 / 0.82)),
+    rgb(255 252 248 / 0.94);
+  --glass-panel-shadow:
+    inset 0 0.5px 0 #fff,
+    inset 0 0 0 0.5px rgb(22 22 22 / 0.08),
+    0 18px 40px rgb(22 22 22 / 0.12);
+  --glass-recess: rgb(22 22 22 / 0.06);
   --color-bg: #f3f2ef;
   --color-surface: #fffcf8;
   --color-surface-raised: #e8e6e1;
@@ -4480,5 +4523,72 @@ html[data-mode="light"] .record-logo {
 
   .quote-range:active {
     transform: none;
+  }
+}
+
+/* Solid chalk when blur would muddy the type. The lens stays a flat highlight. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-control,
+  .glass-btn,
+  .glass-btn-active,
+  .header-pill,
+  .nav-pill-track,
+  .switch-track:not(.switch-track-on),
+  .quiet-menu,
+  .auth-glass:not(.auth-glass-primary),
+  .glass .glass-control,
+  .glass .glass-btn,
+  .glass-dialog .glass-btn,
+  .quiet-menu .glass-btn {
+    background: var(--color-surface-raised);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow:
+      inset 0 0.5px 0 var(--glass-specular),
+      inset 0 0 0 0.5px var(--glass-rim);
+  }
+
+  .glass-btn:hover,
+  .glass .glass-btn:hover,
+  .glass-dialog .glass-btn:hover,
+  .quiet-menu .glass-btn:hover,
+  .auth-glass:not(.auth-glass-primary):hover,
+  html[data-mode="light"] .auth-glass:not(.auth-glass-primary):hover {
+    background: var(--color-surface-raised);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .nav-pill-lens,
+  .glass-chip-active {
+    background: color-mix(in srgb, var(--color-ink) 12%, var(--color-surface-raised));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* A drawn edge stands in for translucency. */
+@media (prefers-contrast: more) {
+  .glass,
+  .glass-control,
+  .glass-btn,
+  .header-pill,
+  .nav-pill-track,
+  .switch-track:not(.switch-track-on),
+  .quiet-menu,
+  .auth-glass:not(.auth-glass-primary) {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-ink);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .nav-pill-lens,
+  .glass-chip-active {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--color-ink);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

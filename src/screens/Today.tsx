@@ -372,6 +372,7 @@ export function Today() {
   }, []);
   const { strikeMany } = useGoalCeremony();
   const loggingRef = useRef(false);
+  const pageSwipeRef = useRef<HTMLDivElement>(null);
   /** Completing fills sets from last session, so it takes a second tap. */
   const [finishArmed, setFinishArmed] = useState(false);
   /** Per-exercise stage. Neighbors keep their own numbers so a swipe never borrows the previous page. */
@@ -540,7 +541,7 @@ export function Today() {
             />
             <p className="today-date">{formatTodayDate()}</p>
           </div>
-          <div className="flex shrink-0 items-center">
+          <div className="flex shrink-0 items-center self-center">
             {addingExercise ? (
               <HeaderExerciseSearch
                 open
@@ -553,7 +554,9 @@ export function Today() {
                 }}
               />
             ) : (
-              <UnitToggle />
+              <div className="header-pill">
+                <UnitToggle />
+              </div>
             )}
           </div>
         </header>
@@ -971,7 +974,7 @@ export function Today() {
       }}
       onDismiss={() => setTimerVisible(false)}
     >
-    <div className="today-phone-frame">
+    <div className="today-phone-frame" ref={pageSwipeRef}>
       <div className="today-phone-scroll">
       <header className="today-header mb-2 flex flex-nowrap items-start justify-between gap-3 md:mb-4">
         <div className="shrink-0 pr-2">
@@ -984,7 +987,7 @@ export function Today() {
           />
           <p className="today-date">{formatTodayDate()}</p>
         </div>
-        <div className="flex shrink-0 items-center">
+        <div className="flex shrink-0 items-center self-center">
           {addingExercise ? (
             <HeaderExerciseSearch
               open
@@ -997,10 +1000,11 @@ export function Today() {
               }}
             />
           ) : (
-            <>
+            <div className="header-pill">
               <UnitToggle />
               {activeExercise ? (
                 <ItemOverflow
+                  glyph="horizontal"
                   key={activeExercise.id}
                   label={`${activeDisplayName || activeExercise.name} options`}
                   items={[
@@ -1095,7 +1099,7 @@ export function Today() {
                   ]}
                 />
               ) : null}
-            </>
+            </div>
           )}
         </div>
       </header>
@@ -1104,12 +1108,7 @@ export function Today() {
         <ExerciseDeck
           index={activeIndex}
           frameKey={data.exerciseIds.join("\0")}
-          pageLabels={data.exercises.map((exercise) => {
-            const draft = viewDrafts[exercise.id];
-            return draft
-              ? exerciseStageTitle(exercise, draft)
-              : exercise.name;
-          })}
+          gestureRootRef={pageSwipeRef}
           onIndexChange={(next) => {
             const id = data.exercises[next]?.id;
             if (!id) return;

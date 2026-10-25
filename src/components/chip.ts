@@ -9,6 +9,6 @@ export const chipClass = (active: boolean) =>
     active ? "glass-chip-active text-ink" : "text-muted hover:text-ink",
   ].join(" ");
 
-/** The frosted track segment chips sit in. */
+/** Control glass. The active chip is a lens inside this track, not a second blur. */
 export const chipTrackClass =
-  "glass flex w-fit overflow-hidden rounded-pill p-0.5";
+  "glass-control flex w-fit overflow-hidden rounded-pill p-0.5";

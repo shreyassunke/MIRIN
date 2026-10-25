@@ -10,31 +10,31 @@ colors:
   border: "#232323"
 typography:
   headline:
-    fontFamily: "Inter, system-ui, sans-serif"
+    fontFamily: "SF Pro, system-ui, sans-serif"
     fontSize: "1.5rem"
     fontWeight: 600
     lineHeight: 1.2
     letterSpacing: "-0.02em"
   title:
-    fontFamily: "Inter, system-ui, sans-serif"
+    fontFamily: "SF Pro, system-ui, sans-serif"
     fontSize: "1.125rem"
     fontWeight: 600
     lineHeight: 1.3
     letterSpacing: "-0.01em"
   body:
-    fontFamily: "Inter, system-ui, sans-serif"
+    fontFamily: "SF Pro, system-ui, sans-serif"
     fontSize: "0.9375rem"
     fontWeight: 400
     lineHeight: 1.6
     letterSpacing: "0"
   label:
-    fontFamily: "Inter, system-ui, sans-serif"
+    fontFamily: "SF Pro, system-ui, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1.4
     letterSpacing: "0"
   data:
-    fontFamily: "Inter, system-ui, sans-serif"
+    fontFamily: "SF Pro, system-ui, sans-serif"
     fontSize: "1.25rem"
     fontWeight: 600
     lineHeight: 1.2
@@ -127,8 +127,8 @@ A locked grayscale palette; hierarchy is carried entirely by lightness, never by
 
 ## 3. Typography
 
-**UI Font:** Inter (with system-ui fallback)
-**Data Font:** Inter with `font-variant-numeric: tabular-nums`
+**UI Font:** SF Pro (with system-ui fallback). The variable face carries weight and optical size, the same family the Stocks app and the iOS 27 UI kit use.
+**Data Font:** SF Pro with `font-variant-numeric: tabular-nums`
 
 **Character:** One family carries everything. Headers are tight-tracked and confident; body copy gets generous line-height; numbers are set in tabular figures so columns of weights and reps align like a ledger.
 
@@ -138,7 +138,7 @@ A locked grayscale palette; hierarchy is carried entirely by lightness, never by
 - **Data** (600, 1.25rem, 1.2, tabular-nums): Weights and reps — the current set's values, history rows. The largest recurring text on /today.
 - **Body** (400, 0.9375rem, 1.6): Helper copy, empty states. Max 65ch.
 - **Label** (500, 0.8125rem, 1.4): Field labels, units ("kg", "reps"), axis labels, chart dates. Muted ink by default. Never uppercase-tracked eyebrow style.
-- **Today date** (400, 1.25rem, 1.15, -0.022em): Month and day under the day name, the same cap size as that name, in a flat secondary gray (ink mixed 62% into the ground). Not the label style.
+- **Today date** (600, 1.25rem, 1.15, -0.022em): Month and day under the day name, the same cap size as that name, semibold, in secondary gray (#8e8e93 in dark). Not the label style.
 
 ### Named Rules
 **The Ledger Rule.** Every numeral that can be compared to another numeral is set in tabular figures. Misaligned digit columns are a bug.
@@ -194,10 +194,10 @@ The estimated 1RM for one lift, read like a stock price. It sits below the log o
 
 ### Today exercise frame
 
-Exercises on Today share one fixed frame, the way a multi-photo post keeps one box. A horizontal swipe translates the stage inside that frame — name, instrument, and the chips under it. On a phone the frame is the flexible slot between the day header and the thumb dock. Its height does not change from one exercise to the next; a taller stage scrolls inside the page. The position dots sit under the instrument. Logged sets for the exercise in front are one horizontal line, one row tall. On a phone that line sits at the top of the bottom half, and the row is reserved before the first set so the figures do not move. The newest set is at the trailing end. Once the line overflows, earlier sets fade at the leading edge and the line scrolls. A token is the pair only, such as 170×7. Warm-ups stay muted. A drop continues its set, such as 170×7 → 140×10. Tap a token to edit that pair — drag a number or type it — and one minus removes it; a horizontal swipe on the token removes it too. Logging prints the pair from the figures into the line. The figures keep the same numbers. Reduced motion appends the token in place. The weight and the reps are separate reels: a vertical swipe tracks the thumb, the next value peeks in above or below, and release snaps to the detent without logging. The numerals are satin under the same studio light as the bar: a smooth metallic fall from the top of each stroke, clipped to the glyph, with no outline and no shadow. During that swipe the metal takes the Reel Spectrum tint, and both numerals are the resting steel again once the finger lifts. A tap logs. A long-press types a value. A sideways swipe still reaches Drop. While a rest counts down, the figures give way to the time, and a 1.5px accent hairline under the line shows what remains. On a wide layout, once the swipe settles the frame is the active page, and during the gesture it is the taller of the two so neither clips. Every page is the real stage, already painted, so the incoming exercise does not appear as a placeholder first. Position is a centered row of dots under the instrument, on a fixed 10px pitch. The current exercise is a solid 6px mark. Marks three steps away drop to 4px, and anything further is 3px, so the row stays a tight cluster. On a phone, weight, reps, and Log leave the stage and sit as one line of chromeless figures centered in the bottom half, just above the tab bar and clear of the home indicator. No surface and no outline — the numbers are the control. The instrument stays in the frame. On a wide layout the same figures — weight, reps, and log — stay one gap under the instrument, and the one-line ledger stays with that exercise, above the instrument. A sideways swipe on the figures still reaches Drop. A warm-up, when that is the set being logged, is named once above the line. A search mark sits in the day header, beside the unit. Opening it reveals the field from that mark toward the title, and the results hang from the same corner. The exercise menu's first item opens the same field. Complete workout sits in the thumb dock under the figures once the session is ready to finish.
+Exercises on Today share one fixed frame, the way a multi-photo post keeps one box. A horizontal swipe anywhere on the logging screen translates the stage inside that frame — name and instrument. The figures keep their own sideways swipe for Drop, and the logged-set line keeps its scroll. On a phone the frame is the flexible slot between the day header and the thumb dock. Its height does not change from one exercise to the next; a taller stage scrolls inside the page. Logged sets for the exercise in front are one horizontal line, one row tall. On a phone that line sits at the top of the bottom half, and the row is reserved before the first set so the figures do not move. The newest set is at the trailing end. Once the line overflows, earlier sets fade at the leading edge and the line scrolls. A token is the pair only, such as 170×7. Warm-ups stay muted. A drop continues its set, such as 170×7 → 140×10. Tap a token to edit that pair — drag a number or type it — and one minus removes it; a horizontal swipe on the token removes it too. Logging prints the pair from the figures into the line. The figures keep the same numbers. Reduced motion appends the token in place. The weight and the reps are separate reels: a vertical swipe tracks the thumb, the next value peeks in above or below, and release snaps to the detent without logging. The numerals are satin under the same studio light as the bar: a smooth metallic fall from the top of each stroke, clipped to the glyph, with no outline and no shadow. During that swipe the metal takes the Reel Spectrum tint, and both numerals are the resting steel again once the finger lifts. A tap logs. A long-press types a value. A sideways swipe still reaches Drop. While a rest counts down, the figures give way to the time, and a 1.5px accent hairline under the line shows what remains. On a wide layout, once the swipe settles the frame is the active page, and during the gesture it is the taller of the two so neither clips. Every page is the real stage, already painted, so the incoming exercise does not appear as a placeholder first. On a phone, weight, reps, and Log leave the stage and sit as one line of chromeless figures centered in the bottom half, just above the tab bar and clear of the home indicator. The instrument fills the slot above those figures. No surface and no outline — the numbers are the control. The instrument stays in the frame. On a wide layout the same figures — weight, reps, and log — stay one gap under the instrument, and the one-line ledger stays with that exercise, above the instrument. A sideways swipe on the figures still reaches Drop. A warm-up, when that is the set being logged, is named once above the line. A search mark sits in the day header, beside the unit. Opening it reveals the field from that mark toward the title, and the results hang from the same corner. The exercise menu's first item opens the same field. Complete workout sits in the thumb dock under the figures once the session is ready to finish.
 
 ### 3D weight instrument
-The barbell and dumbbell in the weight picker are procedural Three.js models, not mesh files. They sit under one large live weight with no chrome around them. A pair of bells is still one per-hand load: a muted "per hand" gloss sits after the unit. Single has no qualifier. The live weight's chevron opens a glass listbox of bar weights — not a segmented pill. Gym references: urethane circular dumbbell, competition bumper plates on a chrome Olympic bar. Equipment (dumbbell / barbell / custom) is a horizontal pager. The open exercise card is the swipe field except Log, drop, and the reps control: a finger drag tracks 1:1 as a hinge-card slide (translate plus a shallow rotateY, scale, and fade), rubber-bands at the ends, and settles with ease-out-expo. Reverse, cancel, and a lost pointer snap from the finger's current page, not the down-point. Reps are one compact inline companion under the pager, not a second labeled stepper. The pager height tracks the active page on a wide layout, including during the swipe. On a phone the exercise frame is the flexible slot above the thumb dock, so that pager does not resize it from one exercise to the next. On a wide layout, reps and Log stay one gap below the instrument on every mode. On a phone that row sits in the thumb dock, just above the tab bar. Vertical intent still scrolls the page or steps the dumbbell rack. Arrow keys on the focused card change method too. On barbell, plate chips sit immediately under the bar.
+The barbell and dumbbell in the weight picker are procedural Three.js models, not mesh files. They sit under one large live weight with no chrome around them. A pair of bells is still one per-hand load: a muted "per hand" gloss sits after the unit. Single has no qualifier. The live weight's chevron opens a glass listbox of bar weights — not a segmented pill. Gym references: urethane circular dumbbell, competition bumper plates on a chrome Olympic bar. Equipment (dumbbell / barbell / custom) is a horizontal pager. The logging screen is the swipe field except the figures' Drop swipe and the logged-set line: a finger drag tracks 1:1 as a hinge-card slide (translate plus a shallow rotateY, scale, and fade), rubber-bands at the ends, and settles with ease-out-expo. Reverse, cancel, and a lost pointer snap from the finger's current page, not the down-point. Reps are one compact inline companion under the pager, not a second labeled stepper. The pager height tracks the active page on a wide layout, including during the swipe. On a phone the exercise frame is the flexible slot above the thumb dock, so that pager does not resize it from one exercise to the next. On a wide layout, reps and Log stay one gap below the instrument on every mode. On a phone that row sits in the thumb dock, just above the tab bar. Vertical intent still scrolls the page or steps the dumbbell rack. Arrow keys on the focused card change method too. On barbell, plate chips sit immediately under the bar.
 
 - **Camera:** fixed perspective, parked on the object's midline and looking slightly down the shaft so a disc reads as an ellipse (~0.23 of plate height on the bar, ~0.20 on the dumbbell's outer face). Distance is the pose; only FOV reacts to the element's size. The bar is fitted to a constant 45 cm envelope, so adding or removing plates never changes its size on screen. Pointer input does not land on the model. On every equipment, a vertical drag on the live weight number changes the load, heavier toward the top of the screen, and a vertical drag on the reps number changes the count. A long-press on either number types a value. A tap on the figures logs the set. The drag is a reel: the digit tracks the finger, the next value peeks in, and release snaps to the detent. The model only shows the result. A drag that starts sideways still pages. Horizontal paging is owned by the open exercise card, not the 3D object. Outside that weight number, vertical scroll still owns the page. `prefers-reduced-motion` holds the rest pose and crossfades equipment instead of sliding. A tap on a plate still removes it.
 - **Lighting:** grayscale key / fill / rim plus a PMREM-filtered studio environment (overhead softbox). No HDRI file, no hue in the lights.

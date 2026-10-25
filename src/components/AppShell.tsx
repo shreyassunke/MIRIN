@@ -2,6 +2,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
@@ -99,6 +100,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const contact = getContactLine(user);
   const avatar = useSettingValue(AVATAR_KEY);
   const [canAnimate, setCanAnimate] = useState(false);
+  const activeIndex = NAV_ITEMS.findIndex(
+    (item) => pathname === item.to || pathname.startsWith(`${item.to}/`),
+  );
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setCanAnimate(true));
@@ -211,7 +215,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
         aria-label="Primary"
       >
-        <div className="nav-pill-track pointer-events-auto flex w-full items-stretch rounded-pill glass">
+        <div className="nav-pill-track pointer-events-auto flex w-full items-stretch rounded-pill">
+          <span
+            className="nav-pill-lens"
+            data-hidden={activeIndex < 0 ? "" : undefined}
+            style={
+              activeIndex >= 0
+                ? ({ "--nav-index": activeIndex } as CSSProperties)
+                : undefined
+            }
+            aria-hidden="true"
+          />
           {NAV_ITEMS.map(({ to, label, glyph }) => (
             <NavLink
               key={to}
