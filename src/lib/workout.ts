@@ -12,6 +12,17 @@ import type { InputMethod } from "./units";
 export const epley = (weight: number, reps: number) =>
   reps <= 1 ? weight : weight * (1 + reps / 30);
 
+/** Best working-set estimate in a session. Warm-ups do not count. */
+export function bestWorkingEstimate(sets: SetLog[]): number {
+  let best = 0;
+  for (const set of sets) {
+    if (set.isWarmup) continue;
+    const estimate = epley(set.weight, set.reps);
+    if (estimate > best) best = estimate;
+  }
+  return best;
+}
+
 export const DEFAULT_REST_SECONDS = 90;
 
 /**

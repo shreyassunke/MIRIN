@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useGoalCeremony } from "../components/GoalCeremony";
 import { confirmSetHaptic } from "../lib/native";
 import { heaviest } from "../lib/goals";
@@ -68,6 +67,7 @@ import {
 import { ExerciseCombobox, HeaderExerciseSearch } from "../components/ExerciseCombobox";
 import { LogActionSwipe } from "../components/LogActionSwipe";
 import { TodayExercisePage } from "../components/TodayExerciseTile";
+import { ExerciseTrendMark } from "../components/ExerciseTrendMark";
 import { ExerciseDeck } from "../components/ExerciseDeck";
 import {
   exerciseStageTitle,
@@ -78,12 +78,9 @@ import { FormVideoPanel } from "../components/FormVideo";
 import { formClipsFor } from "../lib/formVideos";
 import {
   IconAddSet,
-  IconDone,
-  IconHistory,
   IconNote,
   IconRemove,
   IconRest,
-  IconSticky,
   IconSuperset,
   IconSwap,
   IconVideo,
@@ -103,6 +100,7 @@ import { RestClockProvider } from "../components/RestTimer";
 import { UnitToggle } from "../components/UnitToggle";
 import { DaySwitcher } from "../components/DaySwitcher";
 import { LoggedSets } from "../components/LoggedSetGhost";
+import { ExerciseQuote } from "../components/ExerciseQuote";
 
 interface TodayData {
   splitId: string;
@@ -327,6 +325,13 @@ function useTodayData(): TodayData | undefined {
   }, []);
 }
 
+function formatTodayDate(now = new Date()) {
+  return now.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+  });
+}
+
 function usePhoneLayout() {
   const query = "(max-width: 767px)";
   const [phone, setPhone] = useState(() =>
@@ -344,7 +349,6 @@ function usePhoneLayout() {
 
 export function Today() {
   const data = useTodayData();
-  const navigate = useNavigate();
   const [unit] = useUnit();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** When false, derived selection is paused (no unfinished exercise to follow). */
@@ -534,13 +538,7 @@ export function Today() {
               options={data.switchOptions}
               onSwitch={handleDaySwitch}
             />
-            <p className="today-date">
-              {new Date().toLocaleDateString(undefined, {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
+            <p className="today-date">{formatTodayDate()}</p>
           </div>
           <div className="flex shrink-0 items-center">
             {addingExercise ? (
@@ -778,14 +776,6 @@ export function Today() {
     setTimerVisible(true);
   }
 
-  async function toggleExerciseFinished(exerciseId: string, finished: boolean) {
-    const sessionId = await ensureSession();
-    await setExerciseFinished(sessionId, exerciseId, finished);
-    setFollowDerived(true);
-    setSelectedId(null);
-    if (finished) setTimerVisible(false);
-  }
-
   async function logCurrent(exerciseId: string) {
     if (loggingRef.current) return;
     loggingRef.current = true;
@@ -992,13 +982,7 @@ export function Today() {
             options={data.switchOptions}
             onSwitch={handleDaySwitch}
           />
-          <p className="today-date">
-            {new Date().toLocaleDateString(undefined, {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
+          <p className="today-date">{formatTodayDate()}</p>
         </div>
         <div className="flex shrink-0 items-center">
           {addingExercise ? (
@@ -1013,7 +997,105 @@ export function Today() {
               }}
             />
           ) : (
-            <UnitToggle />
+            <>
+              {activeExercise ? (
+                <ItemOverflow
+                  key={activeExercise.id}
+                  label={`${activeDisplayName || activeExercise.name} options`}
+                  items={[
+                    {
+                      id: "add",
+                      label: "Add exercise",
+                      icon: <IconAddSet />,
+                      onSelect: () => setAddingExercise(true),
+                    },
+                    {
+                      id: "variation",
+                      label: "Change exercise",
+                      icon: <IconSwap />,
+                      onSelect: () =>
+                        setVariationTick((prev) => ({
+                          ...prev,
+                          [activeExercise.id]: (prev[activeExercise.id] ?? 0) + 1,
+                        })),
+                    },
+                    {
+                      id: "note",
+                      label: activeSessionNote ? "Edit note" : "Add note",
+                      icon: <IconNote />,
+                      onSelect: () =>
+                        setEditingNote({ id: activeExercise.id, kind: "session" }),
+                    },
+                    {
+                      id: "warmup",
+                      label:
+                        (data.warmupTargets[activeExercise.id] ?? 0) > 0
+                          ? "Remove warm-up sets"
+                          : "Add warm-up sets",
+                      icon: <IconWarmup />,
+                      onSelect: () => void handleToggleWarmup(activeExercise.id),
+                    },
+                    {
+                      id: "rest",
+                      label: data.restSeconds[activeExercise.id]
+                        ? `Rest timer · ${formatRest(data.restSeconds[activeExercise.id])}`
+                        : "Rest timer",
+                      icon: <IconRest />,
+                      panel: ({ close }) => (
+                        <RestPresetPanel
+                          value={
+                            data.restSeconds[activeExercise.id] ??
+                            DEFAULT_REST_SECONDS
+                          }
+                          onPick={(seconds) =>
+                            void patchExercisePref(activeExercise.id, {
+                              restSeconds: seconds,
+                            })
+                          }
+                          close={close}
+                        />
+                      ),
+                    },
+                    ...(formClipsFor(activeExercise.id).length > 0
+                      ? [
+                          {
+                            id: "video",
+                            label:
+                              formVideoId === activeExercise.id
+                                ? "Hide form video"
+                                : "Form video",
+                            icon: <IconVideo />,
+                            onSelect: () =>
+                              setFormVideoId((current) =>
+                                current === activeExercise.id
+                                  ? null
+                                  : activeExercise.id,
+                              ),
+                          },
+                        ]
+                      : []),
+                    {
+                      id: "superset",
+                      label: inSuperset(data.supersets, activeExercise.id)
+                        ? "Break superset"
+                        : "Create superset",
+                      icon: <IconSuperset />,
+                      disabled: data.exercises.length < 2,
+                      onSelect: () => void handleToggleSuperset(activeIndex),
+                    },
+                    {
+                      id: "remove",
+                      label: "Remove",
+                      icon: <IconRemove />,
+                      danger: true,
+                      separatorBefore: true,
+                      onSelect: () => void handleRemoveExercise(activeExercise.id),
+                    },
+                  ]}
+                />
+              ) : null}
+              <UnitToggle />
+            </>
           )}
         </div>
       </header>
@@ -1039,17 +1121,10 @@ export function Today() {
         >
           {data.exercises.map((exercise, index) => {
             const draft = viewDrafts[exercise.id];
-            const finished = finishedIds.has(exercise.id);
             const displayName = draft
               ? exerciseStageTitle(exercise, draft)
               : exercise.name;
             const grouped = inSuperset(data.supersets, exercise.id);
-            const sessionNote = data.exerciseNotes[exercise.id];
-            const stickyNote = data.stickyNotes[exercise.id];
-            const warmupOn = (data.warmupTargets[exercise.id] ?? 0) > 0;
-            const rest = data.restSeconds[exercise.id];
-            const hasFormVideo = formClipsFor(exercise.id).length > 0;
-            const showingVideo = formVideoId === exercise.id;
 
             return (
               <TodayExercisePage
@@ -1057,6 +1132,12 @@ export function Today() {
                 exercise={exercise}
                 inSuperset={grouped}
                 title={displayName}
+                trend={
+                  <ExerciseTrendMark
+                    exerciseId={exercise.id}
+                    excludeSessionId={data.sessionId}
+                  />
+                }
                 onReplace={() => {
                   setFollowDerived(true);
                   setSelectedId(exercise.id);
@@ -1080,114 +1161,6 @@ export function Today() {
                       }
                     />
                   ) : undefined
-                }
-                overflow={
-                  <ItemOverflow
-                    label={`${displayName} options`}
-                    items={[
-                      {
-                        id: "add",
-                        label: "Add exercise",
-                        icon: <IconAddSet />,
-                        onSelect: () => setAddingExercise(true),
-                      },
-                      {
-                        id: "variation",
-                        label: "Change exercise",
-                        icon: <IconSwap />,
-                        onSelect: () =>
-                          setVariationTick((prev) => ({
-                            ...prev,
-                            [exercise.id]: (prev[exercise.id] ?? 0) + 1,
-                          })),
-                      },
-                      {
-                        id: "note",
-                        label: sessionNote ? "Edit note" : "Add note",
-                        icon: <IconNote />,
-                        onSelect: () =>
-                          setEditingNote({ id: exercise.id, kind: "session" }),
-                      },
-                      {
-                        id: "sticky",
-                        label: stickyNote
-                          ? "Edit sticky note"
-                          : "Add sticky note",
-                        icon: <IconSticky />,
-                        onSelect: () =>
-                          setEditingNote({ id: exercise.id, kind: "sticky" }),
-                      },
-                      {
-                        id: "warmup",
-                        label: warmupOn
-                          ? "Remove warm-up sets"
-                          : "Add warm-up sets",
-                        icon: <IconWarmup />,
-                        onSelect: () => void handleToggleWarmup(exercise.id),
-                      },
-                      {
-                        id: "rest",
-                        label: rest
-                          ? `Rest timer · ${formatRest(rest)}`
-                          : "Rest timer",
-                        icon: <IconRest />,
-                        panel: ({ close }) => (
-                          <RestPresetPanel
-                            value={rest ?? DEFAULT_REST_SECONDS}
-                            onPick={(seconds) =>
-                              void patchExercisePref(exercise.id, {
-                                restSeconds: seconds,
-                              })
-                            }
-                            close={close}
-                          />
-                        ),
-                      },
-                      ...(hasFormVideo
-                        ? [
-                            {
-                              id: "video",
-                              label: showingVideo
-                                ? "Hide form video"
-                                : "Form video",
-                              icon: <IconVideo />,
-                              onSelect: () =>
-                                setFormVideoId((current) =>
-                                  current === exercise.id ? null : exercise.id,
-                                ),
-                            },
-                          ]
-                        : []),
-                      {
-                        id: "history",
-                        label: "History",
-                        icon: <IconHistory />,
-                        onSelect: () => navigate(`/exercise/${exercise.id}`),
-                      },
-                      {
-                        id: "superset",
-                        label: grouped ? "Break superset" : "Create superset",
-                        icon: <IconSuperset />,
-                        disabled: data.exercises.length < 2,
-                        onSelect: () => void handleToggleSuperset(index),
-                      },
-                      {
-                        id: "done",
-                        label: finished ? "Reopen" : "Mark done",
-                        icon: <IconDone />,
-                        onSelect: () =>
-                          void toggleExerciseFinished(exercise.id, !finished),
-                      },
-                      {
-                        id: "remove",
-                        label: "Remove",
-                        icon: <IconRemove />,
-                        danger: true,
-                        separatorBefore: true,
-                        onSelect: () => void handleRemoveExercise(exercise.id),
-                      },
-                    ]}
-                  />
                 }
               >
                 {draft ? (
@@ -1309,6 +1282,14 @@ export function Today() {
         </div>
       ) : null}
     </div>
+    {activeExercise ? (
+      <ExerciseQuote
+        exerciseId={activeExercise.id}
+        name={activeDisplayName || activeExercise.name}
+        muscle={activeExercise.muscleGroup}
+        titled
+      />
+    ) : null}
     </RestClockProvider>
   );
 }

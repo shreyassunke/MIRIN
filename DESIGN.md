@@ -184,7 +184,12 @@ The signature control. A weight/reps stepper is a horizontal group — minus but
 Floating glass chip above the mobile nav. Subtle progress ring, 1.5px stroke in #d4d4d4 on a #232323 track, tabular-figure countdown centered. Dismissible with one tap. Under `prefers-reduced-motion`, the ring is replaced by the numeric countdown alone.
 
 ### Charts
-Thin 1.5px lines in Chalk, no gridlines, no dots except the latest point, minimal muted-ink axis labels. A chart is an instrument for reading a trend, not a decoration. The profile plate is one horizontal rectangle: the series sits behind the figure. Its reading is Line, Area under curve, or Trend line, chosen from one glass control. Area is a flat chalk wash down to zero, never a gradient. Trend adds a straight fitted line in muted ink. No second hue, no legend.
+Thin 1.5px lines in Chalk, no gridlines, no dots except the latest point, minimal muted-ink axis labels. A chart is an instrument for reading a trend, not a decoration. The profile plate is one horizontal rectangle: the series sits behind the figure. Its reading is Line, Area under curve, or Trend line, chosen from one glass control. Area is a flat chalk wash down to zero, never a gradient. Trend adds a straight fitted line in muted ink. No second hue, no legend. The Quote Exception below is the one chart that differs.
+
+### Exercise quote
+The estimated 1RM for one lift, read like a stock price. It sits below the log on Today, for the exercise in front, and it is the whole exercise page. On a phone the log keeps the first viewport above the tab bar; the page then scrolls natively into the quote. Order: lift name (title) with the muscle muted beside it, a muted "Estimated 1RM" label, the estimate in ink at 2.125rem/600 with the unit muted, then one line with the signed change and percent in tone and the window in muted ink ("Past 3 months"). The plot is 13.5rem tall, a monotone curve at 1.75px over a wash that fades from 34% to 0 across the plot height, y ticks in 11px muted figures on the trailing edge, and three dates at even time fractions. A horizontal drag scrubs to the nearest session: a muted vertical rule, a dot ringed in ground, and the readout switches to that session's value, its change from the window start, and its date. Vertical intent still scrolls the page. Under the plot, the windows 1W, 1M, 3M, 6M, YTD, 1Y, 2Y, 5Y, All sit in one row; the selected window is the line's tone. Sessions follow as hairline rows: the sets, the plate breakdown muted beneath, the date on the trailing edge.
+
+**The Quote Exception Rule.** On the quote, the window's direction is color: green (#30d158, light #1f8a3a) when the estimate rose, red (#ff453a, light #d70015) when it fell, muted when flat. The hue reaches the change, the line, the wash, and the end dot; the estimate stays ink. The same two pigments mark recent direction beside the Today exercise title: a short diagonal arrow, up-right when the last two prior sessions rose and down-right when they fell, absent when the move is flat or there is only one print. The arrow's text equivalent names the direction, and the quote's change always carries a sign, so color is never the only signal. Profile charts stay chalk.
 
 ### Today exercise frame
 
@@ -212,8 +217,8 @@ The barbell and dumbbell in the weight picker are procedural Three.js models, no
 
 ### Don't:
 - **Don't** use purple gradients, gradient text, or hue gradients — the palette is grayscale plus the Plate Exception. The one other wash is the Reel Spectrum, and only on the live numerals while a finger is down.
-- **Don't** use the "ai-color-palette" (indigo/violet/cyan) or introduce any hue outside the Plate Exception and the Reel Spectrum. The accent stays Chalk.
+- **Don't** use the "ai-color-palette" (indigo/violet/cyan) or introduce any hue outside the Plate Exception, the Reel Spectrum, and the Quote Exception. The accent stays Chalk.
 - **Don't** use side-stripe borders (`border-left` > 1px as a colored accent) on cards, rows, or callouts.
 - **Don't** build the generic shadcn dashboard look: no identical card grids, no hero-metric tiles, no ghost cards.
-- **Don't** add gridlines, gradient fills, or a second hue to charts. Area and a fitted trend exist only as profile readings of the same series.
+- **Don't** add gridlines, gradient fills, or a second hue to charts. Area and a fitted trend exist only as profile readings of the same series. The exercise quote is the one exception, under its own rule.
 - **Don't** ship motivational copy, streaks, badges, emoji, or celebration motion of any kind.

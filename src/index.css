@@ -18,6 +18,8 @@
   --color-wash-strong: rgb(250 250 250 / 0.14);
   --color-sheen: rgb(250 250 250 / 0.1);
   --color-scrim: rgb(10 10 10 / 0.72);
+  --quote-up: #30d158;
+  --quote-down: #ff453a;
 
   --font-sans: "Inter Variable", Inter, system-ui, sans-serif;
 
@@ -592,12 +594,14 @@ a.auth-switch {
   z-index: 5;
 }
 
-/* Day name and date are one field. The date tucks under the name. */
+/* Stocks subtitle: month and day, regular, flat, tucked under the day name. */
 .today-date {
-  margin-top: 0.125rem;
+  margin-top: -0.85rem;
   color: var(--color-muted);
-  font-size: 0.8125rem;
-  line-height: 1.3;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.012em;
 }
 
 /* Instrument hosts. Wide layout keeps the resting size of each object.
@@ -1491,6 +1495,44 @@ html[data-mode="light"] .quiet-menu.menu-clear {
   }
 }
 
+/* Exercise options. A veil, not a window and not a slab. */
+.quiet-menu.menu-ghost {
+  background: color-mix(in srgb, var(--color-bg) 68%, transparent);
+  border-color: color-mix(in srgb, var(--color-ink) 14%, transparent);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-ink) 16%, transparent),
+    0 16px 40px rgb(0 0 0 / 0.32);
+}
+
+html[data-mode="light"] .quiet-menu.menu-ghost {
+  background: color-mix(in srgb, var(--color-surface) 76%, transparent);
+  border-color: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.72),
+    0 16px 40px rgb(22 22 22 / 0.12);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .quiet-menu.menu-ghost,
+  html[data-mode="light"] .quiet-menu.menu-ghost {
+    background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .quiet-menu.menu-ghost,
+  html[data-mode="light"] .quiet-menu.menu-ghost {
+    background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+    border-color: var(--color-glass-border);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 .menu-clear .quiet-menu-item {
   font-weight: 500;
   letter-spacing: -0.012em;
@@ -1805,21 +1847,17 @@ html[data-mode="light"] .quiet-menu.menu-clear {
 }
 
 @media (max-width: 767px) {
-  html:has(.today-phone-frame) {
-    overflow: hidden;
-  }
-
+  /* The log is the first screen of a page that keeps going. It holds the
+     viewport above the tab bar; the exercise reading follows below. */
   .today-phone-frame {
-    position: fixed;
-    z-index: 20;
-    top: max(1.25rem, env(safe-area-inset-top, 0px));
-    right: max(0px, calc((100% - 42rem) / 2));
-    bottom: calc(max(0.75rem, env(safe-area-inset-bottom, 0px)) + 4.25rem);
-    left: max(0px, calc((100% - 42rem) / 2));
+    position: relative;
     display: flex;
     flex-direction: column;
-    padding: 0 1rem;
-    background: var(--color-bg);
+    height: calc(
+      100svh - max(1.25rem, env(safe-area-inset-top, 0px)) -
+        max(0.75rem, env(safe-area-inset-bottom, 0px)) - 4.25rem
+    );
+    min-height: 28rem;
   }
 
   .today-phone-scroll {
@@ -1828,12 +1866,11 @@ html[data-mode="light"] .quiet-menu.menu-clear {
     flex-direction: column;
     /* The dot marks, not their hit area, sit on the halfway line of the page. */
     height: calc(
-      50dvh - max(1.25rem, env(safe-area-inset-top, 0px)) + 1.375rem
+      50svh - max(1.25rem, env(safe-area-inset-top, 0px)) + 1.375rem
     );
     max-height: 100%;
     min-height: 0;
     overflow: hidden;
-    overscroll-behavior: contain;
   }
 
   .today-lower {
@@ -1844,7 +1881,6 @@ html[data-mode="light"] .quiet-menu.menu-clear {
     max-height: min(16rem, 42%);
     min-height: 0;
     overflow: auto;
-    overscroll-behavior: contain;
     padding-top: 0.25rem;
   }
 
@@ -1883,10 +1919,10 @@ html[data-mode="light"] .quiet-menu.menu-clear {
     align-items: stretch;
   }
 
+  /* Vertical intent belongs to the page, not an inner scroller. */
   .exercise-frame .exercise-deck-page {
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: hidden;
+    overscroll-behavior-x: contain;
   }
 
   .set-dock {
@@ -1909,12 +1945,7 @@ html[data-mode="light"] .quiet-menu.menu-clear {
     margin-top: 0;
   }
 
-  /* The date sits in the day control's lower padding, so the pair reads
-     as one line group. The unit stays on the day name's midline. */
-  .today-header .today-date {
-    margin-top: -0.35rem;
-  }
-
+  /* The unit stays on the day name's midline. The date keeps its own gap. */
   .today-header .unit-switch {
     font-size: 0.875rem;
   }
@@ -3162,6 +3193,8 @@ html[data-mode="light"] {
   --shadow-glass: 0 8px 24px rgb(0 0 0 / 0.08);
   --color-accent: #1a1a1a;
   --color-on-accent: #f6f5f2;
+  --quote-up: #1f8a3a;
+  --quote-down: #d70015;
 }
 
 /* Log pill v1, light mode. Kept for rollback.
@@ -4134,5 +4167,315 @@ html[data-mode="light"] .record-logo {
   .record-veil.record-veil-from-film[data-revealed="true"] .record-actions {
     visibility: visible;
     opacity: 1;
+  }
+}
+
+/* Exercise quote. The estimate reads like a price: one figure, the change
+   over the window, and a line the finger can scrub. Green and red here
+   only mean the window rose or fell, and the change always carries a sign. */
+.exercise-quote {
+  --quote-ink: var(--color-muted);
+  padding-bottom: 1rem;
+}
+
+@media (max-width: 767px) {
+  .exercise-quote {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.exercise-quote[data-tone="up"] {
+  --quote-ink: var(--quote-up);
+}
+
+.exercise-quote[data-tone="down"] {
+  --quote-ink: var(--quote-down);
+}
+
+.trend-mark {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 1cap;
+  color: var(--quote-up);
+  transform: translateY(-1px);
+}
+
+.trend-mark-down {
+  color: var(--quote-down);
+}
+
+.trend-mark-arrow {
+  display: block;
+  width: 11px;
+  height: 11px;
+  overflow: visible;
+}
+
+.trend-mark-arrow path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.today-phone-frame + .exercise-quote {
+  margin-top: 2.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--color-hairline);
+}
+
+@media (max-width: 767px) {
+  .today-phone-frame + .exercise-quote {
+    /* The tab bar is glass, so the quote has to start below the fold. */
+    margin-top: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+    padding-top: 0.25rem;
+    scroll-margin-top: 0.75rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .today-phone-frame + .exercise-quote {
+    margin-top: 3rem;
+  }
+}
+
+.quote-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+  margin-bottom: 1.25rem;
+}
+
+.quote-title h2 {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-title span {
+  flex: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.quote-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.quote-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin-top: 0.125rem;
+  font-size: 2.125rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--color-ink);
+}
+
+.quote-unit {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--color-muted);
+}
+
+.quote-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 1.25rem;
+  margin-top: 0.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.quote-delta {
+  font-weight: 600;
+  color: var(--quote-ink);
+  transition: color var(--motion-snap) var(--ease-out-expo);
+}
+
+.quote-meta {
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.quote-plot {
+  position: relative;
+  height: 13.5rem;
+  margin-top: 1rem;
+  margin-right: -0.25rem;
+  outline: none;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: crosshair;
+}
+
+.quote-plot:focus-visible {
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 2px var(--color-hairline);
+}
+
+.quote-svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.quote-svg path {
+  transition: stroke var(--motion-snap) var(--ease-out-expo);
+}
+
+.quote-tick {
+  fill: var(--color-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.quote-plot-note {
+  position: absolute;
+  inset: 0 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--color-muted);
+}
+
+/* The ranges scroll sideways like the stocks timeline. No pills, no track:
+   the selected window is ink on a quiet wash, the rest are muted words. */
+.quote-ranges {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+
+.quote-ranges::-webkit-scrollbar {
+  display: none;
+}
+
+.quote-range {
+  flex: none;
+  width: auto;
+  min-width: 0;
+  height: 2.25rem;
+  padding: 0 0.4rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color var(--motion-fast) var(--ease-out-expo),
+    background-color var(--motion-fast) var(--ease-out-expo),
+    transform var(--motion-fast) var(--ease-out-expo);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quote-range:hover {
+    color: var(--color-ink);
+  }
+}
+
+.quote-range:active {
+  transform: scale(0.94);
+}
+
+.quote-range[aria-selected="true"] {
+  color: var(--color-ink);
+}
+
+.exercise-quote[data-tone="up"] .quote-range[aria-selected="true"],
+.exercise-quote[data-tone="down"] .quote-range[aria-selected="true"] {
+  color: var(--quote-ink);
+}
+
+.quote-range:focus-visible {
+  outline: 2px solid var(--color-muted);
+  outline-offset: 1px;
+}
+
+.quote-sessions {
+  margin-top: 2rem;
+}
+
+.quote-sessions h2,
+.quote-sessions h3 {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-hairline);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+.quote-session {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.quote-sets {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--color-ink);
+}
+
+.quote-plates {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.quote-when {
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quote-delta,
+  .quote-svg path,
+  .quote-range {
+    transition: none;
+  }
+
+  .quote-range:active {
+    transform: none;
   }
 }

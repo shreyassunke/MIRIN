@@ -209,7 +209,7 @@ export function ItemOverflow({ label, items }: ItemOverflowProps) {
               width: MENU_WIDTH,
               transformOrigin: coords.origin,
             }}
-            className="overflow-menu quiet-menu fixed z-50 rounded-xl"
+            className="overflow-menu quiet-menu menu-ghost fixed z-50 rounded-xl"
           >
             {items.map((item, index) => (
               <div key={item.id}>
@@ -315,14 +315,6 @@ export function IconSuperset(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function IconDone(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
-      <path d="M6.5 12.25 10.2 16l7.3-8" {...stroke} />
-    </svg>
-  );
-}
-
 export function IconRemove(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
@@ -403,15 +395,6 @@ export function IconVideo(props: SVGProps<SVGSVGElement>) {
     <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
       <circle cx="12" cy="12" r="7.25" {...stroke} />
       <path d="M10.25 9.4v5.2L15.1 12 10.25 9.4Z" {...stroke} />
-    </svg>
-  );
-}
-
-export function IconHistory(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" className={iconClass} aria-hidden="true" {...props}>
-      <rect x="6.5" y="5" width="11" height="14" rx="1.5" {...stroke} />
-      <path d="M9.5 9.5h5M9.5 12.5h5M9.5 15.5h3.5" {...stroke} />
     </svg>
   );
 }
