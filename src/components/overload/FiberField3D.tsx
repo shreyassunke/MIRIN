@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { createGltfLoader } from "../../lib/dracoGltf";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
   fascicleState,
@@ -162,7 +162,7 @@ export function FiberField3D({
       scene.add(fill);
       scene.add(new THREE.HemisphereLight(0x8a8a8a, 0x2a2a2c, 0.55));
 
-      const gltf = await new GLTFLoader().loadAsync(volume.url);
+      const gltf = await createGltfLoader().loadAsync(volume.url);
       if (dead) return;
       const shell = gltf.scene;
 
@@ -306,12 +306,22 @@ export function FiberField3D({
       onReadyRef.current?.();
     };
 
-    start().catch(() => {
-      if (!dead) onFailRef.current?.();
-    });
+    let started = false;
+    const begin = () => {
+      if (dead || started) return;
+      if (host.closest("[hidden]") || host.clientWidth < 2) return;
+      started = true;
+      start().catch(() => {
+        if (!dead) onFailRef.current?.();
+      });
+    };
+    const gate = new ResizeObserver(begin);
+    gate.observe(host);
+    begin();
 
     return () => {
       dead = true;
+      gate.disconnect();
       cancelAnimationFrame(raf);
       const ro = (host as HTMLDivElement & { _ro?: ResizeObserver })._ro;
       ro?.disconnect();

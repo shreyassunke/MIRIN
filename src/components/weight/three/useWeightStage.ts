@@ -7,10 +7,12 @@ import {
   configureSize,
   createInstrumentScene,
   detachCanvas,
+  getEnvironment,
   releaseRenderer,
   renderNow,
   requestFrames,
   retainRenderer,
+  suspendRenderer,
   type FrameFn,
 } from "./stage";
 import { applyCrossTravel, crossAxisEngaged } from "./crossStep";
@@ -167,8 +169,18 @@ export function useWeightStage(opts: {
     if (!camera || !pivot || !host) return;
     const w = host.clientWidth;
     const h = host.clientHeight;
+    if (liveRef.current && host.closest("[hidden]")) {
+      suspendRenderer();
+      return;
+    }
     if (w < 2 || h < 2) return;
-    if (liveRef.current) configureSize(w, h);
+    if (liveRef.current) {
+      const canvas = attachCanvas(host);
+      canvasRef.current = canvas;
+      const scene = sceneRef.current;
+      if (scene) scene.environment = getEnvironment();
+      configureSize(w, h);
+    }
     if (camera instanceof THREE.PerspectiveCamera) {
       fitFixedCamera(camera, pivot, w, h, pose);
       aimFixedCamera(camera, parallax.current, pose);

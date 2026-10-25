@@ -91,11 +91,19 @@ export function releaseCanvas(host: HTMLElement) {
 }
 
 function disposeRenderer() {
+  suspendRenderer();
+  frames.clear();
+}
+
+/** Drop the GPU context while a warm tab is hidden. Scenes stay in memory. */
+export function suspendRenderer() {
   cancelAnimationFrame(raf);
   raf = 0;
-  frames.clear();
-  renderer?.dispose();
-  renderer?.domElement.remove();
+  if (renderer) {
+    const canvas = renderer.domElement;
+    renderer.dispose();
+    canvas.remove();
+  }
   renderer = null;
   envRT?.dispose();
   envRT = null;

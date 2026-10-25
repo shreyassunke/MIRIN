@@ -56,6 +56,19 @@ export function Log({ mode = "daily" }: { mode?: "daily" | "body" }) {
   }, [warmBody]);
 
   useLayoutEffect(() => {
+    const daily = dailyRef.current;
+    const body = bodyRef.current;
+    if (daily) {
+      if (mode === "daily") daily.removeAttribute("inert");
+      else daily.setAttribute("inert", "");
+    }
+    if (body) {
+      if (mode === "body") body.removeAttribute("inert");
+      else body.setAttribute("inert", "");
+    }
+  }, [mode, warmBody]);
+
+  useLayoutEffect(() => {
     if (prevModeRef.current === mode) return;
     const from = prevModeRef.current;
     prevModeRef.current = mode;

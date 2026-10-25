@@ -230,7 +230,7 @@ function StrandCanvas({
     const draw = (now: number) => {
       const t = reduced ? 1 : Math.min(1, (now - start) / 420);
       const ease = t >= 1 ? 1 : 1 - 2 ** (-10 * t);
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
       const width = Math.max(1, parent.clientWidth);
       const height = Math.max(1, parent.clientHeight);
       canvas.width = Math.floor(width * dpr);

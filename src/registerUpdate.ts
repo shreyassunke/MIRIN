@@ -1,4 +1,5 @@
 import type { RegisterSWOptions } from "virtual:pwa-register";
+import { isNativeApp } from "./lib/native";
 
 /**
  * iOS home-screen apps do not look for a new worker on their own.
@@ -7,6 +8,7 @@ import type { RegisterSWOptions } from "virtual:pwa-register";
  */
 export function registerAppUpdate() {
   if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+  if (isNativeApp()) return;
 
   const url = new URL(window.location.href);
   if (url.searchParams.has("sw")) {

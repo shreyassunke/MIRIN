@@ -114,25 +114,43 @@ export function PhysiqueCanvas({
       lastZoom: 1,
     };
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance",
-      stencil: false,
-      depth: true,
-    });
-    renderer.setClearColor(0x0a0a0a, 0);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.14;
-    const canvas = renderer.domElement;
-    canvas.style.display = "block";
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    canvas.style.touchAction = "pan-y";
-    canvas.tabIndex = -1;
-    canvas.setAttribute("aria-hidden", "true");
-    host.appendChild(canvas);
+    let renderer: THREE.WebGLRenderer | null = null;
+
+    const visible = () => host.clientWidth >= 2 && host.clientHeight >= 2;
+
+    const releaseRenderer = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      if (!renderer) return;
+      const canvas = renderer.domElement;
+      renderer.dispose();
+      renderer = null;
+      canvas.remove();
+    };
+
+    const ensureRenderer = () => {
+      if (renderer || !visible()) return;
+      const next = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance",
+        stencil: false,
+        depth: true,
+      });
+      next.setClearColor(0x0a0a0a, 0);
+      next.outputColorSpace = THREE.SRGBColorSpace;
+      next.toneMapping = THREE.ACESFilmicToneMapping;
+      next.toneMappingExposure = 1.14;
+      const canvas = next.domElement;
+      canvas.style.display = "block";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.touchAction = "pan-y";
+      canvas.tabIndex = -1;
+      canvas.setAttribute("aria-hidden", "true");
+      host.appendChild(canvas);
+      renderer = next;
+    };
 
     const scene = new THREE.Scene();
     scene.background = null;
@@ -169,7 +187,7 @@ export function PhysiqueCanvas({
     };
 
     const render = () => {
-      if (host.clientWidth < 2 || host.clientHeight < 2) return;
+      if (!renderer || !visible()) return;
       renderer.render(scene, camera);
     };
     renderRef.current = render;
@@ -187,7 +205,7 @@ export function PhysiqueCanvas({
 
     const setTouchAction = (lock: boolean) => {
       const action = lock ? "none" : "pan-y";
-      canvas.style.touchAction = action;
+      if (renderer) renderer.domElement.style.touchAction = action;
       host.style.touchAction = action;
       if (host.parentElement) host.parentElement.style.touchAction = action;
       if (lock === gestureLock) return;
@@ -247,9 +265,14 @@ export function PhysiqueCanvas({
     };
 
     const fit = () => {
+      if (!visible()) {
+        releaseRenderer();
+        return;
+      }
+      ensureRenderer();
+      if (!renderer) return;
       const w = host.clientWidth;
       const h = host.clientHeight;
-      if (w < 2 || h < 2) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       renderer.setPixelRatio(dpr);
       renderer.setSize(w, h, false);
@@ -523,8 +546,6 @@ export function PhysiqueCanvas({
       }
       onSelectRef.current(null);
     };
-    const observer = new ResizeObserver(fit);
-    observer.observe(host);
     window.addEventListener("pointerdown", onOutside);
     host.addEventListener("pointerdown", onPointerDown);
     host.addEventListener("pointermove", onPointerMove);
@@ -532,10 +553,13 @@ export function PhysiqueCanvas({
     host.addEventListener("pointercancel", onPointerUp);
     host.addEventListener("wheel", onWheel, { passive: false });
     host.addEventListener("touchmove", onTouchMove, { passive: false });
-    fit();
 
-    void loadPhysiqueSource(gender)
-      .then((source) => {
+    let loadStarted = false;
+    const startLoad = () => {
+      if (loadStarted || !visible()) return;
+      loadStarted = true;
+      void loadPhysiqueSource(gender)
+        .then((source) => {
         if (cancelled) return;
         const prepared = preparePhysique(source, gender);
         kindRef.current = prepared.kind;
@@ -604,6 +628,19 @@ export function PhysiqueCanvas({
         setStatus("error");
         onError?.();
       });
+    };
+
+    const onResize = () => {
+      if (!visible()) {
+        releaseRenderer();
+        return;
+      }
+      startLoad();
+      fit();
+    };
+    const observer = new ResizeObserver(onResize);
+    observer.observe(host);
+    onResize();
 
     return () => {
       cancelled = true;
@@ -623,8 +660,7 @@ export function PhysiqueCanvas({
       restRef.current = null;
       renderRef.current = () => {};
       for (const mat of ownedMats) mat.dispose();
-      renderer.dispose();
-      canvas.remove();
+      releaseRenderer();
     };
   }, [gender, onError]);
 

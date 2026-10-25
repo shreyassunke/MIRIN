@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { openExternal } from "../lib/native";
 import { Avatar } from "../components/Avatar";
 import { AvatarEditor } from "../components/AvatarEditor";
 import { chipClass } from "../components/chip";
@@ -39,11 +40,14 @@ export function Profile() {
 }
 
 export function ProfileAccount() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const { mode } = useAppearanceChoice();
   const avatar = useSettingValue(AVATAR_KEY);
   const [editorOpen, setEditorOpen] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [glyphsReady, setGlyphsReady] = useState(false);
   const displayName = getDisplayName(user);
   const contact = getContactLine(user);
@@ -149,6 +153,43 @@ export function ProfileAccount() {
             {signOutError}
           </p>
         ) : null}
+        <button
+          type="button"
+          className="mt-2 flex h-12 w-full items-center px-4 text-left text-sm font-medium text-ink"
+          disabled={deleting}
+          onClick={() => {
+            setDeleteError(null);
+            if (!deleteArmed) {
+              setDeleteArmed(true);
+              return;
+            }
+            setDeleting(true);
+            void deleteAccount().then((result) => {
+              setDeleting(false);
+              setDeleteArmed(false);
+              if (result.error) setDeleteError(result.error);
+            });
+          }}
+        >
+          <span>
+            {deleting
+              ? "Deleting…"
+              : deleteArmed
+                ? "Delete account and log"
+                : "Delete account"}
+          </span>
+        </button>
+        <p className="px-4 pb-4 text-[13px] leading-relaxed text-muted">
+          {deleteError ? (
+            <span role="alert" className="text-ink">
+              {deleteError}
+            </span>
+          ) : deleteArmed ? (
+            "This removes the login, workouts, body weight, macros, and profile. It cannot be undone."
+          ) : (
+            "Removes the login and everything synced to it."
+          )}
+        </p>
       </section>
 
       <section className="mt-12">
@@ -156,61 +197,78 @@ export function ProfileAccount() {
         <p className="mt-1.5 max-w-[65ch] text-[13px] leading-relaxed text-muted">
           Form videos play through the embedded YouTube player and stay the
           property of their creators. By watching them here you agree to the{" "}
-          <a
-            href="https://www.youtube.com/t/terms"
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="text-ink transition-colors duration-150 hover:text-muted"
+            onClick={() => void openExternal("https://www.youtube.com/t/terms")}
           >
             YouTube Terms of Service
-          </a>
+          </button>
           .
         </p>
         <p className="mt-3 max-w-[65ch] text-[13px] leading-relaxed text-muted">
           The anatomy drawn in the overload panel is traced from the Body Atlas
           by{" "}
-          <a
-            href="https://www.figma.com/community/file/1320468164820924031"
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="text-ink transition-colors duration-150 hover:text-muted"
+            onClick={() =>
+              void openExternal(
+                "https://www.figma.com/community/file/1320468164820924031",
+              )
+            }
           >
             Ryan Graves
-          </a>
+          </button>
           , used under{" "}
-          <a
-            href="https://creativecommons.org/licenses/by/4.0/"
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="text-ink transition-colors duration-150 hover:text-muted"
+            onClick={() =>
+              void openExternal("https://creativecommons.org/licenses/by/4.0/")
+            }
           >
             CC BY 4.0
-          </a>
+          </button>
           . Fascicle counts and pennation angles come from published cadaveric
           measurements, not from the drawing.
         </p>
         <p className="mt-3 max-w-[65ch] text-[13px] leading-relaxed text-muted">
           The 3D muscle shells are from{" "}
-          <a
-            href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html"
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="text-ink transition-colors duration-150 hover:text-muted"
+            onClick={() =>
+              void openExternal(
+                "https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html",
+              )
+            }
           >
             BodyParts3D
-          </a>
+          </button>
           {" "}
           (Database Center for Life Science,{" "}
-          <a
-            href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html"
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="text-ink transition-colors duration-150 hover:text-muted"
+            onClick={() =>
+              void openExternal(
+                "https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html",
+              )
+            }
           >
             current database license
-          </a>
+          </button>
           ). Fiber paths are a Laplacian origin-to-insertion field on those
           meshes, following Choi and Blemker 2013 and the Alvar reconstruction.
+        </p>
+        <p className="mt-3">
+          <Link
+            to="/privacy"
+            className="text-[13px] font-medium text-ink transition-colors duration-150 hover:text-muted"
+          >
+            Privacy
+          </Link>
         </p>
       </section>
 

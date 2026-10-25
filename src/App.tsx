@@ -96,7 +96,12 @@ function TabKeepAlive({
 
   return (
     <div
-      ref={paneRef}
+      ref={(node) => {
+        paneRef(node);
+        if (!node) return;
+        if (active) node.removeAttribute("inert");
+        else node.setAttribute("inert", "");
+      }}
       hidden={!active}
       aria-hidden={!active ? "true" : undefined}
     >

@@ -1,12 +1,10 @@
 import * as THREE from "three";
-import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { Gender } from "../../lib/body";
+import { createGltfLoader } from "../../lib/dracoGltf";
 import { regionFromAnatomy, type RegionId } from "../../lib/muscleRegions";
 
 const MALE_URL = "/models/male-body.glb";
 const FEMALE_URL = "/models/body-female.glb";
-const DRACO_PATH = "/draco/";
 const FIT = 1.72;
 
 const _box = new THREE.Box3();
@@ -228,19 +226,13 @@ export function loadPhysiqueSource(gender: Gender = "male"): Promise<THREE.Group
   if (cached) return cached;
 
   const promise = (async () => {
-    const draco = new DRACOLoader();
-    draco.setDecoderPath(DRACO_PATH);
-    const loader = new GLTFLoader();
-    loader.setDRACOLoader(draco);
     try {
       const url = gender === "female" ? FEMALE_URL : MALE_URL;
-      const gltf = await loader.loadAsync(url);
+      const gltf = await createGltfLoader().loadAsync(url);
       return gltf.scene;
     } catch (err) {
       sourcePromises.delete(gender);
       throw err;
-    } finally {
-      draco.dispose();
     }
   })();
   sourcePromises.set(gender, promise);

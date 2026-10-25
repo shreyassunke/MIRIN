@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -39,9 +40,14 @@ interface ExerciseComboboxProps {
   label?: string;
   /**
    * Title-sized field. The caret is the only chrome; matches sit as text
-   * under the title instead of in a panel.
+   * under the title instead of in a panel. Opens on the current title so
+   * the name can be corrected in place. Picking a match still swaps.
    */
   inline?: boolean;
+  /** Keeps an edited inline title on the same exercise. */
+  onRename?: (name: string) => void;
+  /** This row's library id, omitted from inline swap matches. */
+  selfId?: string;
   /**
    * Grows out of the header search mark. Results hang from that corner.
    */
@@ -55,6 +61,46 @@ function useDebounced<T>(value: T, ms: number): T {
     return () => clearTimeout(t);
   }, [value, ms]);
   return debounced;
+}
+
+/** A correction of the open title, as opposed to a search for a different lift. */
+function isTitleEdit(original: string, next: string) {
+  const a = original.trim().toLowerCase();
+  const b = next.trim().toLowerCase();
+  if (!a || !b) return false;
+  if (a === b || a.startsWith(b) || b.startsWith(a)) return true;
+  let prefix = 0;
+  const limit = Math.min(a.length, b.length);
+  while (prefix < limit && a[prefix] === b[prefix]) prefix += 1;
+  if (prefix >= 4 && Math.abs(a.length - b.length) <= 12) return true;
+  return editDistance(a, b) <= 3;
+}
+
+function editDistance(a: string, b: string) {
+  if (Math.abs(a.length - b.length) > 8) return 9;
+  const row = new Array<number>(b.length + 1);
+  for (let j = 0; j <= b.length; j++) row[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const saved = row[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + cost);
+      prev = saved;
+    }
+  }
+  return row[b.length];
+}
+
+function titleIntent(
+  original: string,
+  next: string,
+): "idle" | "edit" | "search" {
+  const a = original.trim();
+  const b = next.trim();
+  if (!b || b === a) return "idle";
+  return isTitleEdit(a, b) ? "edit" : "search";
 }
 
 interface CreateFormProps {
@@ -263,29 +309,21 @@ export function ExerciseCombobox({
   label,
   inline = false,
   corner = false,
+  onRename,
+  selfId,
 }: ExerciseComboboxProps) {
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState("");
+  const pickedRef = useRef(false);
+  const closingRef = useRef(false);
+  const listPointerRef = useRef(false);
+  const [query, setQuery] = useState(inline ? (placeholder ?? "") : "");
   const debouncedQuery = useDebounced(query, DEBOUNCE_MS);
   const [highlight, setHighlight] = useState(0);
+  const [navigated, setNavigated] = useState(false);
   const [creating, setCreating] = useState(false);
-
-  const dismiss = useCallback(() => {
-    if (creating) {
-      onCancel?.();
-      return;
-    }
-    if (query) {
-      setQuery("");
-      inputRef.current?.focus();
-      return;
-    }
-    onCancel?.();
-  }, [creating, onCancel, query]);
-
-  useDismissOnPointerOutside(rootRef, dismiss, Boolean(onCancel));
+  const titleSeed = inline ? (placeholder ?? "").trim() : "";
 
   const entries = useLiveQuery(fullLibrary, [], undefined);
   const fuse = useMemo(
@@ -305,16 +343,93 @@ export function ExerciseCombobox({
   const results = useMemo(() => {
     if (!fuse || !entries) return [];
     const q = debouncedQuery.trim();
-    if (!q) return [];
-    return fuse.search(q, { limit: MAX_RESULTS }).map((r) => r.item);
-  }, [fuse, entries, debouncedQuery]);
+    if (!q || (inline && q === (placeholder ?? "").trim())) return [];
+    return fuse
+      .search(q, { limit: MAX_RESULTS })
+      .map((r) => r.item)
+      .filter((entry) => entry.id !== selfId);
+  }, [fuse, entries, debouncedQuery, inline, placeholder, selfId]);
 
   const excluded = useMemo(() => new Set(excludeIds), [excludeIds]);
-  const hasQuery = debouncedQuery.trim().length > 0;
+  const typedQuery = debouncedQuery.trim();
+  const hasQuery = typedQuery.length > 0 && typedQuery !== titleSeed;
   // The create row is part of the option list, always last.
   const optionCount = results.length + (hasQuery ? 1 : 0);
+  const intent = inline ? titleIntent(titleSeed, query) : "idle";
 
-  useEffect(() => setHighlight(0), [debouncedQuery]);
+  const exactReplacement = useCallback(
+    (name: string) => {
+      const needle = name.trim().toLowerCase();
+      if (!needle || !entries) return undefined;
+      return entries.find(
+        (entry) =>
+          entry.id !== selfId &&
+          !excluded.has(entry.id) &&
+          entry.name.trim().toLowerCase() === needle,
+      );
+    },
+    [entries, excluded, selfId],
+  );
+
+  const cancelEdit = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    onCancel?.();
+  }, [onCancel]);
+
+  const finishInline = useCallback(
+    (reason: "commit" | "dismiss") => {
+      if (pickedRef.current || closingRef.current) return;
+      const next = query.trim();
+      const nextIntent = titleIntent(titleSeed, next);
+      if (
+        !next ||
+        next === titleSeed ||
+        (reason === "dismiss" && nextIntent === "search")
+      ) {
+        cancelEdit();
+        return;
+      }
+      const exact = exactReplacement(next);
+      if (exact) {
+        pickedRef.current = true;
+        onPick(exact);
+        return;
+      }
+      closingRef.current = true;
+      if (nextIntent === "edit") onRename?.(next);
+      onCancel?.();
+    },
+    [cancelEdit, exactReplacement, onCancel, onPick, onRename, query, titleSeed],
+  );
+
+  const dismiss = useCallback(() => {
+    if (creating) {
+      cancelEdit();
+      return;
+    }
+    if (inline) {
+      finishInline("dismiss");
+      return;
+    }
+    if (query) {
+      setQuery("");
+      inputRef.current?.focus();
+      return;
+    }
+    onCancel?.();
+  }, [cancelEdit, creating, finishInline, inline, onCancel, query]);
+
+  useDismissOnPointerOutside(rootRef, dismiss, Boolean(onCancel));
+
+  useLayoutEffect(() => {
+    if (!inline || !autoFocus) return;
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    const end = input.value.length;
+    input.setSelectionRange(end, end);
+  }, [autoFocus, inline]);
 
   if (creating) {
     return (
@@ -327,6 +442,8 @@ export function ExerciseCombobox({
             onPick(entry);
           }}
           onBack={() => {
+            pickedRef.current = false;
+            closingRef.current = false;
             setCreating(false);
             inputRef.current?.focus();
           }}
@@ -337,11 +454,13 @@ export function ExerciseCombobox({
 
   const pick = (index: number) => {
     if (index >= results.length) {
+      pickedRef.current = true;
       setCreating(true);
       return;
     }
     const entry = results[index];
     if (excluded.has(entry.id)) return;
+    pickedRef.current = true;
     setQuery("");
     onPick(entry);
     inputRef.current?.focus();
@@ -350,15 +469,56 @@ export function ExerciseCombobox({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setHighlight((h) => Math.min(h + 1, optionCount - 1));
+      if (inline) setNavigated(true);
+      setHighlight((h) => Math.min(h + 1, Math.max(optionCount - 1, 0)));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      if (inline) setNavigated(true);
       setHighlight((h) => Math.max(h - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
+      if (inline) {
+        const nextIntent = titleIntent(titleSeed, query);
+        if (navigated && optionCount > 0) {
+          pick(highlight);
+          return;
+        }
+        if (nextIntent === "search") {
+          const exact = exactReplacement(query);
+          if (exact) {
+            pickedRef.current = true;
+            onPick(exact);
+            return;
+          }
+          if (optionCount > 0) {
+            pick(highlight);
+            return;
+          }
+          const live = fuse
+            ?.search(query.trim(), { limit: MAX_RESULTS })
+            .map((result) => result.item)
+            .find((entry) => entry.id !== selfId && !excluded.has(entry.id));
+          if (live) {
+            pickedRef.current = true;
+            onPick(live);
+            return;
+          }
+          if (query.trim()) {
+            pickedRef.current = true;
+            setCreating(true);
+            return;
+          }
+        }
+        finishInline("commit");
+        return;
+      }
       if (optionCount > 0) pick(highlight);
     } else if (e.key === "Escape") {
       e.preventDefault();
+      if (inline) {
+        cancelEdit();
+        return;
+      }
       dismiss();
     }
   };
@@ -382,17 +542,6 @@ export function ExerciseCombobox({
               : undefined
         }
       >
-        {inline && !query && placeholder ? (
-          <span
-            className="min-w-0 truncate text-lg font-semibold tracking-tight text-ink"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              inputRef.current?.focus();
-            }}
-          >
-            {placeholder}
-          </span>
-        ) : null}
         <input
           ref={inputRef}
           type="text"
@@ -400,24 +549,45 @@ export function ExerciseCombobox({
           aria-expanded={optionCount > 0}
           aria-controls={listboxId}
           aria-activedescendant={
-            optionCount > 0 ? `${listboxId}-${highlight}` : undefined
+            optionCount > 0 && (!inline || navigated || intent === "search")
+              ? `${listboxId}-${highlight}`
+              : undefined
           }
-          aria-label={inline ? "Replace exercise" : "Search exercises"}
+          aria-label={inline ? "Edit exercise" : "Search exercises"}
           autoFocus={autoFocus}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setNavigated(false);
+            setHighlight(0);
+            setQuery(e.target.value);
+          }}
           onKeyDown={onKeyDown}
+          onBlur={() => {
+            if (!inline) return;
+            window.setTimeout(() => {
+              if (closingRef.current || pickedRef.current) return;
+              if (listPointerRef.current) {
+                listPointerRef.current = false;
+                return;
+              }
+              finishInline("dismiss");
+            }, 0);
+          }}
           placeholder={inline ? undefined : placeholder}
           autoComplete="off"
           spellCheck={false}
+          enterKeyHint={inline ? "done" : undefined}
           style={
-            inline && !query
-              ? { width: "1ch", fieldSizing: "fixed" }
+            inline
+              ? {
+                  width: `${Math.max(query.length, 1)}ch`,
+                  fieldSizing: query ? "content" : "fixed",
+                }
               : undefined
           }
           className={
             inline
-              ? "exercise-title h-11 max-w-full shrink-0 text-lg font-semibold tracking-tight text-ink"
+              ? "exercise-title h-11 max-w-full shrink-0 text-center text-lg font-semibold tracking-tight text-ink"
               : corner
                 ? "exercise-search exercise-search-corner"
                 : "exercise-search"
@@ -430,6 +600,9 @@ export function ExerciseCombobox({
           id={listboxId}
           role="listbox"
           aria-label="Exercise results"
+          onPointerDown={() => {
+            listPointerRef.current = true;
+          }}
           className={
             inline
               ? "mt-1 max-h-60 overflow-y-auto"
@@ -445,7 +618,10 @@ export function ExerciseCombobox({
                 key={entry.id}
                 id={`${listboxId}-${index}`}
                 role="option"
-                aria-selected={highlight === index}
+                aria-selected={
+                  (!inline || navigated || intent === "search") &&
+                  highlight === index
+                }
                 data-current={!inline && highlight === index ? "" : undefined}
                 aria-disabled={isAdded}
                 onMouseEnter={() => setHighlight(index)}
@@ -458,9 +634,9 @@ export function ExerciseCombobox({
                     ? "flex cursor-pointer items-baseline justify-center gap-2 px-2 py-1.5"
                     : "quiet-menu-item quiet-result",
                   inline
-                    ? highlight === index
+                    ? (navigated || intent === "search") && highlight === index
                       ? "text-ink"
-                      : "text-muted"
+                      : "text-muted hover:text-ink"
                     : "",
                   isAdded ? "cursor-default opacity-50" : "",
                 ].join(" ")}
@@ -492,18 +668,23 @@ export function ExerciseCombobox({
           <li
             id={`${listboxId}-${results.length}`}
             role="option"
-            aria-selected={highlight === results.length}
+            aria-selected={
+              (!inline || navigated || intent === "search") &&
+              highlight === results.length
+            }
             data-current={!inline && highlight === results.length ? "" : undefined}
             onMouseEnter={() => setHighlight(results.length)}
             onMouseDown={(e) => {
               e.preventDefault();
-              setCreating(true);
+              pick(results.length);
             }}
             className={
               inline
                 ? [
-                    "cursor-pointer px-2 py-1.5 text-center text-[13px]",
-                    highlight === results.length ? "text-ink" : "text-muted",
+                    "cursor-pointer px-2 py-1.5 text-center text-[13px] hover:text-ink",
+                    (navigated || intent === "search") && highlight === results.length
+                      ? "text-ink"
+                      : "text-muted",
                   ].join(" ")
                 : "quiet-menu-item"
             }

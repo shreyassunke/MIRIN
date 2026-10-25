@@ -79,6 +79,25 @@ npm run dev -- --host
 
 On iPhone Safari: `http://<your-computer-ip>:5174/today` (your PC must stay on; use a deployed URL for daily use).
 
+### App Store build
+
+The iPhone binary is the same web app, bundled by Capacitor. Open `ios/App/App.xcodeproj` in Xcode 26 on a Mac after:
+
+```bash
+npm run build
+npx cap sync ios
+```
+
+The target is iPhone-only, deployment target iOS 16, bundle id `app.mirin.ios`. OAuth returns through the `mirin://auth/callback` scheme. Sign in with Apple uses that bundle id. In the Apple Developer account, enable Sign in with Apple on the App ID, then in Supabase enable the Apple provider and add `mirin://auth/callback` to the redirect allow list (along with your web origin).
+
+Account deletion calls the `delete-account` edge function, which removes the auth user. `sync_documents` rows cascade. Deploy it once:
+
+```bash
+supabase functions deploy delete-account
+```
+
+Listing copy, privacy answers, and review notes are in `docs/app-store.md`. The public privacy URL is `https://<your-host>/privacy.html`.
+
 ## Screens
 
 - `/today` — auto-detects the next day in the 5-day rotation (Push / Pull / Legs / Arms / Chest & Back), prefills last session's weight×reps, steppers + one-tap logging, auto-starting rest timer.
