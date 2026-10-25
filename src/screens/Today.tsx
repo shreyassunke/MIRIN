@@ -998,6 +998,7 @@ export function Today() {
             />
           ) : (
             <>
+              <UnitToggle />
               {activeExercise ? (
                 <ItemOverflow
                   key={activeExercise.id}
@@ -1094,7 +1095,6 @@ export function Today() {
                   ]}
                 />
               ) : null}
-              <UnitToggle />
             </>
           )}
         </div>
