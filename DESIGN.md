@@ -137,7 +137,8 @@ A locked grayscale palette; hierarchy is carried entirely by lightness, never by
 - **Title** (600, 1.125rem, 1.3, -0.01em): Exercise names, section headings.
 - **Data** (600, 1.25rem, 1.2, tabular-nums): Weights and reps — the current set's values, history rows. The largest recurring text on /today.
 - **Body** (400, 0.9375rem, 1.6): Helper copy, empty states. Max 65ch.
-- **Label** (500, 0.8125rem, 1.4): Field labels, units ("kg", "reps"), axis labels, dates. Muted ink by default. Never uppercase-tracked eyebrow style.
+- **Label** (500, 0.8125rem, 1.4): Field labels, units ("kg", "reps"), axis labels, chart dates. Muted ink by default. Never uppercase-tracked eyebrow style.
+- **Today date** (400, 1.25rem, 1.15, -0.022em): Month and day under the day name, the same cap size as that name, in a flat secondary gray (ink mixed 62% into the ground). Not the label style.
 
 ### Named Rules
 **The Ledger Rule.** Every numeral that can be compared to another numeral is set in tabular figures. Misaligned digit columns are a bug.

@@ -594,14 +594,17 @@ a.auth-switch {
   z-index: 5;
 }
 
-/* Stocks subtitle: month and day, regular, flat, tucked under the day name. */
+/* Stocks subtitle. Same cap size as the day name, regular against that
+   semibold, flat secondary gray, and a short gap under the glyphs.
+   The 44px switcher stays the hit target; this line uses its lower padding. */
 .today-date {
-  margin-top: -0.85rem;
-  color: var(--color-muted);
-  font-size: 0.9375rem;
+  margin-top: -0.75rem;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-bg));
+  font-size: 1.25rem;
   font-weight: 400;
   line-height: 1.15;
-  letter-spacing: -0.012em;
+  letter-spacing: -0.022em;
+  font-optical-sizing: auto;
 }
 
 /* Instrument hosts. Wide layout keeps the resting size of each object.
