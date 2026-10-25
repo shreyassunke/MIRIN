@@ -93,38 +93,40 @@ describe("spectrumPlace", () => {
   const anchor = spectrumAnchor(backoff)!;
 
   it("is sand on the repeated set and sage on the prescription", () => {
-    expect(spectrumPlace(140, 8, anchor)).toBeCloseTo(0, 1);
-    expect(spectrumPlace(135, 9, anchor)).toBeCloseTo(1, 1);
+    expect(spectrumPlace("weight", 140, 8, anchor)).toBeCloseTo(0, 1);
+    expect(spectrumPlace("reps", 8, 140, anchor)).toBeCloseTo(0, 1);
+    expect(spectrumPlace("weight", 135, 9, anchor)).toBeCloseTo(1, 1);
+    expect(spectrumPlace("reps", 9, 135, anchor)).toBeCloseTo(1, 1);
   });
 
-  it("keeps a nearby set between the two, including one rep either side", () => {
-    expect(spectrumPlace(140, 9, anchor)).toBeGreaterThan(0.2);
-    expect(spectrumPlace(140, 9, anchor)).toBeLessThan(0.85);
-    expect(spectrumPlace(135, 8, anchor)).toBeGreaterThan(0.2);
-    expect(spectrumPlace(135, 8, anchor)).toBeLessThan(0.85);
-    const mid = spectrumPlace(137.5, 8.5, anchor);
+  it("scores only the axis under the finger, and keeps the other as context", () => {
+    expect(spectrumPlace("weight", 140, 9, anchor)).toBeCloseTo(0, 1);
+    expect(spectrumPlace("reps", 9, 140, anchor)).toBeCloseTo(1, 1);
+    expect(spectrumPlace("weight", 135, 8, anchor)).toBeCloseTo(1, 1);
+    expect(spectrumPlace("reps", 8, 135, anchor)).toBeCloseTo(0, 1);
+    const mid = spectrumPlace("weight", 137.5, 8.5, anchor);
     expect(mid).toBeGreaterThan(0.25);
     expect(mid).toBeLessThan(0.75);
   });
 
   it("reads a much lighter load as too little tension, not as past the prescription", () => {
-    expect(spectrumPlace(100, 8, anchor)).toBeLessThan(-0.8);
+    expect(spectrumPlace("weight", 100, 8, anchor)).toBeLessThan(-0.8);
   });
 
   it("reads a much heavier load as danger on the heavy side", () => {
-    expect(spectrumPlace(160, 8, anchor)).toBeGreaterThan(1.8);
+    expect(spectrumPlace("weight", 160, 8, anchor)).toBeGreaterThan(1.8);
   });
 
   it("moves smoothly along the loads between the two danger ends", () => {
-    let previous = spectrumPlace(100, 8, anchor);
+    let previous = spectrumPlace("weight", 100, 8, anchor);
     for (let weight = 101; weight <= 170; weight += 1) {
-      const place = spectrumPlace(weight, 8, anchor);
-      expect(Math.abs(place - previous)).toBeLessThan(0.22);
+      const place = spectrumPlace("weight", weight, 8, anchor);
+      expect(Math.abs(place - previous)).toBeLessThan(0.25);
       previous = place;
     }
   });
 
-  it("lets one extra rep on a matched set lean green, and a large miss go red", () => {
+  it("lets one extra rep on a matched set lean past green, and a large miss go red", () => {
     const matched = spectrumAnchor({
       today: [log({ weight: 100, reps: 8 })],
       prior: [log({ weight: 100, reps: 8 })],
@@ -132,11 +134,11 @@ describe("spectrumPlace", () => {
       unit: "lb",
       fallbackReps: 8,
     })!;
-    expect(spectrumPlace(100, 8, matched)).toBeCloseTo(0, 1);
-    expect(spectrumPlace(100, 9, matched)).toBeGreaterThan(0.35);
-    expect(spectrumPlace(100, 9, matched)).toBeLessThan(1.15);
-    expect(spectrumPlace(80, 8, matched)).toBeLessThan(-0.6);
-    expect(spectrumPlace(120, 8, matched)).toBeGreaterThan(1.6);
+    expect(spectrumPlace("weight", 100, 8, matched)).toBeCloseTo(1, 1);
+    expect(spectrumPlace("reps", 9, 100, matched)).toBeGreaterThan(1.05);
+    expect(spectrumPlace("reps", 9, 100, matched)).toBeLessThan(1.5);
+    expect(spectrumPlace("weight", 80, 8, matched)).toBeLessThan(-0.6);
+    expect(spectrumPlace("weight", 120, 8, matched)).toBeGreaterThan(1.6);
   });
 
   it("treats unloaded repeats by reps, and an emptied loaded lift as too light", () => {
@@ -149,10 +151,10 @@ describe("spectrumPlace", () => {
     })!;
     expect(body.maintenance).toEqual({ weight: 0, reps: 6 });
     expect(body.growth.weight).toBe(0);
-    expect(spectrumPlace(0, body.maintenance.reps, body)).toBeCloseTo(0, 1);
-    expect(spectrumPlace(0, body.growth.reps, body)).toBeCloseTo(1, 1);
-    expect(spectrumPlace(0, 2, body)).toBeLessThan(-0.6);
-    expect(spectrumPlace(0, 4, anchor)).toBeLessThan(-1);
+    expect(spectrumPlace("reps", body.maintenance.reps, 0, body)).toBeCloseTo(0, 1);
+    expect(spectrumPlace("reps", body.growth.reps, 0, body)).toBeCloseTo(1, 1);
+    expect(spectrumPlace("reps", 2, 0, body)).toBeLessThan(-0.6);
+    expect(spectrumPlace("weight", 0, 4, anchor)).toBeLessThan(-1);
   });
 });
 
@@ -161,43 +163,50 @@ describe("spectrumTone", () => {
   const paper = { r: 243, g: 242, b: 239 };
   const ground = { r: 10, g: 10, b: 10 };
 
-  it("blends from sand through sage without a jump, and saves the hard red for the ends", () => {
-    const at = (weight: number, reps: number) => parseRgb(spectrumTone(weight, reps, anchor).color);
-    const sand = at(140, 8);
-    const sage = at(135, 9);
-    const lightDanger = at(100, 8);
-    const heavyDanger = at(160, 8);
-    expect(sage.g - sage.r).toBeGreaterThan(sand.g - sand.r + 20);
+  it("paints a solid green on the prescription and a gradient beside it", () => {
+    const at = (axis: "weight" | "reps", value: number, other: number) =>
+      spectrumTone(axis, value, other, anchor);
+    const sand = parseRgb(at("weight", 140, 8).color);
+    const sage = at("weight", 135, 9);
+    const sageRgb = parseRgb(sage.color);
+    const lightDanger = parseRgb(at("weight", 100, 8).color);
+    const heavyDanger = parseRgb(at("weight", 160, 8).color);
+    expect(sage.solid).toBe(true);
+    expect(at("weight", 140, 8).solid).toBe(true);
+    expect(at("weight", 135, 8).solid).toBe(false);
+    expect(at("weight", 137.5, 8.5).solid).toBe(false);
+    expect(sageRgb.g - sageRgb.r).toBeGreaterThan(sand.g - sand.r + 40);
+    expect(sageRgb.g).toBeGreaterThan(sageRgb.r + 60);
     expect(lightDanger.r).toBeGreaterThan(lightDanger.g + 40);
     expect(heavyDanger.r).toBeGreaterThan(heavyDanger.g + 40);
     expect(sand.r).toBeGreaterThan(sand.b + 25);
-    expect(Math.abs(sand.g - sand.r)).toBeLessThan(40);
-    expect(lightDanger.g).toBeGreaterThan(50);
-    expect(heavyDanger.g).toBeGreaterThan(50);
+    expect(at("weight", 100, 8).solid).toBe(true);
+    expect(at("weight", 160, 8).solid).toBe(true);
 
-    let previous = at(100, 8);
+    let previous = parseRgb(at("weight", 100, 8).color);
     for (let weight = 101; weight <= 170; weight += 1) {
-      const color = at(weight, 8);
-      expect(Math.abs(color.r - previous.r)).toBeLessThanOrEqual(24);
-      expect(Math.abs(color.g - previous.g)).toBeLessThanOrEqual(24);
-      expect(Math.abs(color.b - previous.b)).toBeLessThanOrEqual(24);
+      const color = parseRgb(at("weight", weight, 8).color);
+      expect(Math.abs(color.r - previous.r)).toBeLessThanOrEqual(40);
+      expect(Math.abs(color.g - previous.g)).toBeLessThanOrEqual(40);
+      expect(Math.abs(color.b - previous.b)).toBeLessThanOrEqual(40);
       previous = color;
     }
   });
 
-  it("keeps large numerals readable on both grounds, including the soft top of the wash", () => {
-    for (const [weight, reps] of [
-      [140, 8],
-      [135, 9],
-      [137.5, 8.5],
-      [100, 8],
-      [160, 8],
+  it("keeps large numerals readable on both grounds, including the gradient crown", () => {
+    for (const [axis, value, other] of [
+      ["weight", 140, 8],
+      ["weight", 135, 9],
+      ["weight", 137.5, 8.5],
+      ["weight", 100, 8],
+      ["weight", 160, 8],
+      ["reps", 9, 140],
     ] as const) {
       for (const light of [false, true]) {
-        const tone = spectrumTone(weight, reps, anchor, light);
+        const tone = spectrumTone(axis, value, other, anchor, light);
         const groundColor = light ? paper : ground;
         expect(contrast(parseRgb(tone.color), groundColor)).toBeGreaterThan(3);
-        expect(contrast(parseRgb(tone.soft), groundColor)).toBeGreaterThan(3);
+        expect(contrast(parseRgb(tone.crown), groundColor)).toBeGreaterThan(3);
       }
     }
   });

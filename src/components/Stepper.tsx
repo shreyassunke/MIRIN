@@ -9,7 +9,6 @@ import {
 import { spectrumTone } from "../lib/spectrum";
 import { formatWeight } from "../lib/workout";
 import { FigureSpectrumContext } from "./FigureSpectrum";
-import { tintedMetalUrl } from "./weight/three/metalType";
 import { LogPillContext } from "./LogActionSwipe";
 import { FIGURE_REEL_STEP_PX, REEL_STEP_PX, reelSnap, settleReel } from "./reel";
 
@@ -148,9 +147,9 @@ export function Stepper({
     () => () => {
       clearHold();
       stopSnap();
-      tonedRef.current?.classList.remove("is-toned");
-      tonedRef.current?.style.removeProperty("--figure-ink");
-      tonedRef.current?.style.removeProperty("--figure-metal-live");
+      tonedRef.current?.classList.remove("is-toned", "is-solid");
+      tonedRef.current?.style.removeProperty("--axis-ink");
+      tonedRef.current?.style.removeProperty("--axis-crown");
     },
     [],
   );
@@ -205,17 +204,12 @@ export function Stepper({
     host?.closest(".log-figure")?.classList.toggle("is-reeling", on);
   };
 
-  const figureOf = (host: HTMLElement | null) => {
-    const figure = host?.closest(".log-figure");
-    return figure instanceof HTMLElement ? figure : null;
-  };
-
   const clearTone = (host: HTMLElement | null) => {
-    const figure = figureOf(host) ?? tonedRef.current;
-    if (!figure?.classList.contains("is-toned")) return;
-    figure.classList.remove("is-toned");
-    figure.style.removeProperty("--figure-ink");
-    figure.style.removeProperty("--figure-metal-live");
+    const axis = host ?? tonedRef.current;
+    if (!axis?.classList.contains("is-toned")) return;
+    axis.classList.remove("is-toned", "is-solid");
+    axis.style.removeProperty("--axis-ink");
+    axis.style.removeProperty("--axis-crown");
     tonedRef.current = null;
   };
 
@@ -230,23 +224,27 @@ export function Stepper({
   };
 
   const paintTone = (host: HTMLElement | null) => {
-    const figure = figureOf(host);
     const reading = spectrumRef.current;
-    if (!figure || !spectrumAxis || !reading) {
+    if (!host || !spectrumAxis || !reading) {
       clearTone(host);
       return;
     }
     const tone = spectrumTone(
-      spectrumAxis === "weight" ? visualValue() : reading.weight,
-      spectrumAxis === "reps" ? visualValue() : reading.reps,
+      spectrumAxis,
+      visualValue(),
+      spectrumAxis === "weight" ? reading.reps : reading.weight,
       reading.anchor,
       document.documentElement.dataset.mode === "light",
     );
-    figure.style.setProperty("--figure-ink", tone.color);
-    const url = tintedMetalUrl(tone.color);
-    if (url) figure.style.setProperty("--figure-metal-live", `url("${url}")`);
-    figure.classList.add("is-toned");
-    tonedRef.current = figure;
+    if (host.style.getPropertyValue("--axis-ink") !== tone.color) {
+      host.style.setProperty("--axis-ink", tone.color);
+    }
+    if (host.style.getPropertyValue("--axis-crown") !== tone.crown) {
+      host.style.setProperty("--axis-crown", tone.crown);
+    }
+    host.classList.toggle("is-solid", tone.solid);
+    if (!host.classList.contains("is-toned")) host.classList.add("is-toned");
+    tonedRef.current = host;
   };
 
   const finishReel = (host: HTMLElement, offset: number) => {
@@ -513,6 +511,7 @@ export function Stepper({
         onPointerCancel={drag ? onDragEnd : undefined}
         className={[
           "inline-flex min-h-11 items-center justify-center whitespace-nowrap",
+          hero ? "log-figure-axis" : "",
           drag ? "cursor-ns-resize touch-none" : "",
         ].join(" ")}
       >

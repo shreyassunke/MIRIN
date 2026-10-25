@@ -2,25 +2,20 @@ import type { SetLog } from "../db/db";
 import { workingSets } from "./exerciseMeta";
 import { recommendNextSet } from "./overload";
 import { toDisplay, type InputMethod, type Unit } from "./units";
-import { epley } from "./workout";
 
 /**
- * The reel's tint is this lifter's own double progression for this exercise.
- * Green is the prescription `recommendNextSet` already opens the stage on.
- * Sand is the working set they would be repeating: today's last working set,
- * or the heaviest prior working weight with the best reps there. Red is only
- * the load that has left both of those behind — lighter than the lighter one
- * (not enough tension) or heavier than the heavier one.
+ * The reel tints only the number under the finger. Weight is scored against
+ * this lifter's two weights; reps against the two rep counts. The other
+ * number stays steel, and it only changes the score when it has already left
+ * the band — a reckless load cannot turn the reps green.
  *
- * One rep and a small plate share a scale. Epley says a rep is `weight / 30`,
- * so the pair is a point and the two anchors are a segment. Place 0 sits on
- * maintenance and place 1 on the prescription. Off that segment, a ratio past
- * about 6% of the heavier anchor, or under about 92% of the lighter one,
- * leaves the quiet band. Reps in reserve are the same inverted Epley the
- * fibre read uses, taken against the harder of the two anchors: past roughly
- * six in reserve the set is no longer near enough to count as the work.
+ * Place 0 is the repeated working set. Place 1 is the prescription. An exact
+ * match of both numbers is a solid pigment. Anywhere short of that, including
+ * the stretch between the anchors, is a gradient: the estimate, not the setup.
  * Warm-ups and a lift with no working history stay ink.
  */
+
+export type SpectrumAxis = "weight" | "reps";
 
 export interface SpectrumSet {
   /** Display units. */
@@ -34,11 +29,14 @@ export interface SpectrumAnchor {
 }
 
 export interface SpectrumPaint {
-  /** The hue at the foot of the glyph. */
+  /** Foot of the glyph, and the whole glyph when the setup is exact. */
   color: string;
-  /** The same hue lifted back toward the ink, for the top of the glyph. */
+  /** Crown of a ballpark gradient. Equals `color` when the pigment is solid. */
+  crown: string;
+  /** Same as `crown`. Kept so a contrast check can read the lighter end. */
   soft: string;
-  /** A low wash under the numerals. Stronger only at the danger end. */
+  /** True on an exact anchor and at a fully committed danger end. */
+  solid: boolean;
   glow: string;
 }
 
@@ -51,41 +49,24 @@ interface RGB {
 const DARK_INK: RGB = { r: 250, g: 250, b: 250 };
 const LIGHT_INK: RGB = { r: 22, g: 22, b: 22 };
 
-/** Pigments. Dark mixes these into the ink so the numeral stays a light. */
+/** Pigments, used as themselves. Sage is a green, not a mint washed into the ink. */
 const PIGMENT = {
-  sage: { r: 142, g: 196, b: 158 },
-  sand: { r: 214, g: 196, b: 142 },
-  rose: { r: 196, g: 128, b: 120 },
-  danger: { r: 196, g: 54, b: 48 },
+  sage: { r: 64, g: 176, b: 84 },
+  sand: { r: 214, g: 170, b: 64 },
+  rose: { r: 206, g: 104, b: 88 },
+  danger: { r: 214, g: 52, b: 46 },
 };
 
-/**
- * Light-mode inks. Dark enough to read on the paper ground. The danger end
- * is the only one allowed to carry a strong chroma.
- */
+/** Light-mode inks. Dark enough to read on the paper ground. */
 const LIGHT_HUE = {
-  sage: { r: 32, g: 108, b: 64 },
-  sand: { r: 120, g: 92, b: 36 },
-  rose: { r: 142, g: 70, b: 62 },
-  danger: { r: 158, g: 36, b: 32 },
+  sage: { r: 14, g: 118, b: 42 },
+  sand: { r: 132, g: 96, b: 16 },
+  rose: { r: 148, g: 54, b: 44 },
+  danger: { r: 158, g: 28, b: 24 },
 };
 
 function clamp(value: number, low: number, high: number) {
   return Math.min(high, Math.max(low, value));
-}
-
-function smoothstep(edge0: number, edge1: number, value: number) {
-  const span = edge1 - edge0;
-  if (span === 0) return value >= edge1 ? 1 : 0;
-  const t = clamp((value - edge0) / span, 0, 1);
-  return t * t * (3 - 2 * t);
-}
-
-/** Linear, so a couple of pounds cannot fall off a curve. */
-function ramp(start: number, full: number, value: number) {
-  const span = full - start;
-  if (span === 0) return value >= start ? 1 : 0;
-  return clamp((value - start) / span, 0, 1);
 }
 
 function mix(a: RGB, b: RGB, t: number): RGB {
@@ -142,108 +123,109 @@ export function spectrumAnchor(args: {
   };
 }
 
-function sameSet(a: SpectrumSet, b: SpectrumSet) {
-  return Math.abs(a.weight - b.weight) < 0.05 && a.reps === b.reps;
+function near(axis: SpectrumAxis, a: number, b: number) {
+  return Math.abs(a - b) <= (axis === "weight" ? 0.5 : 0.25);
 }
 
-function nearWeight(a: number, b: number) {
-  return Math.abs(a - b) <= 0.5;
+function read(set: SpectrumSet, axis: SpectrumAxis) {
+  return axis === "weight" ? set.weight : set.reps;
 }
 
-function nearReps(a: number, b: number) {
-  return Math.abs(a - b) <= 0.25;
-}
-
-/** Reps are the whole stimulus when neither anchor carries a load. */
-function repOnlyPlace(reps: number, maintenance: number, growth: number) {
-  if (Math.abs(growth - maintenance) < 0.05) {
-    if (reps >= maintenance) return clamp((reps - maintenance) / 3, 0, 1);
-    return -1.35 * smoothstep(maintenance, Math.max(1, maintenance - 6), reps);
+/** 0 inside the band. 1 once the value has clearly left it. */
+function departure(axis: SpectrumAxis, value: number, lo: number, hi: number) {
+  const slack = axis === "weight" ? 0.5 : 0.25;
+  const lightReach = axis === "weight" ? Math.max(lo * 0.2, 12) : 4;
+  const heavyReach = axis === "weight" ? Math.max(hi * 0.12, 10) : 4;
+  if (value < lo - slack) {
+    return { side: "light" as const, t: clamp((lo - value) / lightReach, 0, 1) };
   }
-  const along = (reps - maintenance) / (growth - maintenance);
-  const floor = Math.min(maintenance, growth);
-  if (reps < floor) {
-    return -1.35 * smoothstep(floor, Math.max(1, floor * 0.55), reps);
+  if (value > hi + slack) {
+    return { side: "heavy" as const, t: clamp((value - hi) / heavyReach, 0, 1) };
   }
-  return clamp(along, 0, 1);
+  return { side: "in" as const, t: 0 };
+}
+
+/** 0 at maintenance, 1 at the prescription, before either danger end. */
+function along(value: number, maintenance: number, growth: number) {
+  const span = growth - maintenance;
+  if (Math.abs(span) < 0.05) return 1;
+  return (value - maintenance) / span;
+}
+
+function pull(place: number, side: "light" | "heavy" | "in", t: number) {
+  if (side === "light") return place + (-1.35 - place) * t;
+  if (side === "heavy") return place + (2.35 - place) * t;
+  return place;
 }
 
 /**
- * 0 is maintenance, 1 is the prescription. Negative is too light. Past 1,
- * and climbing, is too heavy. The two danger ends meet the same red.
+ * 0 is maintenance on this axis, 1 is the prescription. Negative is too
+ * light. Past 1, and climbing, is too heavy. Monotonic in `value`.
  */
 export function spectrumPlace(
-  weight: number,
-  reps: number,
+  axis: SpectrumAxis,
+  value: number,
+  other: number,
   anchor: SpectrumAnchor,
 ): number {
-  const maintenance = anchor.maintenance;
-  const growth = anchor.growth;
-  const load = Math.max(0, weight);
-  const count = Math.max(0, reps);
+  const mine = axis;
+  const heldAxis: SpectrumAxis = axis === "weight" ? "reps" : "weight";
+  const maintenance = read(anchor.maintenance, mine);
+  const growth = read(anchor.growth, mine);
+  const lo = Math.min(maintenance, growth);
+  const hi = Math.max(maintenance, growth);
+  const current = Math.max(0, value);
 
-  if (maintenance.weight <= 0 && growth.weight <= 0 && load <= 0) {
-    return repOnlyPlace(count, maintenance.reps, growth.reps);
-  }
-  if (load <= 0 && Math.min(maintenance.weight, growth.weight) > 0) return -1.35;
-
-  const floorW = Math.min(maintenance.weight, growth.weight);
-  const ceilW = Math.max(maintenance.weight, growth.weight);
-  const ref = Math.max(ceilW, 1);
-  const cap = Math.max(
-    epley(maintenance.weight, maintenance.reps),
-    epley(growth.weight, growth.reps),
-    1,
-  );
-  const proposed = epley(load, count);
-
-  let along: number;
-  if (sameSet(maintenance, growth)) {
-    const ratio = proposed / Math.max(epley(maintenance.weight, maintenance.reps), 1);
-    if (ratio >= 1 && ratio <= 1.055) along = (ratio - 1) / 0.055;
-    else along = ratio > 1.055 ? 1 : 0;
+  const heldMaintenance = read(anchor.maintenance, heldAxis);
+  const heldGrowth = read(anchor.growth, heldAxis);
+  let place: number;
+  if (Math.abs(growth - maintenance) < 0.05) {
+    const reach = mine === "weight" ? Math.max(hi * 0.12, 10) : 5;
+    const delta = current - maintenance;
+    if (near(mine, current, maintenance)) {
+      if (Math.abs(heldGrowth - heldMaintenance) < 0.05 || near(heldAxis, other, heldGrowth)) {
+        place = 1;
+      } else if (near(heldAxis, other, heldMaintenance)) place = 0;
+      else place = clamp(along(other, heldMaintenance, heldGrowth), 0, 1);
+    } else if (delta > 0) place = 1 + (2.35 - 1) * clamp(delta / reach, 0, 1);
+    else place = 1 + (-1.35 - 1) * clamp(-delta / reach, 0, 1);
   } else {
-    const px = (load - maintenance.weight) / ref;
-    const py = (count - maintenance.reps) / 30;
-    const vx = (growth.weight - maintenance.weight) / ref;
-    const vy = (growth.reps - maintenance.reps) / 30;
-    const len2 = vx * vx + vy * vy;
-    along = len2 < 1e-8 ? 0 : (px * vx + py * vy) / len2;
+    const left = departure(mine, current, lo, hi);
+    if (left.side === "in") place = clamp(along(current, maintenance, growth), 0, 1);
+    else if (left.side === "light") {
+      const edge = clamp(along(lo, maintenance, growth), 0, 1);
+      place = edge + (-1.35 - edge) * left.t;
+    } else {
+      const edge = clamp(along(hi, maintenance, growth), 0, 1);
+      place = edge + (2.35 - edge) * left.t;
+    }
   }
 
-  // A very light absolute anchor makes an e1RM ratio shout. The segment and
-  // the weight ratio carry that case instead.
-  const ratiosSpeak = cap >= 20;
-  let light = 0;
-  let heavy = 0;
-  if (floorW > 0.5) light = Math.max(light, ramp(0.94, 0.74, load / floorW));
-  if (ceilW > 0.5) heavy = Math.max(heavy, ramp(1.04, 1.14, load / ceilW));
-  if (ratiosSpeak) {
-    light = Math.max(light, ramp(0.96, 0.76, proposed / cap));
-    heavy = Math.max(heavy, ramp(1.05, 1.14, proposed / cap));
-    const rir = 30 * (cap / Math.max(load, 1) - 1) - count;
-    light = Math.max(light, ramp(6, 13, rir));
-  }
+  const held = departure(
+    heldAxis,
+    Math.max(0, other),
+    Math.min(heldMaintenance, heldGrowth),
+    Math.max(heldMaintenance, heldGrowth),
+  );
+  return pull(place, held.side, held.t);
+}
 
-  const onAnchor =
-    (nearWeight(load, growth.weight) && nearReps(count, growth.reps)) ||
-    (nearWeight(load, maintenance.weight) && nearReps(count, maintenance.reps));
-  // Float and a fraction of a pound should not knock an anchor off its hue.
-  if (onAnchor) {
-    if (light < 0.2) light = 0;
-    if (heavy < 0.2) heavy = 0;
-  }
-
-  const segment = clamp(along, 0, 1);
-  if (light >= heavy) return segment + (-1.35 - segment) * light;
-  return segment + (2.35 - segment) * heavy;
+function exactSetup(axis: SpectrumAxis, value: number, other: number, anchor: SpectrumAnchor) {
+  const weight = axis === "weight" ? value : other;
+  const reps = axis === "reps" ? value : other;
+  const growth =
+    near("weight", weight, anchor.growth.weight) && near("reps", reps, anchor.growth.reps);
+  const maintenance =
+    near("weight", weight, anchor.maintenance.weight) &&
+    near("reps", reps, anchor.maintenance.reps);
+  return growth || maintenance;
 }
 
 function hueAt(place: number, light: boolean): RGB {
-  const sage = light ? LIGHT_HUE.sage : mix(DARK_INK, PIGMENT.sage, 0.62);
-  const sand = light ? LIGHT_HUE.sand : mix(DARK_INK, PIGMENT.sand, 0.58);
-  const rose = light ? LIGHT_HUE.rose : mix(DARK_INK, PIGMENT.rose, 0.7);
-  const danger = light ? LIGHT_HUE.danger : mix(DARK_INK, PIGMENT.danger, 0.94);
+  const sage = light ? LIGHT_HUE.sage : PIGMENT.sage;
+  const sand = light ? LIGHT_HUE.sand : PIGMENT.sand;
+  const rose = light ? LIGHT_HUE.rose : PIGMENT.rose;
+  const danger = light ? LIGHT_HUE.danger : PIGMENT.danger;
   const knots: { at: number; color: RGB }[] = [
     { at: -1.35, color: danger },
     { at: -0.55, color: rose },
@@ -263,26 +245,27 @@ function hueAt(place: number, light: boolean): RGB {
   return last.color;
 }
 
-/** How far the pair has left the quiet band between maintenance and growth. */
-function extremity(place: number) {
-  return clamp(Math.max(-place, place - 1) / 1.15, 0, 1);
-}
-
 export function spectrumTone(
-  weight: number,
-  reps: number,
+  axis: SpectrumAxis,
+  value: number,
+  other: number,
   anchor: SpectrumAnchor,
   light = false,
 ): SpectrumPaint {
-  const place = spectrumPlace(weight, reps, anchor);
+  const place = spectrumPlace(axis, value, other, anchor);
   const color = hueAt(place, light);
+  const solid = exactSetup(axis, value, other, anchor) || place <= -1.15 || place >= 2.1;
   const ink = light ? LIGHT_INK : DARK_INK;
-  const far = extremity(place);
-  const soft = mix(color, ink, light ? 0.22 : 0.5 - far * 0.34);
-  const glowAlpha = 0.18 + far * 0.27;
+  const toward = place >= 1 ? place - 0.45 : place <= 0 ? place + 0.45 : place < 0.5 ? place - 0.4 : place + 0.4;
+  const crown = solid
+    ? color
+    : mix(mix(color, hueAt(clamp(toward, -1.35, 2.35), light), 0.42), ink, light ? 0.06 : 0.18);
+  const glowAlpha = solid ? 0 : 0.16;
   return {
     color: rgbCss(color),
-    soft: rgbCss(soft),
+    crown: rgbCss(crown),
+    soft: rgbCss(crown),
+    solid,
     glow: `rgb(${Math.round(color.r)} ${Math.round(color.g)} ${Math.round(color.b)} / ${glowAlpha.toFixed(2)})`,
   };
 }
