@@ -59,14 +59,14 @@ html {
      Control floats over content. Panel is the thicker sheet.
      A lens is a lighter fill inside its parent — never a second blur. */
   --glass-control-fill:
-    linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.02) 46%, transparent),
-    rgb(28 28 30 / 0.62);
+    linear-gradient(180deg, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.04) 42%, transparent),
+    rgb(28 28 30 / 0.28);
   --glass-control-fill-hover:
-    linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.05) 46%, transparent),
-    rgb(44 44 46 / 0.72);
-  --glass-control-blur: blur(24px) saturate(1.6);
-  --glass-specular: rgb(255 255 255 / 0.28);
-  --glass-rim: rgb(255 255 255 / 0.14);
+    linear-gradient(180deg, rgb(255 255 255 / 0.26), rgb(255 255 255 / 0.06) 42%, transparent),
+    rgb(44 44 46 / 0.36);
+  --glass-control-blur: blur(32px) saturate(1.8);
+  --glass-specular: rgb(255 255 255 / 0.46);
+  --glass-rim: rgb(255 255 255 / 0.2);
   --glass-control-shadow:
     inset 0 0.5px 0 var(--glass-specular),
     inset 0 0 0 0.5px var(--glass-rim),
@@ -77,12 +77,12 @@ html {
     inset 0 0.5px 0 rgb(255 255 255 / 0.34),
     0 1px 2px rgb(0 0 0 / 0.2);
   --glass-panel-fill:
-    linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.02) 40%, transparent),
-    rgb(28 28 30 / 0.86);
+    linear-gradient(180deg, rgb(255 255 255 / 0.16), transparent 40%),
+    rgb(18 18 20 / 0.46);
   --glass-panel-fill-hover:
-    linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.04) 40%, transparent),
-    rgb(36 36 38 / 0.9);
-  --glass-panel-blur: blur(40px) saturate(1.8);
+    linear-gradient(180deg, rgb(255 255 255 / 0.2), transparent 40%),
+    rgb(28 28 30 / 0.54);
+  --glass-panel-blur: blur(48px) saturate(1.9);
   --glass-panel-shadow:
     inset 0 0.5px 0 var(--glass-specular),
     inset 0 0 0 0.5px var(--glass-rim),
@@ -694,8 +694,16 @@ html[data-mode="light"] .today-date {
   height: 18px;
 }
 
+.header-pill button {
+  transition:
+    transform 140ms var(--ease-out-expo),
+    background-color 140ms var(--ease-out-expo);
+}
+
 .header-pill button:active {
-  background: color-mix(in srgb, var(--color-ink) 12%, transparent);
+  background: var(--glass-lens);
+  transform: scale(0.96);
+  transition-duration: 100ms;
 }
 
 .header-pill button:focus-visible {
@@ -973,9 +981,12 @@ textarea {
 
 .glass-btn:active {
   background: var(--glass-lens);
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.28);
-  transform: scale(0.94);
+  box-shadow:
+    inset 0 0.5px 0 rgb(255 255 255 / 0.55),
+    inset 0 0 0 0.5px var(--glass-rim);
+  transform: scale(0.96);
   filter: none;
+  transition-duration: 100ms;
 }
 
 .glass-btn:disabled {
@@ -1018,9 +1029,13 @@ textarea {
 .glass-dialog .glass-btn:active,
 .quiet-menu .glass-btn:active {
   background: var(--glass-lens);
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.28);
+  box-shadow:
+    inset 0 0.5px 0 rgb(255 255 255 / 0.55),
+    inset 0 0 0 0.5px var(--glass-rim);
+  transform: scale(0.96);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  transition-duration: 100ms;
 }
 
 /* Segment chips. The track is the glass; the active chip is only a lens. */
@@ -1115,7 +1130,12 @@ textarea {
   box-shadow: var(--glass-lens-shadow);
   pointer-events: none;
   transform: translate3d(calc(var(--nav-index, 0) * 100%), 0, 0);
-  transition: transform 320ms var(--ease-out-expo);
+  transition: transform 180ms var(--ease-out-expo);
+}
+
+.nav-pill-track:has(.nav-pill-item:active) .nav-pill-lens {
+  transform: translate3d(calc(var(--nav-index, 0) * 100%), 0, 0) scale(0.94);
+  transition-duration: 100ms;
 }
 
 .nav-pill-lens[data-hidden] {
@@ -1648,11 +1668,11 @@ textarea {
 }
 
 .menu-clear .quiet-menu-item[aria-selected="true"] {
-  background: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  background: var(--glass-lens);
 }
 
 .menu-clear .quiet-menu-item:active {
-  background: color-mix(in srgb, var(--color-ink) 16%, transparent);
+  background: var(--glass-lens);
 }
 
 @keyframes mirin-menu-material {
@@ -1694,7 +1714,14 @@ textarea {
   -webkit-tap-highlight-color: transparent;
   transition:
     background-color var(--motion-fast) var(--ease-out-expo),
-    color var(--motion-fast) var(--ease-out-expo);
+    color var(--motion-fast) var(--ease-out-expo),
+    transform 140ms var(--ease-out-expo);
+}
+
+.quiet-menu-item:active {
+  background: var(--glass-lens);
+  transform: scale(0.97);
+  transition-duration: 100ms;
 }
 
 .quiet-menu-item svg {
@@ -3086,6 +3113,8 @@ html.reorder-active [data-reorder-index] {
   .auth-stage.is-leaving,
   .auth-passage-mark,
   .unit-switch:active,
+  .header-pill button:active,
+  .quiet-menu-item:active,
   .unit-mark:active,
   /* Log pill v1 — .log-pill:active .log-pill-face, .log-pill:active .log-pill-sheen */
   .log-figure-drop:active,
@@ -3107,6 +3136,10 @@ html.reorder-active [data-reorder-index] {
   .nav-pill-item:active .nav-pill-label,
   .account-signout:active span {
     transform: none;
+  }
+
+  .nav-pill-track:has(.nav-pill-item:active) .nav-pill-lens {
+    transform: translate3d(calc(var(--nav-index, 0) * 100%), 0, 0);
   }
 
   .avatar-crop:active {
@@ -3194,11 +3227,11 @@ html[data-mode="light"] .auth-glass-primary {
 html[data-mode="light"] {
   color-scheme: light;
   --glass-control-fill:
-    linear-gradient(180deg, rgb(255 255 255 / 0.72), rgb(255 255 255 / 0.4)),
-    rgb(255 255 255 / 0.55);
+    linear-gradient(180deg, rgb(255 255 255 / 0.62), rgb(255 255 255 / 0.18)),
+    rgb(255 255 255 / 0.34);
   --glass-control-fill-hover:
-    linear-gradient(180deg, rgb(255 255 255 / 0.88), rgb(255 255 255 / 0.62)),
-    rgb(255 255 255 / 0.72);
+    linear-gradient(180deg, rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.28)),
+    rgb(255 255 255 / 0.46);
   --glass-specular: rgb(255 255 255 / 0.95);
   --glass-rim: rgb(22 22 22 / 0.1);
   --glass-control-shadow:
@@ -3212,11 +3245,11 @@ html[data-mode="light"] {
     inset 0 0.5px 0 #fff,
     0 1px 2px rgb(0 0 0 / 0.06);
   --glass-panel-fill:
-    linear-gradient(180deg, rgb(255 255 255 / 0.86), rgb(255 252 248 / 0.72)),
-    rgb(255 252 248 / 0.9);
+    linear-gradient(180deg, rgb(255 255 255 / 0.55), rgb(255 252 248 / 0.2)),
+    rgb(255 252 248 / 0.58);
   --glass-panel-fill-hover:
-    linear-gradient(180deg, rgb(255 255 255 / 0.94), rgb(255 252 248 / 0.82)),
-    rgb(255 252 248 / 0.94);
+    linear-gradient(180deg, rgb(255 255 255 / 0.7), rgb(255 252 248 / 0.28)),
+    rgb(255 252 248 / 0.68);
   --glass-panel-shadow:
     inset 0 0.5px 0 #fff,
     inset 0 0 0 0.5px rgb(22 22 22 / 0.08),
