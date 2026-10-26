@@ -4421,6 +4421,18 @@ html[data-mode="light"] .record-logo {
   touch-action: pan-y;
 }
 
+/*
+  The weight and reps own a vertical drag. pan-y above would scroll the
+  page instead, including on the input that actually receives the touch.
+  A sideways swipe still reaches the drop pager as pointer events.
+*/
+.today-page .log-figure-slot,
+.today-page .log-figure-slot *,
+.load-swipe-field .log-figure-slot,
+.load-swipe-field .log-figure-slot * {
+  touch-action: none;
+}
+
 .today-page .quote-ranges,
 .today-page .quote-ranges *,
 .today-page .ledger,

@@ -124,7 +124,23 @@ export function Stepper({
   const reelStepRef = useRef(REEL_STEP_PX);
   const tonedRef = useRef<HTMLElement | null>(null);
   const holdRef = useRef<number | null>(null);
+  const dragRootRef = useRef<HTMLDivElement>(null);
   valueRef.current = value;
+
+  useEffect(() => {
+    const root = dragRootRef.current;
+    if (!drag || !root) return;
+    // pointerdown preventDefault does not stop a touch scroll. The listener
+    // has to be non-passive and already mounted before the gesture starts.
+    const onTouchMove = (event: TouchEvent) => {
+      if (!dragRef.current) return;
+      if (event.cancelable) event.preventDefault();
+    };
+    root.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
+    return () => {
+      root.removeEventListener("touchmove", onTouchMove, { capture: true });
+    };
+  }, [drag]);
 
   const clearHold = () => {
     if (holdRef.current == null) return;
@@ -365,7 +381,7 @@ export function Stepper({
     paintTone(event.currentTarget);
   };
 
-  const onDragEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const onDragEnd = (event: ReactPointerEvent<HTMLDivElement>, cancelled = false) => {
     const start = dragRef.current;
     if (!start || start.pointerId !== event.pointerId) return;
     dragRef.current = null;
@@ -373,6 +389,15 @@ export function Stepper({
     const host = event.currentTarget;
     if (host.hasPointerCapture(event.pointerId)) {
       host.releasePointerCapture(event.pointerId);
+    }
+    // A scroll steal arrives as pointercancel. That is not a tap, so it must not log.
+    if (cancelled) {
+      if (start.captured || start.carried) finishReel(host, reelOffsetRef.current);
+      else {
+        clearTone(host);
+        markReel(host, false);
+      }
+      return;
     }
     if (start.captured || start.discarded || start.carried) {
       if (pill) pill.skipClick.current = true;
@@ -503,12 +528,13 @@ export function Stepper({
     );
     return (
       <div
+        ref={dragRootRef}
         data-no-pager=""
         onPointerDown={drag ? onDragDown : undefined}
         onMouseDown={drag ? (event) => event.preventDefault() : undefined}
         onPointerMove={drag ? onDragMove : undefined}
         onPointerUp={drag ? onDragEnd : undefined}
-        onPointerCancel={drag ? onDragEnd : undefined}
+        onPointerCancel={drag ? (event) => onDragEnd(event, true) : undefined}
         className={[
           "inline-flex min-h-11 items-center justify-center whitespace-nowrap",
           hero ? "log-figure-axis" : "",
