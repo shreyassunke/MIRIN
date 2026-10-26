@@ -4436,7 +4436,6 @@ html[data-mode="light"] .record-logo {
   overflow: hidden;
   margin-top: 2.5rem;
   padding-top: 1.75rem;
-  border-top: 1px solid var(--color-hairline);
 }
 
 .today-quote-track {

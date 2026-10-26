@@ -242,8 +242,6 @@ export function ExerciseQuote({
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
-    // A drag on the line changes the exercise. Hover still reads a session.
-    if (event.currentTarget.closest("[data-page-swipe]")) return;
     if (points.length < 2) return;
     drag.current = {
       id: event.pointerId,
