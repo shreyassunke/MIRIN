@@ -19,6 +19,7 @@ import {
 } from "../../lib/units";
 import { formatWeight } from "../../lib/workout";
 import { Stepper } from "../Stepper";
+import { ModelHit, type VariationHit } from "./ModelHit";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
 import { PlateRack } from "./PlateRack";
 
@@ -34,8 +35,12 @@ interface BarbellPickerProps {
   onChange: (barWeight: number, plates: number[]) => void;
 }
 
-function BarStageFallback() {
-  return <div className="weight-stage weight-stage-bar" style={{ pointerEvents: "none" }} aria-hidden="true" />;
+function BarStageFallback({ hit }: { hit?: VariationHit }) {
+  const stage = (
+    <div className="weight-stage weight-stage-bar" style={{ pointerEvents: "none" }} aria-hidden="true" />
+  );
+  if (!hit) return stage;
+  return <ModelHit hit={hit}>{stage}</ModelHit>;
 }
 
 function LoadedBar({
@@ -43,13 +48,15 @@ function LoadedBar({
   unit,
   plates,
   onRemove,
+  hit,
 }: {
   unit: Unit;
   plates: number[];
   live?: boolean;
   onRemove?: (index: number) => void;
+  hit?: VariationHit;
 }) {
-  const fallback = <BarStageFallback />;
+  const fallback = <BarStageFallback hit={hit} />;
   if (!hasWebGL()) return fallback;
   return (
     <ChunkErrorBoundary fallback={fallback}>
@@ -59,6 +66,7 @@ function LoadedBar({
           plates={plates}
           live={live}
           onRemove={onRemove}
+          hit={hit}
         />
       </Suspense>
     </ChunkErrorBoundary>
@@ -384,8 +392,11 @@ export function BarbellPicker({
   plates,
   onChange,
   live = true,
+  hit,
 }: BarbellPickerProps & {
   live?: boolean;
+  /** Tap on the bar, off a plate, opens the variation list. */
+  hit?: VariationHit;
 }) {
   return (
     <div className="flex justify-center">
@@ -393,6 +404,7 @@ export function BarbellPicker({
         unit={unit}
         plates={plates}
         live={live}
+        hit={hit ? { ...hit, live: hit.live ?? live } : undefined}
         onRemove={(index) =>
           onChange(
             barWeight,

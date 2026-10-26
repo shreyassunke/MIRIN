@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import type { GymMachineId } from "../../lib/library";
 import type { Unit } from "../../lib/units";
+import { ModelHit, type VariationHit } from "./ModelHit";
 import { GYM_MACHINE_STAGE } from "./gymMachine";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
 
@@ -17,12 +18,14 @@ interface GymMachinePickerProps {
   /** Sideways drift inside the vertical weight drag. True when the step landed. */
   onRepStep?: (direction: -1 | 1) => boolean;
   live?: boolean;
-  onEdit?: () => void;
+  /** Tap on the station opens the variation list. */
+  hit?: VariationHit;
 }
 
 export function GymMachinePicker({
   machine,
   live = true,
+  hit,
 }: GymMachinePickerProps) {
   const fallback = (
     <div
@@ -32,12 +35,15 @@ export function GymMachinePicker({
       style={{ pointerEvents: "none" }}
     />
   );
-  if (!hasWebGL()) return fallback;
-  return (
+  const stage = !hasWebGL() ? (
+    fallback
+  ) : (
     <ChunkErrorBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
         <GymMachine3D machine={machine} live={live} />
       </Suspense>
     </ChunkErrorBoundary>
   );
+  if (!hit) return stage;
+  return <ModelHit hit={{ ...hit, live: hit.live ?? live }}>{stage}</ModelHit>;
 }

@@ -4,6 +4,7 @@ import {
   type CableAttachmentId,
 } from "../../lib/cableAttachment";
 import type { Unit } from "../../lib/units";
+import { ModelHit, type VariationHit } from "./ModelHit";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
 
 const STAGE = "weight-stage weight-stage-cable";
@@ -24,13 +25,15 @@ interface CableAttachmentPickerProps {
   onRepStep?: (direction: -1 | 1) => boolean;
   onAttachment: (id: CableAttachmentId) => void;
   live?: boolean;
-  onEdit?: () => void;
+  /** Tap on the clip opens the variation list. The clip names stay separate. */
+  hit?: VariationHit;
 }
 
 export function CableAttachmentPicker({
   attachment,
   onAttachment,
   live = true,
+  hit,
 }: CableAttachmentPickerProps) {
   const fallback = (
     <div className={STAGE} data-cable-attachment={attachment} aria-hidden="true" style={{ pointerEvents: "none" }} />
@@ -45,9 +48,15 @@ export function CableAttachmentPicker({
     fallback
   );
 
+  const framed = hit ? (
+    <ModelHit hit={{ ...hit, live: hit.live ?? live }}>{stage}</ModelHit>
+  ) : (
+    stage
+  );
+
   return (
     <div className="flex flex-col">
-      {stage}
+      {framed}
       <div
         role="radiogroup"
         aria-label="Cable attachment"

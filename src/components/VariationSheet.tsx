@@ -11,8 +11,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { VariationChoice } from "../lib/variations";
+import type { VariationHit } from "./weight/ModelHit";
 
 interface VariationSheetProps {
+  id?: string;
   anchorRef: RefObject<HTMLElement | null>;
   label: string;
   options: VariationChoice[];
@@ -23,6 +25,7 @@ interface VariationSheetProps {
 }
 
 const VIEW_PAD = 8;
+const MENU_MAX = 448;
 
 function Check() {
   return (
@@ -43,6 +46,7 @@ function Check() {
  * it; picking a row applies that implement and closes.
  */
 export function VariationSheet({
+  id,
   anchorRef,
   label,
   options,
@@ -58,10 +62,22 @@ export function VariationSheet({
   const place = useCallback(() => {
     const anchor = anchorRef.current;
     if (!anchor) return;
-    const rect = anchor.getBoundingClientRect();
-    const width = Math.max(220, rect.width);
+    const trigger =
+      anchor.querySelector<HTMLElement>(
+        ".load-pager-page:not([inert]) [data-variation-trigger]",
+      ) ??
+      anchor.querySelector<HTMLElement>("[data-variation-trigger]") ??
+      anchor;
+    const rect = trigger.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const width = Math.min(
+      MENU_MAX,
+      Math.max(260, rect.width),
+      window.innerWidth - VIEW_PAD * 2,
+    );
+    const rawLeft = rect.left + (rect.width - width) / 2;
     const left = Math.min(
-      Math.max(VIEW_PAD, rect.left),
+      Math.max(VIEW_PAD, rawLeft),
       window.innerWidth - width - VIEW_PAD,
     );
     const top = Math.max(VIEW_PAD, rect.top);
@@ -110,8 +126,11 @@ export function VariationSheet({
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
       if (sheetRef.current?.contains(target)) return;
+      // The model toggles on pointer-up. Closing here would reopen it.
+      if (target instanceof Element && target.closest("[data-variation-trigger]")) return;
       onClose();
     };
     document.addEventListener("pointerdown", onPointerDown, true);
@@ -149,6 +168,7 @@ export function VariationSheet({
   return createPortal(
     <div
       ref={sheetRef}
+      id={id}
       role="listbox"
       aria-label={label}
       data-no-pager=""
@@ -159,8 +179,9 @@ export function VariationSheet({
         left: box.left,
         width: box.width,
         maxHeight: box.maxHeight,
+        transformOrigin: "center top",
       }}
-      className="overflow-menu fixed z-50 flex flex-col overflow-y-auto rounded-xl p-1.5 shadow-glass glass"
+      className="variation-menu overflow-menu fixed z-50 flex flex-col overflow-y-auto rounded-xl p-1.5 shadow-glass glass"
     >
       {options.map((option, index) => {
         const selected = option.id === currentId;
@@ -178,9 +199,8 @@ export function VariationSheet({
               else onPick(option);
             }}
             className={[
-              "flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-[15px] font-medium text-ink",
-              "transition-colors duration-150 motion-reduce:transition-none",
-              selected ? "bg-wash" : "hover:bg-wash",
+              "variation-option flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-[15px] font-medium text-ink",
+              selected ? "bg-wash-strong" : "hover:bg-wash",
             ].join(" ")}
           >
             <span className="min-w-0 flex-1">{option.label}</span>
@@ -204,16 +224,24 @@ export function VariationSheet({
 /** The tap target when an exercise has no instrument to tap. */
 export function VariationWell({
   label,
-  onEdit,
+  hit,
 }: {
   label: string;
-  onEdit: () => void;
+  hit: VariationHit;
 }) {
+  const live = hit.live ?? true;
   return (
     <button
       type="button"
-      onClick={onEdit}
-      className="glass-btn mx-auto flex h-12 w-full max-w-xs items-center justify-center rounded-md px-3 text-[15px] font-medium text-ink"
+      data-variation-trigger=""
+      aria-label={hit.label}
+      aria-haspopup="listbox"
+      aria-expanded={hit.expanded}
+      aria-controls={hit.expanded ? hit.controls : undefined}
+      onClick={() => {
+        if (live) hit.onToggle();
+      }}
+      className="glass-btn variation-well mx-auto flex h-12 w-full max-w-xs items-center justify-center rounded-md px-3 text-[15px] font-medium text-ink"
     >
       {label}
     </button>

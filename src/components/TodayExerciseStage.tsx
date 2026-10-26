@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Exercise, SetLog } from "../db/db";
 import type { CableAttachmentId } from "../lib/cableAttachment";
 import {
@@ -180,8 +180,16 @@ export function TodayExerciseStage({
     trayRef.current?.scrollIntoView({ block: "nearest" });
   }, [open, equipment]);
 
-  const openList = () => {
-    if (live) setOpen(true);
+  const toggleList = () => {
+    if (live) setOpen((value) => !value);
+  };
+  const listId = useId();
+  const variationHit = {
+    label: `Change ${exercise.name}`,
+    expanded: open,
+    controls: listId,
+    live,
+    onToggle: toggleList,
   };
 
   const spectrum = useMemo(() => {
@@ -237,6 +245,7 @@ export function TodayExerciseStage({
                   barWeight={draft.barWeight}
                   plates={draft.plates}
                   live={live && mode === "barbell"}
+                  hit={variationHit}
                   onChange={onBar}
                 />
               ),
@@ -278,6 +287,7 @@ export function TodayExerciseStage({
                   value={draft.dumbbell}
                   laterality={draft.laterality}
                   live={live && mode === "dumbbell"}
+                  hit={variationHit}
                 />
               ),
             };
@@ -306,6 +316,7 @@ export function TodayExerciseStage({
                 unit={unit}
                 value={draft.manualWeight}
                 live={live}
+                hit={variationHit}
                 onChange={onManual}
                 onAttachment={onAttachment}
               />
@@ -315,16 +326,18 @@ export function TodayExerciseStage({
                 unit={unit}
                 value={draft.manualWeight}
                 live={live}
+                hit={variationHit}
                 onChange={onManual}
               />
             ) : (
-              <VariationWell label={wellLabel} onEdit={openList} />
+              <VariationWell label={wellLabel} hit={variationHit} />
             ),
           };
         })}
       />
       {open && (
         <VariationSheet
+          id={listId}
           anchorRef={anchorRef}
           label={`Change ${exercise.name}`}
           options={options}

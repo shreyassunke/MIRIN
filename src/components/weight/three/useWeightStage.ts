@@ -520,8 +520,10 @@ export function useWeightStage(opts: {
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
     if (Math.hypot(dx, dy) > TAP_PX) return;
+    // A sideways page gesture locks below the tap threshold. That is not a tap.
+    if (!host || host.closest(".is-paging") || !tapRef.current) return;
     const camera = cameraRef.current;
-    if (!host || !camera || !tapRef.current) return;
+    if (!camera) return;
     const rect = host.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,

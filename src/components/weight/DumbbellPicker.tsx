@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import type { Unit } from "../../lib/units";
 import type { Laterality } from "../../lib/laterality";
+import { ModelHit, type VariationHit } from "./ModelHit";
 import { ChunkErrorBoundary, hasWebGL } from "./three/fallback";
 
 const loadDumbbell3D = () =>
@@ -13,6 +14,8 @@ interface DumbbellPickerProps {
   value: number;
   laterality: Laterality;
   live?: boolean;
+  /** Tap on the bells opens the variation list. */
+  hit?: VariationHit;
 }
 
 function BellStageFallback() {
@@ -24,15 +27,19 @@ export function DumbbellPicker({
   value,
   laterality,
   live = true,
+  hit,
 }: DumbbellPickerProps) {
   const pair = laterality === "bilateral";
   const fallback = <BellStageFallback />;
-  if (!hasWebGL()) return fallback;
-  return (
+  const stage = !hasWebGL() ? (
+    fallback
+  ) : (
     <ChunkErrorBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
         <Dumbbell3D unit={unit} value={value} pair={pair} live={live} />
       </Suspense>
     </ChunkErrorBoundary>
   );
+  if (!hit) return stage;
+  return <ModelHit hit={{ ...hit, live: hit.live ?? live }}>{stage}</ModelHit>;
 }

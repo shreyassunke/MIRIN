@@ -737,6 +737,44 @@ html[data-mode="light"] .today-date {
   max-width: 24rem;
 }
 
+/* The instrument is the control that opens the variation list. */
+.variation-model {
+  width: 100%;
+  cursor: pointer;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.variation-model[data-pressed],
+.weight-stage[data-pressed] {
+  transform: scale(0.985);
+  transition: transform 100ms var(--ease-out-expo);
+}
+
+.variation-model:focus-visible,
+.weight-stage:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 4px;
+}
+
+.variation-option {
+  transition:
+    background-color 140ms var(--ease-out-expo),
+    transform 100ms var(--ease-out-expo);
+}
+
+/* The list sits on the instrument. A denser fill keeps the rows readable
+   over chrome and colored plates; the blur underneath stays. */
+.variation-menu.glass {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.07), transparent 42%),
+    color-mix(in srgb, var(--color-bg) 94%, transparent);
+}
+
+.variation-option:active {
+  transform: scale(0.98);
+}
+
 @media (min-width: 48rem) {
   .weight-stage-cable {
     height: 12rem;
@@ -3115,6 +3153,9 @@ html.reorder-active [data-reorder-index] {
   .unit-switch:active,
   .header-pill button:active,
   .quiet-menu-item:active,
+  .variation-option:active,
+  .variation-model[data-pressed],
+  .weight-stage[data-pressed],
   .unit-mark:active,
   /* Log pill v1 — .log-pill:active .log-pill-face, .log-pill:active .log-pill-sheen */
   .log-figure-drop:active,
