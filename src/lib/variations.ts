@@ -117,6 +117,124 @@ export function currentVariationId(
   );
 }
 
+const SHORT_VARIATION =
+  /^(machine|cable|one-arm cable|dumbbell|dumbbell, one side|barbell|bodyweight)$/i;
+
+const IMPLEMENT_SOURCE =
+  "\\b(barbells?|dumbbells?|dbs?|cables?|machines?|bodyweight|kettlebells?|kbs?)\\b";
+
+function implementPattern() {
+  return new RegExp(IMPLEMENT_SOURCE, "gi");
+}
+
+/** What a lifter calls the station, when that station is the thing on stage. */
+const STATION_TITLE: Record<string, string> = {
+  "chest-press": "Chest Press",
+  "pec-deck": "Pec Deck",
+  "seated-dip": "Dip",
+  "lat-pulldown": "Lat Pulldown",
+  "seated-row": "Seated Row",
+  "t-bar-row": "T-Bar Row",
+  "shoulder-press": "Shoulder Press",
+  "lateral-raise": "Lateral Raise",
+  preacher: "Preacher Curl",
+  "leg-extension": "Leg Extension",
+  "leg-curl": "Leg Curl",
+  "leg-press": "Leg Press",
+  "calf-raise": "Calf Raise",
+  "inner-thigh": "Inner Thigh",
+  "outer-thigh": "Outer Thigh",
+};
+
+function implementWord(choice: VariationChoice): string | null {
+  switch (choice.equipment) {
+    case "barbell":
+      return "Barbell";
+    case "dumbbell":
+      return "Dumbbell";
+    case "cable":
+      return "Cable";
+    case "machine":
+      return "Machine";
+    case "kettlebell":
+      return "Kettlebell";
+    default:
+      return null;
+  }
+}
+
+function cased(token: string, word: string): string {
+  return token[0] === token[0].toUpperCase() ? word : word.toLowerCase();
+}
+
+function rewriteImplement(name: string, word: string | null): string {
+  if (!new RegExp(IMPLEMENT_SOURCE, "i").test(name)) {
+    return word ? `${word} ${name}` : name;
+  }
+  if (!word) {
+    return name
+      .replace(implementPattern(), "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+  return name.replace(implementPattern(), (token) => cased(token, word));
+}
+
+function withOneArm(title: string, laterality: Laterality): string {
+  if (laterality !== "unilateral") return title;
+  if (/one[- ]arm|single[- ]arm|one side/i.test(title)) return title;
+  return `One-arm ${title}`;
+}
+
+function titledStation(name: string, station: string | null | undefined): string | null {
+  if (!station) return null;
+  const base = STATION_TITLE[station];
+  if (!base) return null;
+  const angle = /\bincline\b/i.test(name)
+    ? "Incline"
+    : /\bdecline\b/i.test(name)
+      ? "Decline"
+      : "";
+  if (!angle || new RegExp(`\\b${angle}\\b`, "i").test(base)) return base;
+  if (!/press/i.test(base)) return base;
+  return `${angle} ${base}`;
+}
+
+/**
+ * The name above the instrument. The programmed lift keeps its stored name.
+ * A substitute names the thing on stage: the station, a spoken variant such
+ * as Pull-up, or the same lift with the implement swapped.
+ */
+export function variationTitle(
+  exercise: LibraryExercise,
+  draft: {
+    variationId: string | null;
+    mode: InputMethod;
+    laterality: Laterality;
+    station?: string | null;
+  },
+): string {
+  const choice = choiceForDraft(exercise, draft);
+  const native = nativeVariation(exercise);
+  if (choice.equipment === "machine") {
+    const station = titledStation(exercise.name, draft.station);
+    if (station && station.toLowerCase() !== exercise.name.toLowerCase()) {
+      return withOneArm(station, choice.laterality);
+    }
+  }
+  if (
+    choice.equipment === native.equipment &&
+    choice.laterality === native.laterality
+  ) {
+    return exercise.name;
+  }
+  if (!SHORT_VARIATION.test(choice.label)) return choice.label;
+  return withOneArm(
+    rewriteImplement(exercise.name, implementWord(choice)),
+    choice.laterality,
+  );
+}
+
 /** The implement the stage is on right now, programmed or substitute. */
 export function choiceForDraft(
   exercise: LibraryExercise,

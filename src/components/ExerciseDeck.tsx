@@ -17,6 +17,8 @@ interface ExerciseDeckProps {
   frameKey: string;
   /** Pointer root for the swipe. Defaults to the stage. The logging screen passes the whole page. */
   gestureRootRef?: RefObject<HTMLElement | null>;
+  /** Same progress as the stage, so a reading below the fold can ride along. */
+  onProgress?: (progress: number, dragging: boolean) => void;
   children: ReactNode;
 }
 
@@ -45,6 +47,7 @@ export function ExerciseDeck({
   label,
   frameKey,
   gestureRootRef,
+  onProgress,
   children,
 }: ExerciseDeckProps) {
   const pages = Children.toArray(children);
@@ -60,6 +63,8 @@ export function ExerciseDeck({
   const targetRef = useRef(index);
   const draggingRef = useRef(false);
   const fixedBox = useRef(phoneBox());
+  const onProgressRef = useRef(onProgress);
+  onProgressRef.current = onProgress;
 
   const paint = useCallback(
     (progress: number, dragging: boolean, target = targetRef.current) => {
@@ -79,6 +84,7 @@ export function ExerciseDeck({
       const inMotion =
         dragging || Math.abs(progress - Math.round(progress)) > 0.001;
       rootRef.current?.classList.toggle("is-paging", inMotion);
+      onProgressRef.current?.(progress, dragging);
 
       if (!viewport) return;
       if (fixedBox.current) {

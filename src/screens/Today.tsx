@@ -82,7 +82,6 @@ import {
   IconRemove,
   IconRest,
   IconSuperset,
-  IconSwap,
   IconVideo,
   IconWarmup,
   ItemOverflow,
@@ -358,7 +357,6 @@ export function Today() {
   const [timerVisible, setTimerVisible] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
-  const [variationTick, setVariationTick] = useState<Record<string, number>>({});
   const [timerExerciseId, setTimerExerciseId] = useState<string | null>(null);
   const [editingNote, setEditingNote] = useState<{
     id: string;
@@ -373,6 +371,22 @@ export function Today() {
   const { strikeMany } = useGoalCeremony();
   const loggingRef = useRef(false);
   const pageSwipeRef = useRef<HTMLDivElement>(null);
+  const quoteTrackRef = useRef<HTMLDivElement>(null);
+  const paintQuote = useCallback((progress: number, dragging: boolean) => {
+    const track = quoteTrackRef.current;
+    const viewport = track?.parentElement;
+    if (!track || !viewport) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const width = viewport.clientWidth;
+    const x = !width || reduced ? -Math.round(progress) * width : -progress * width;
+    track.style.transform = width
+      ? `translate3d(${x}px, 0, 0)`
+      : `translate3d(${-progress * 100}%, 0, 0)`;
+    viewport.classList.toggle(
+      "is-paging",
+      dragging || Math.abs(progress - Math.round(progress)) > 0.001,
+    );
+  }, []);
   /** Completing fills sets from last session, so it takes a second tap. */
   const [finishArmed, setFinishArmed] = useState(false);
   /** Per-exercise stage. Neighbors keep their own numbers so a swipe never borrows the previous page. */
@@ -974,7 +988,8 @@ export function Today() {
       }}
       onDismiss={() => setTimerVisible(false)}
     >
-    <div className="today-phone-frame" ref={pageSwipeRef}>
+    <div className="today-page" ref={pageSwipeRef} data-page-swipe="">
+    <div className="today-phone-frame">
       <div className="today-phone-scroll">
       <header className="today-header mb-2 flex flex-nowrap items-start justify-between gap-3 md:mb-4">
         <div className="shrink-0 pr-2">
@@ -1013,16 +1028,6 @@ export function Today() {
                       label: "Add exercise",
                       icon: <IconAddSet />,
                       onSelect: () => setAddingExercise(true),
-                    },
-                    {
-                      id: "variation",
-                      label: "Change exercise",
-                      icon: <IconSwap />,
-                      onSelect: () =>
-                        setVariationTick((prev) => ({
-                          ...prev,
-                          [activeExercise.id]: (prev[activeExercise.id] ?? 0) + 1,
-                        })),
                     },
                     {
                       id: "note",
@@ -1109,6 +1114,7 @@ export function Today() {
           index={activeIndex}
           frameKey={data.exerciseIds.join("\0")}
           gestureRootRef={pageSwipeRef}
+          onProgress={paintQuote}
           onIndexChange={(next) => {
             const id = data.exercises[next]?.id;
             if (!id) return;
@@ -1191,7 +1197,6 @@ export function Today() {
                     suppressHeader={Boolean(
                       phone && setDock && exercise.id !== activeId,
                     )}
-                    variationRequest={variationTick[exercise.id] ?? 0}
                     prior={data.prefills[exercise.id] ?? []}
                     todayLogs={logsByExercise.get(exercise.id) ?? []}
                     dayTemplateId={data.dayTemplateId}
@@ -1281,14 +1286,29 @@ export function Today() {
         </div>
       ) : null}
     </div>
-    {activeExercise ? (
-      <ExerciseQuote
-        exerciseId={activeExercise.id}
-        name={activeDisplayName || activeExercise.name}
-        muscle={activeExercise.muscleGroup}
-        titled
-      />
+    {data.exercises.length > 0 ? (
+      <div className="today-quote-viewport">
+        <div className="today-quote-track" ref={quoteTrackRef}>
+          {data.exercises.map((exercise) => {
+            const draft = viewDrafts[exercise.id];
+            const displayName = draft
+              ? exerciseStageTitle(exercise, draft)
+              : exercise.name;
+            return (
+              <div className="today-quote-page" key={exercise.id}>
+                <ExerciseQuote
+                  exerciseId={exercise.id}
+                  name={displayName}
+                  muscle={exercise.muscleGroup}
+                  titled
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
     ) : null}
+    </div>
     </RestClockProvider>
   );
 }

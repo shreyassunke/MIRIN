@@ -242,6 +242,8 @@ export function ExerciseQuote({
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    // A drag on the line changes the exercise. Hover still reads a session.
+    if (event.currentTarget.closest("[data-page-swipe]")) return;
     if (points.length < 2) return;
     drag.current = {
       id: event.pointerId,
@@ -254,7 +256,7 @@ export function ExerciseQuote({
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
     if (points.length < 2) return;
     const current = drag.current;
-    if (event.pointerType === "mouse" && !current) {
+    if (event.pointerType === "mouse" && !current && event.buttons === 0) {
       setScrub(indexAt(event.clientX));
       return;
     }
@@ -377,6 +379,7 @@ export function ExerciseQuote({
         ref={plotRef}
         className="quote-plot"
         data-no-pager=""
+        data-pager-keys=""
         tabIndex={points.length > 1 ? 0 : undefined}
         role="img"
         aria-label={chartLabel}

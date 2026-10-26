@@ -4,6 +4,7 @@ import {
   currentVariationId,
   draftPatchForVariation,
   nativeVariation,
+  variationTitle,
   variationsFor,
 } from "./variations";
 
@@ -84,6 +85,69 @@ describe("currentVariationId", () => {
         laterality: "bilateral",
       }),
     ).toBe("machine");
+  });
+
+  it("names the station and the implement on the title", () => {
+    const incline = {
+      id: "incline-db-press",
+      name: "Incline DB Press",
+      equipment: "dumbbell",
+    };
+    const programmed = {
+      variationId: null,
+      mode: "dumbbell" as const,
+      laterality: "bilateral" as const,
+      station: null,
+    };
+    expect(variationTitle(incline, programmed)).toBe("Incline DB Press");
+    expect(
+      variationTitle(incline, {
+        variationId: "machine",
+        mode: "manual",
+        laterality: "bilateral",
+        station: "chest-press",
+      }),
+    ).toBe("Incline Chest Press");
+    expect(
+      variationTitle(incline, {
+        variationId: "cable",
+        mode: "manual",
+        laterality: "bilateral",
+        station: null,
+      }),
+    ).toBe("Incline Cable Press");
+    expect(
+      variationTitle(incline, {
+        variationId: "cable-unilateral",
+        mode: "manual",
+        laterality: "unilateral",
+        station: null,
+      }),
+    ).toBe("One-arm Incline Cable Press");
+    expect(
+      variationTitle(incline, {
+        variationId: "barbell",
+        mode: "barbell",
+        laterality: "bilateral",
+        station: null,
+      }),
+    ).toBe("Incline Barbell Press");
+    expect(
+      variationTitle(lat, {
+        variationId: null,
+        mode: "manual",
+        laterality: "bilateral",
+        station: null,
+      }),
+    ).toBe("Lat Pulldown");
+    expect(
+      variationTitle(lat, {
+        variationId: "bodyweight",
+        mode: "manual",
+        laterality: "bilateral",
+        station: null,
+      }),
+    ).toBe("Pull-up");
   });
 
   it("checks a one-arm pulldown against its own row", () => {

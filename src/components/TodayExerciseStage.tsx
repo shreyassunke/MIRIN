@@ -3,7 +3,6 @@ import type { Exercise, SetLog } from "../db/db";
 import type { CableAttachmentId } from "../lib/cableAttachment";
 import {
   equipmentForExercise,
-  exerciseLabelForMethod,
   inputModesForEquipment,
   gymMachineFor,
   isGymMachineId,
@@ -31,6 +30,7 @@ import {
   choiceForDraft,
   currentVariationId,
   variationById,
+  variationTitle,
   variationsFor,
   type VariationChoice,
 } from "../lib/variations";
@@ -69,8 +69,6 @@ interface TodayExerciseStageProps {
   headerDock?: HTMLElement | null;
   /** Neighbor pages on a phone omit their own weight line. */
   suppressHeader?: boolean;
-  /** Bumps when the overflow menu asks to change this exercise. */
-  variationRequest?: number;
   /** Logged sets for this exercise, on the desktop line. */
   logbook?: ReactNode;
   /** Last session's sets for this exercise. The reel's tint is read from these. */
@@ -106,9 +104,7 @@ export function stageLoadQualifier(
 }
 
 export function exerciseStageTitle(exercise: Exercise, draft: StageDraft) {
-  // The title is the lift's name. A machine or cable swap changes the
-  // instrument, not the name the lifter just edited.
-  return exerciseLabelForMethod(exercise.name, draft.mode);
+  return variationTitle(exercise, draft);
 }
 
 /** The full logging stage for one exercise. Neighbors mount this too, so a swipe reveals a finished page. */
@@ -129,7 +125,6 @@ export function TodayExerciseStage({
   headerCaption,
   headerDock,
   suppressHeader,
-  variationRequest = 0,
   logbook,
   prior = [],
   todayLogs = [],
@@ -137,7 +132,6 @@ export function TodayExerciseStage({
 }: TodayExerciseStageProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const trayRef = useRef<HTMLDivElement>(null);
-  const seenVariation = useRef(0);
   const [open, setOpen] = useState(false);
   const choice = variationById(exercise, draft.variationId);
   const equipment = choice?.equipment ?? equipmentForExercise(exercise);
@@ -170,12 +164,6 @@ export function TodayExerciseStage({
   }, [live]);
 
   useEffect(() => {
-    if (variationRequest === seenVariation.current) return;
-    seenVariation.current = variationRequest;
-    if (variationRequest > 0) setOpen(true);
-  }, [variationRequest]);
-
-  useEffect(() => {
     if (!open || equipment !== "machine") return;
     trayRef.current?.scrollIntoView({ block: "nearest" });
   }, [open, equipment]);
@@ -185,7 +173,7 @@ export function TodayExerciseStage({
   };
   const listId = useId();
   const variationHit = {
-    label: `Change ${exercise.name}`,
+    label: `Change ${exerciseStageTitle(exercise, draft)}`,
     expanded: open,
     controls: listId,
     live,
