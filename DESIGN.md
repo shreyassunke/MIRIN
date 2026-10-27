@@ -96,7 +96,7 @@ Glassmorphism is the interactive language: frosted panels, specular glass button
 - Frosted glass for interactive chrome and exercise panels; solid accent for the one primary action
 - Tabular-figure numerals as the visual centerpiece
 - 8px spacing grid, generous whitespace, one primary action per screen
-- Charts as thin single-color instruments: 1.5px lines, no gridlines. On Profile the series is the ground behind the figure, read as a line, an area down to zero, or a fitted trend
+- Charts as thin instruments: 1.5px lines, no gridlines. On Profile the volume series is the exercise quote behind the figure — green when the window rose, red when it fell
 - Brief logo hold on cold open, then reveal the task (once per session)
 
 ## 2. Colors
@@ -104,7 +104,7 @@ Glassmorphism is the interactive language: frosted panels, specular glass button
 A locked grayscale palette; hierarchy is carried entirely by lightness, never by hue.
 
 ### Primary
-- **Off-White Accent** (#d4d4d4): Fill of the one primary action per screen (the log check, and any other confirm control). Also the single stroke color for all charts. Its rarity is what makes it read as an accent.
+- **Off-White Accent** (#d4d4d4): Fill of the one primary action per screen (the log check, and any other confirm control). Also the stroke of body-metric charts. Its rarity is what makes it read as an accent.
 
 ### Neutral
 - **Near-Black** (#0a0a0a): The body background everywhere. Near-black, not pure black — it keeps hairline borders and surfaces legible.
@@ -115,7 +115,7 @@ A locked grayscale palette; hierarchy is carried entirely by lightness, never by
 - **Muted Ink** (#8a8a8a): Secondary text — dates, units, labels, helper copy. Passes 4.5:1 on both #0a0a0a and #141414; never use anything dimmer for readable text.
 
 ### Named Rules
-**The One Accent Rule.** The accent appears only on the primary action of the current screen and as the chart stroke. Chalk is #d4d4d4 in dark and #1a1a1a in light. If two elements on one screen are accent-filled, one of them is wrong.
+**The One Accent Rule.** The accent appears only on the primary action of the current screen and as the stroke of a chalk chart. Chalk is #d4d4d4 in dark and #1a1a1a in light. If two elements on one screen are accent-filled, one of them is wrong. The Quote Exception is the other stroke: green or red for direction, never a second filled button.
 
 **The Locked Palette Rule.** The default log is these values. No extra grays, tints, or hue on the logging surfaces themselves. State changes (hover, press, disabled) move within the ramp.
 
@@ -185,12 +185,12 @@ The signature control. A weight/reps stepper is a horizontal group — minus but
 Floating glass chip above the mobile nav. Subtle progress ring, 1.5px stroke in #d4d4d4 on a #232323 track, tabular-figure countdown centered. Dismissible with one tap. Under `prefers-reduced-motion`, the ring is replaced by the numeric countdown alone.
 
 ### Charts
-Thin 1.5px lines in Chalk, no gridlines, no dots except the latest point, minimal muted-ink axis labels. A chart is an instrument for reading a trend, not a decoration. The profile plate is one horizontal rectangle: the series sits behind the figure. Its reading is Line, Area under curve, or Trend line, chosen from one glass control. Area is a flat chalk wash down to zero, never a gradient. Trend adds a straight fitted line in muted ink. No second hue, no legend. The Quote Exception below is the one chart that differs.
+Thin lines, no gridlines, minimal muted-ink axis labels. A chart is an instrument for reading a trend, not a decoration. Body metrics stay a chalk line. Profile volume and the exercise quote share one chart: a monotone curve, a wash, trailing ticks, three dates, a range row, and a scrub. The Quote Exception is that chart.
 
 ### Exercise quote
-The estimated 1RM for one lift, read like a stock price. It sits below the log on Today, for the exercise in front, and it is the whole exercise page. On a phone the log keeps the first viewport above the tab bar; the page then scrolls natively into the quote. Order: lift name (title) with the muscle muted beside it, a muted "Estimated 1RM" label, the estimate in ink at 2.125rem/600 with the unit muted, then one line with the signed change and percent in tone and the window in muted ink ("Past 3 months"). The plot is 13.5rem tall, a monotone curve at 1.75px over a wash that fades from 34% to 0 across the plot height, y ticks in 11px muted figures on the trailing edge, and three dates at even time fractions. A pointer resting on the line reads the nearest session: a muted vertical rule, a dot ringed in ground, and the readout switches to that session's value, its change from the window start, and its date. Vertical intent still scrolls the page. Under the plot, the windows 1W, 1M, 3M, 6M, YTD, 1Y, 2Y, 5Y, All sit in one row; the selected window is the line's tone. Sessions follow as hairline rows: the sets, the plate breakdown muted beneath, the date on the trailing edge.
+The estimated 1RM for one lift, read like a stock price. It sits below the log on Today, for the exercise in front, and it is the whole exercise page. The same chart is the profile volume reading, with the figure standing in the plot. On a phone the log keeps the first viewport above the tab bar; the page then scrolls natively into the quote. Order: lift name (title) with the muscle muted beside it, a muted "Estimated 1RM" label, the estimate in ink at 2.125rem/600 with the unit muted, then one line with the signed change and percent in tone and the window in muted ink ("Past 3 months"). The plot is 13.5rem tall on Today and 18rem on Profile, a monotone curve at 1.75px over a wash that fades from 34% to 0 across the plot height, y ticks in 11px muted figures on the trailing edge, and three dates at even time fractions. A pointer resting on the line reads the nearest session: a muted vertical rule, a dot ringed in ground, and the readout switches to that session's value, its change from the window start, and its date. Vertical intent still scrolls the page. On Profile, a drag that starts on the figure still turns it; a drag that starts on the chart reads the session. Under the plot, the windows 1W, 1M, 3M, 6M, YTD, 1Y, 2Y, 5Y, All sit in one row; the selected window is the line's tone. Sessions follow as hairline rows: the sets, the plate breakdown muted beneath, the date on the trailing edge. On Profile the selected region's exercises follow the same way: the name, the volume on the trailing edge.
 
-**The Quote Exception Rule.** On the quote, the window's direction is color: green (#30d158, light #1f8a3a) when the estimate rose, red (#ff453a, light #d70015) when it fell, muted when flat. The hue reaches the change, the line, the wash, and the end dot; the estimate stays ink. The same two pigments mark recent direction beside the Today exercise title: a short diagonal arrow, up-right when the last two prior sessions rose and down-right when they fell, absent when the move is flat or there is only one print. The arrow's text equivalent names the direction, and the quote's change always carries a sign, so color is never the only signal. Profile charts stay chalk.
+**The Quote Exception Rule.** On the quote, the window's direction is color: green (#30d158, light #1f8a3a) when the series rose, red (#ff453a, light #d70015) when it fell, muted when flat. The hue reaches the change, the line, the wash, and the end dot; the headline number stays ink. Profile volume uses this rule. The same two pigments mark recent direction beside the Today exercise title: a short diagonal arrow, up-right when the last two prior sessions rose and down-right when they fell, absent when the move is flat or there is only one print. The arrow's text equivalent names the direction, and the quote's change always carries a sign, so color is never the only signal. Body-metric charts stay chalk.
 
 ### Today exercise frame
 
@@ -221,5 +221,5 @@ The barbell and dumbbell in the weight picker are procedural Three.js models, no
 - **Don't** use the "ai-color-palette" (indigo/violet/cyan) or introduce any hue outside the Plate Exception, the Reel Spectrum, and the Quote Exception. The accent stays Chalk.
 - **Don't** use side-stripe borders (`border-left` > 1px as a colored accent) on cards, rows, or callouts.
 - **Don't** build the generic shadcn dashboard look: no identical card grids, no hero-metric tiles, no ghost cards.
-- **Don't** add gridlines, gradient fills, or a second hue to charts. Area and a fitted trend exist only as profile readings of the same series. The exercise quote is the one exception, under its own rule.
+- **Don't** add gridlines or a second hue to charts. The exercise quote and profile volume share the Quote Exception: one hue for direction, a wash under the curve, and a sign on the change. Body-metric charts stay chalk.
 - **Don't** ship motivational copy, streaks, badges, emoji, or celebration motion of any kind.

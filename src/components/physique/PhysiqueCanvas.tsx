@@ -3,6 +3,7 @@ import * as THREE from "three";
 import type { Gender } from "../../lib/body";
 import { REGION_LABEL, type RegionId } from "../../lib/muscleRegions";
 import { PHYSIQUE_STAGE_CLASS } from "./constants";
+import type { PhysiqueControl, PhysiqueGesture, PhysiqueRole, Slot } from "./gesture";
 import {
   classifyFigureRegion,
   clampPhysiquePan,
@@ -50,11 +51,16 @@ export function PhysiqueCanvas({
   selected,
   onSelect,
   onError,
+  gestureRef,
+  controlRef,
 }: {
   gender: Gender;
   selected: RegionId | null;
   onSelect: (id: RegionId | null) => void;
   onError?: () => void;
+  /** When set, the parent plot owns the pointer stream and forwards hits. */
+  gestureRef?: Slot<PhysiqueGesture | null>;
+  controlRef?: Slot<PhysiqueControl | null>;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const musclesRef = useRef<PhysiqueMesh[]>([]);
@@ -103,7 +109,7 @@ export function PhysiqueCanvas({
       yaw: 0,
       captured: false,
       discarded: false,
-      mode: "none" as "none" | "yaw" | "pan",
+      mode: "none" as "none" | "yaw" | "pan" | "pass",
     };
     const pinch = {
       active: false,
@@ -203,6 +209,20 @@ export function PhysiqueCanvas({
 
     const inspecting = () => targetZoom > INSPECT_ZOOM;
 
+    const delegated = gestureRef != null;
+
+    const capture = (pointerId: number) => {
+      if (delegated) {
+        controlRef?.current?.claim(pointerId);
+        return;
+      }
+      try {
+        host.setPointerCapture(pointerId);
+      } catch {
+        /* pointer already released */
+      }
+    };
+
     const setTouchAction = (lock: boolean) => {
       const action = lock ? "none" : "pan-y";
       if (renderer) renderer.domElement.style.touchAction = action;
@@ -211,6 +231,7 @@ export function PhysiqueCanvas({
       if (lock === gestureLock) return;
       gestureLock = lock;
       setOwnsGesture(lock);
+      controlRef?.current?.touchLock(lock);
     };
 
     const clampTargets = () => {
@@ -318,6 +339,20 @@ export function PhysiqueCanvas({
       onSelectRef.current(muscle.regionId);
     };
 
+    const probe = (clientX: number, clientY: number) => {
+      const rect = host.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return false;
+      ndc.set(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(ndc, camera);
+      const targets = musclesRef.current
+        .filter((entry) => entry.mesh.visible)
+        .map((entry) => entry.mesh);
+      return raycaster.intersectObjects(targets, false).length > 0;
+    };
+
     const panByPixels = (dx: number, dy: number) => {
       if (!envelope) return;
       const rect = host.getBoundingClientRect();
@@ -386,18 +421,14 @@ export function PhysiqueCanvas({
       drag.captured = false;
     };
 
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0 && e.pointerType === "mouse") return;
+    const onPointerDown = (e: PointerEvent): PhysiqueRole => {
+      if (e.button !== 0 && e.pointerType === "mouse") return "pass";
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size >= 2) {
         e.preventDefault();
         beginPinch();
-        try {
-          host.setPointerCapture(e.pointerId);
-        } catch {
-          /* pointer already released */
-        }
-        return;
+        capture(e.pointerId);
+        return "figure";
       }
       drag.id = e.pointerId;
       drag.x = e.clientX;
@@ -407,19 +438,28 @@ export function PhysiqueCanvas({
       drag.yaw = targetYaw;
       drag.captured = false;
       drag.discarded = false;
+      // Empty chart belongs to the scrub. A hit on the body still turns.
+      if (delegated && !probe(e.clientX, e.clientY)) {
+        drag.mode = "pass";
+        return "pass";
+      }
       drag.mode = "none";
+      return "figure";
     };
 
-    const onPointerMove = (e: PointerEvent) => {
+    const onPointerMove = (e: PointerEvent): PhysiqueRole => {
       const point = pointers.get(e.pointerId);
       if (point) {
         point.x = e.clientX;
         point.y = e.clientY;
       }
+      if (drag.mode === "pass" && drag.id === e.pointerId && !pinch.active) {
+        return "pass";
+      }
       if (pinch.active && pointers.size >= 2) {
         e.preventDefault();
         const sample = pinchSample();
-        if (!sample) return;
+        if (!sample) return "figure";
         if (pinch.startDist > 10) {
           const nextZoom = pinch.startZoom * (sample.dist / pinch.startDist);
           if (Math.abs(nextZoom - pinch.lastZoom) > 0.0001) {
@@ -431,54 +471,52 @@ export function PhysiqueCanvas({
         pinch.lastX = sample.x;
         pinch.lastY = sample.y;
         kick();
-        return;
+        return "figure";
       }
-      if (drag.id !== e.pointerId) return;
+      if (drag.id !== e.pointerId) return "pass";
       const dx = e.clientX - drag.x;
       const dy = e.clientY - drag.y;
       if (!drag.captured) {
-        if (Math.hypot(dx, dy) <= TAP_PX) return;
+        if (Math.hypot(dx, dy) <= TAP_PX) return "figure";
         // A vertical drag at the fitted framing still scrolls the page.
         // Sideways always turns, including after a zoom and a pan. Once
         // zoomed in, an up or down drag slides the figure.
         if (!inspecting() && Math.abs(dy) >= Math.abs(dx)) {
           drag.discarded = true;
-          return;
+          return "figure";
         }
         drag.captured = true;
         drag.mode = Math.abs(dx) > Math.abs(dy) ? "yaw" : "pan";
         drag.lastX = e.clientX;
         drag.lastY = e.clientY;
-        try {
-          host.setPointerCapture(e.pointerId);
-        } catch {
-          /* pointer already released */
-        }
+        capture(e.pointerId);
         if (drag.mode === "pan") setTouchAction(true);
       }
-      if (drag.discarded || drag.mode === "none") return;
+      if (drag.discarded || drag.mode === "none") return "figure";
       e.preventDefault();
       if (drag.mode === "pan") {
         panByPixels(e.clientX - drag.lastX, e.clientY - drag.lastY);
         drag.lastX = e.clientX;
         drag.lastY = e.clientY;
         kick();
-        return;
+        return "figure";
       }
       const rect = host.getBoundingClientRect();
       targetYaw = drag.yaw + (dx / Math.max(rect.width, 1)) * Math.PI * 1.6;
       kick();
+      return "figure";
     };
 
-    const onPointerUp = (e: PointerEvent) => {
+    const onPointerUp = (e: PointerEvent): PhysiqueRole => {
       const wasPinch = pinch.active;
+      const wasPass = drag.mode === "pass" && drag.id === e.pointerId;
       pointers.delete(e.pointerId);
       if (host.hasPointerCapture(e.pointerId)) {
         host.releasePointerCapture(e.pointerId);
       }
       if (pointers.size >= 2) {
         beginPinch();
-        return;
+        return "figure";
       }
       if (wasPinch) {
         pinch.active = false;
@@ -494,21 +532,24 @@ export function PhysiqueCanvas({
             drag.mode = "pan";
             drag.captured = true;
             drag.discarded = false;
-            try {
-              host.setPointerCapture(id);
-            } catch {
-              drag.captured = false;
-            }
+            capture(id);
           }
-          return;
+          return "figure";
         }
         drag.id = -1;
         drag.mode = "none";
         drag.discarded = true;
         drag.captured = false;
-        return;
+        return "pass";
       }
-      if (drag.id !== e.pointerId) return;
+      if (wasPass) {
+        drag.id = -1;
+        drag.mode = "none";
+        drag.captured = false;
+        drag.discarded = false;
+        return "pass";
+      }
+      if (drag.id !== e.pointerId) return "pass";
       const captured = drag.captured;
       const discarded = drag.discarded;
       const startX = drag.x;
@@ -516,9 +557,10 @@ export function PhysiqueCanvas({
       drag.id = -1;
       drag.mode = "none";
       drag.captured = false;
-      if (captured || discarded) return;
-      if (Math.hypot(e.clientX - startX, e.clientY - startY) > TAP_PX) return;
+      if (captured || discarded) return "pass";
+      if (Math.hypot(e.clientX - startX, e.clientY - startY) > TAP_PX) return "pass";
       pick(e.clientX, e.clientY);
+      return "pass";
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -547,12 +589,23 @@ export function PhysiqueCanvas({
       onSelectRef.current(null);
     };
     window.addEventListener("pointerdown", onOutside);
-    host.addEventListener("pointerdown", onPointerDown);
-    host.addEventListener("pointermove", onPointerMove);
-    host.addEventListener("pointerup", onPointerUp);
-    host.addEventListener("pointercancel", onPointerUp);
-    host.addEventListener("wheel", onWheel, { passive: false });
-    host.addEventListener("touchmove", onTouchMove, { passive: false });
+    if (gestureRef) {
+      gestureRef.current = {
+        down: onPointerDown,
+        move: onPointerMove,
+        up: onPointerUp,
+        wheel: onWheel,
+        tap: pick,
+        blocksScroll: () => pinch.active || drag.captured,
+      };
+    } else {
+      host.addEventListener("pointerdown", onPointerDown);
+      host.addEventListener("pointermove", onPointerMove);
+      host.addEventListener("pointerup", onPointerUp);
+      host.addEventListener("pointercancel", onPointerUp);
+      host.addEventListener("wheel", onWheel, { passive: false });
+      host.addEventListener("touchmove", onTouchMove, { passive: false });
+    }
 
     let loadStarted = false;
     const startLoad = () => {
@@ -647,6 +700,7 @@ export function PhysiqueCanvas({
       setOwnsGesture(false);
       observer.disconnect();
       window.removeEventListener("pointerdown", onOutside);
+      if (gestureRef) gestureRef.current = null;
       host.removeEventListener("pointerdown", onPointerDown);
       host.removeEventListener("pointermove", onPointerMove);
       host.removeEventListener("pointerup", onPointerUp);
@@ -662,7 +716,7 @@ export function PhysiqueCanvas({
       for (const mat of ownedMats) mat.dispose();
       releaseRenderer();
     };
-  }, [gender, onError]);
+  }, [gender, onError, gestureRef, controlRef]);
 
   useEffect(() => {
     const env = envelopeRef.current;
@@ -682,7 +736,10 @@ export function PhysiqueCanvas({
   return (
     <div
       className={PHYSIQUE_STAGE_CLASS}
-      style={{ touchAction: ownsGesture ? "none" : "pan-y" }}
+      style={{
+        touchAction: ownsGesture ? "none" : "pan-y",
+        pointerEvents: gestureRef ? "none" : undefined,
+      }}
       role="img"
       aria-label={
         selected

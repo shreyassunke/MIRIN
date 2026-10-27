@@ -21,8 +21,8 @@ const TrendsPane = memo(Trends);
 
 export function Profile() {
   return (
-    <div className="flex h-[calc(100dvh-max(1.25rem,env(safe-area-inset-top))-10rem)] min-h-0 flex-col md:h-[calc(100dvh-5.5rem)]">
-      <header className="mb-4 flex shrink-0 items-center justify-between gap-3">
+    <div>
+      <header className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
         <Link
           to="/profile/account"
@@ -32,9 +32,7 @@ export function Profile() {
           <GearIcon />
         </Link>
       </header>
-      <div className="relative min-h-0 flex-1">
-        <TrendsPane />
-      </div>
+      <TrendsPane />
     </div>
   );
 }

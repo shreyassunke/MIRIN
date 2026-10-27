@@ -4,6 +4,7 @@ import type { Gender } from "../../lib/body";
 import { GENDER_KEY, useSettingValue } from "../../lib/profile";
 import type { RegionId } from "../../lib/muscleRegions";
 import { PHYSIQUE_STAGE_CLASS } from "./constants";
+import type { PhysiqueControl, PhysiqueGesture, Slot } from "./gesture";
 import { PhysiqueFallback } from "./PhysiqueFallback";
 
 const loadCanvas = () =>
@@ -25,10 +26,14 @@ export function Physique({
   intensities,
   selected,
   onSelect,
+  gestureRef,
+  controlRef,
 }: {
   intensities: Record<RegionId, number>;
   selected: RegionId | null;
   onSelect: (id: RegionId | null) => void;
+  gestureRef?: Slot<PhysiqueGesture | null>;
+  controlRef?: Slot<PhysiqueControl | null>;
 }) {
   const [failed, setFailed] = useState(false);
   const onError = useCallback(() => setFailed(true), []);
@@ -66,6 +71,8 @@ export function Physique({
           selected={selected}
           onSelect={onSelect}
           onError={onError}
+          gestureRef={gestureRef}
+          controlRef={controlRef}
         />
       </Suspense>
     </ChunkErrorBoundary>

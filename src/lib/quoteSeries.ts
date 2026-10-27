@@ -175,3 +175,13 @@ export function formatPercent(percent: number): string {
   const body = Math.abs(percent).toFixed(1);
   return signedNumber(percent, `${body}%`);
 }
+
+/** Short session date. The year appears only when it is not the current one. */
+export function formatQuoteDate(isoOrMs: string | number, now = new Date()): string {
+  const date = new Date(isoOrMs);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
+  });
+}
