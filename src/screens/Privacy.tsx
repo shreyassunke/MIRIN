@@ -1,18 +1,15 @@
 import { useNavigate } from "react-router-dom";
+import { HeaderBack, PageHeader } from "../components/PageHeader";
 
 export function Privacy() {
   const navigate = useNavigate();
   return (
     <div className="min-h-dvh bg-bg px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] text-ink">
       <main className="mx-auto w-full max-w-lg">
-        <button
-          type="button"
-          className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-          onClick={() => navigate(-1)}
-        >
-          Back
-        </button>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Privacy</h1>
+        <PageHeader
+          title="Privacy"
+          back={<HeaderBack label="Back" onClick={() => navigate(-1)} />}
+        />
         <p className="mt-3 max-w-[65ch] text-[15px] leading-relaxed text-muted">
           MIRIN is a personal training log. This page says what the app stores
           and how to delete it.

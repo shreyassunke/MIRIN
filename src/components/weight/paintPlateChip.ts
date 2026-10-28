@@ -21,7 +21,7 @@ export function paintRaisedWeight(
     ctx.scale(1, yScale);
     ctx.translate(-cx, -cy);
   }
-  ctx.font = `700 ${size}px "SF Pro", system-ui, sans-serif`;
+  ctx.font = `700 ${size}px -apple-system, BlinkMacSystemFont, "SF Pro", system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const o = Math.max(0.7, size * 0.042);

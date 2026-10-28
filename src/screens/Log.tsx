@@ -2,7 +2,8 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "rea
 import { useLiveQuery } from "dexie-react-hooks";
 import { MetricTrend } from "../components/MetricTrend";
 import { SegmentedTabs } from "../components/SegmentedTabs";
-import { LengthUnitToggle, UnitToggle } from "../components/UnitToggle";
+import { PageHeader } from "../components/PageHeader";
+import { MeasureUnits } from "../components/UnitToggle";
 import { db } from "../db/db";
 import {
   buildSeries,
@@ -116,17 +117,7 @@ export function Log({ mode = "daily" }: { mode?: "daily" | "body" }) {
 
   return (
     <div>
-      <header className="mb-6">
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">Log</h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <UnitToggle />
-            <LengthUnitToggle />
-          </div>
-        </div>
-      </header>
+      <PageHeader title="Log" pill={<MeasureUnits />} pillLabel="Units" />
 
       <div className="mb-6">
         <SegmentedTabs

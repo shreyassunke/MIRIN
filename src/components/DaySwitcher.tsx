@@ -205,9 +205,7 @@ export function DaySwitcher({
     closeDialog();
   }
 
-  const heading = (
-    <h1 className="text-xl font-bold tracking-tight">{dayName}</h1>
-  );
+  const heading = <h1 className="page-title">{dayName}</h1>;
 
   if (!canSwitch) {
     return heading;
@@ -215,7 +213,7 @@ export function DaySwitcher({
 
   return (
     <>
-      <h1 className="w-fit text-xl font-bold tracking-tight">
+      <h1 className="page-title w-fit">
         <button
           ref={triggerRef}
           type="button"
@@ -224,7 +222,7 @@ export function DaySwitcher({
           aria-expanded={open}
           aria-controls={open ? listId : undefined}
           onClick={() => setOpen((value) => !value)}
-          className="-ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-md px-1 text-left text-xl font-bold tracking-tight text-ink whitespace-nowrap"
+          className="-ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-md px-1 text-left whitespace-nowrap"
         >
           <span>{dayName}</span>
           <Chevron open={open} />

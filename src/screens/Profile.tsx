@@ -15,6 +15,7 @@ import {
 import { AVATAR_KEY, useSettingValue } from "../lib/profile";
 import { getContactLine, getDisplayName } from "../lib/user";
 import { Trends } from "./Trends";
+import { PageHeader } from "../components/PageHeader";
 import { Chevron, ProfileBack } from "./profile/chrome";
 
 const TrendsPane = memo(Trends);
@@ -22,16 +23,18 @@ const TrendsPane = memo(Trends);
 export function Profile() {
   return (
     <div>
-      <header className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-        <Link
-          to="/profile/account"
-          className="glass-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-pill text-ink"
-          aria-label="Account"
-        >
-          <GearIcon />
-        </Link>
-      </header>
+      <PageHeader
+        title="Profile"
+        pill={
+          <Link
+            to="/profile/account"
+            className="header-pill-icon"
+            aria-label="Account"
+          >
+            <GearIcon />
+          </Link>
+        }
+      />
       <TrendsPane />
     </div>
   );
@@ -57,10 +60,7 @@ export function ProfileAccount() {
 
   return (
     <div>
-      <header className="mb-6">
-        <ProfileBack />
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Account</h1>
-      </header>
+      <PageHeader title="Account" back={<ProfileBack />} />
 
       <section className="identity-card glass rounded-xl">
         <div className="identity-row flex items-center gap-4 p-4">

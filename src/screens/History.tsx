@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
+import { PageHeader } from "../components/PageHeader";
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { ContributionGraph } from "../components/ContributionGraph";
 import { ExerciseCombobox } from "../components/ExerciseCombobox";
@@ -238,18 +239,16 @@ export function History() {
 
   return (
     <div>
-      <header className="mb-5 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">History</h1>
-        {selectedKey !== todayKey || year != null ? (
-          <button
-            type="button"
-            className="text-[13px] font-medium text-muted transition-colors duration-150 ease-out-expo hover:text-ink"
-            onClick={goToday}
-          >
-            Today
-          </button>
-        ) : null}
-      </header>
+      <PageHeader
+        title="History"
+        pill={
+          selectedKey !== todayKey || year != null ? (
+            <button type="button" onClick={goToday}>
+              Today
+            </button>
+          ) : null
+        }
+      />
 
       <section className="mb-5" aria-label="Goals">
         {data === undefined ? (

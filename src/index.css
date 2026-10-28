@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
-/* SF Pro, the system face behind Stocks and the iOS 27 UI kit.
-   One variable file: weight plus optical size. Browsers map opsz
-   from the used font-size when font-optical-sizing is auto. */
+/* SF Pro is the Apple system face (Text below 20px, Display above,
+   via the opsz axis). Apple platforms use the installed face so the
+   system tracking table stays intact; the variable file covers the rest.
+   https://developer.apple.com/documentation/technologyoverviews/fonts */
 @font-face {
   font-family: "SF Pro";
   src: url("/fonts/SF-Pro.woff2") format("woff2");
@@ -31,7 +32,7 @@
   --quote-up: #30d158;
   --quote-down: #ff453a;
 
-  --font-sans: "SF Pro", system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro", system-ui, sans-serif;
 
   --radius-*: initial;
   --radius-md: 8px;
@@ -55,6 +56,9 @@
 html {
   background: var(--color-bg);
   color-scheme: dark;
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  font-kerning: normal;
   /* One Liquid Glass material, two weights.
      Control floats over content. Panel is the thicker sheet.
      A lens is a lighter fill inside its parent — never a second blur. */
@@ -146,6 +150,14 @@ a,
   text-lg can still override when larger.
 */
 @layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+    font-optical-sizing: inherit;
+  }
+
   input,
   select,
   textarea {
@@ -638,12 +650,59 @@ a.auth-switch {
   z-index: 5;
 }
 
+/* Screen titles share the Today day name: 20px SF Pro, bold, tight. */
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-header-back + .page-header-row {
+  margin-top: 1rem;
+}
+
+.page-header-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.page-header-copy {
+  min-width: 0;
+  padding-right: 0.5rem;
+}
+
+.page-header-row > .header-pill {
+  align-self: center;
+  flex: none;
+}
+
+.page-title {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: break-word;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: calc(1.75 / 1.25);
+  letter-spacing: -0.025em;
+  font-optical-sizing: auto;
+}
+
+.page-title button {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
 /* Stocks date. Same size as the day name, semibold so the gray line
    has the stroke of the reference, not a thin regular.
    The 44px switcher stays the hit target; this line uses its lower padding. */
-.today-date {
-  margin-top: -0.75rem;
+.today-date,
+.page-subtitle {
   color: #8e8e93;
+  font-family: var(--font-sans);
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.15;
@@ -651,7 +710,16 @@ a.auth-switch {
   font-optical-sizing: auto;
 }
 
-html[data-mode="light"] .today-date {
+.today-date {
+  margin-top: -0.75rem;
+}
+
+.page-subtitle {
+  margin: 0.125rem 0 0;
+}
+
+html[data-mode="light"] .today-date,
+html[data-mode="light"] .page-subtitle {
   color: var(--color-muted);
 }
 
@@ -703,8 +771,14 @@ html[data-mode="light"] .today-date {
   z-index: 1;
 }
 
+.header-pill > button,
+.header-pill > a,
 .header-pill .unit-switch,
 .header-pill button[aria-haspopup="menu"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   height: 44px;
   min-width: 44px;
   padding-inline: 8px;
@@ -713,35 +787,43 @@ html[data-mode="light"] .today-date {
   font-size: 17px;
   font-weight: 590;
   letter-spacing: -0.022em;
+  text-decoration: none;
 }
 
+.header-pill > .header-pill-icon,
 .header-pill button[aria-haspopup="menu"] {
   width: 44px;
   padding-inline: 0;
 }
 
+.header-pill .header-pill-icon svg,
 .header-pill button[aria-haspopup="menu"] svg {
   width: 18px;
   height: 18px;
 }
 
-.header-pill button {
+.header-pill :is(button, a) {
   transform: scale(1);
   border-radius: 999px;
   background-color: transparent;
   transition:
     transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    background-color 140ms var(--ease-out-expo);
+    background-color 140ms var(--ease-out-expo),
+    color 140ms var(--ease-out-expo);
 }
 
-.header-pill button:active {
+.header-pill button.is-open {
+  background-color: rgb(255 255 255 / 0.16);
+}
+
+.header-pill :is(button, a):active {
   background-color: rgb(255 255 255 / 0.2);
   transform: scale(0.9);
   transition-duration: 100ms;
   transition-timing-function: var(--ease-out-expo);
 }
 
-.header-pill button:focus-visible {
+.header-pill :is(button, a):focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: -4px;
 }
@@ -1585,7 +1667,8 @@ textarea {
   transition-timing-function: var(--ease-out-expo);
 }
 
-html[data-mode="light"] .header-pill button:active,
+html[data-mode="light"] .header-pill :is(button, a):active,
+html[data-mode="light"] .header-pill button.is-open,
 html[data-mode="light"] .unit-switch:active,
 html[data-mode="light"] .nav-pill-item:active .nav-pill-label {
   background-color: var(--glass-press);
@@ -3212,7 +3295,7 @@ html.reorder-active [data-reorder-index] {
   .auth-stage.is-leaving,
   .auth-passage-mark,
   .unit-switch:active,
-  .header-pill button:active,
+  .header-pill :is(button, a):active,
   .quiet-menu-item:active,
   .variation-option:active,
   .variation-model[data-pressed],
@@ -4488,10 +4571,12 @@ html[data-mode="light"] .record-logo {
 .quote-title h2 {
   min-width: 0;
   overflow: hidden;
+  font-family: var(--font-sans);
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.022em;
+  font-optical-sizing: auto;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4715,6 +4800,81 @@ a.quote-session:focus-visible {
   flex: none;
   font-size: 0.8125rem;
   color: var(--color-muted);
+}
+
+.quote-earlier {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: 0.75rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-hairline);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color var(--motion-fast) var(--ease-out-expo),
+    background-color var(--motion-fast) var(--ease-out-expo);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quote-earlier:hover {
+    color: var(--color-ink);
+  }
+}
+
+.quote-earlier:active {
+  background: var(--color-wash-strong);
+  color: var(--color-ink);
+}
+
+.quote-earlier:focus-visible {
+  outline: 2px solid var(--color-muted);
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
+.quote-earlier-chevron {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  transition: transform var(--motion-fast) var(--ease-out-expo);
+}
+
+.quote-earlier-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.quote-earlier-rest {
+  margin: 0;
+  padding: 0;
+}
+
+.quote-form {
+  margin-top: 2rem;
+  scroll-margin-top: max(1rem, env(safe-area-inset-top, 0px));
+}
+
+.quote-form iframe:focus-visible {
+  outline: 2px solid var(--color-muted);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .quote-form {
+    scroll-margin-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* Profile volume uses the same quote. The figure stands in the plot,

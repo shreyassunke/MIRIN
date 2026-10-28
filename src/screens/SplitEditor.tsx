@@ -31,6 +31,7 @@ import {
   remapGroupIds,
   remapRecordKey,
 } from "../lib/exerciseMeta";
+import { PageHeader } from "../components/PageHeader";
 import { AddExerciseButton, ExerciseCombobox } from "../components/ExerciseCombobox";
 import { DragHandle } from "../components/DragHandle";
 import { ToggleSwitch } from "../components/ToggleSwitch";
@@ -764,9 +765,7 @@ export function SplitEditor() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Split</h1>
-      </header>
+      <PageHeader title="Split" />
 
       {data.splits.length > 1 && (
         <section className="mb-8" aria-label="Splits">

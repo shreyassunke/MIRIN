@@ -48,10 +48,7 @@ export function FormVideoButton({
       aria-expanded={open}
       aria-controls={panelId(exerciseId)}
       aria-label={open ? "Hide form video" : "Show form video"}
-      className={[
-        "glass-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-pill",
-        open ? "glass-btn-active text-ink" : "text-muted hover:text-ink",
-      ].join(" ")}
+      className={open ? "header-pill-icon is-open" : "header-pill-icon"}
     >
       <IconHelp className="h-[22px] w-[22px]" />
     </button>
@@ -98,6 +95,7 @@ export function FormVideoPanel({
                 className="h-full w-full"
                 src={embedUrl(clip)}
                 title={`${CREATORS[clip.creator].name} — ${clip.label ?? "form walkthrough"}`}
+                loading="lazy"
                 allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />

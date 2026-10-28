@@ -82,7 +82,6 @@ import {
   IconRemove,
   IconRest,
   IconSuperset,
-  IconVideo,
   IconWarmup,
   ItemOverflow,
   RestPresetPanel,
@@ -362,7 +361,6 @@ export function Today() {
     id: string;
     kind: "session" | "sticky";
   } | null>(null);
-  const [formVideoId, setFormVideoId] = useState<string | null>(null);
   const phone = usePhoneLayout();
   const [setDock, setSetDock] = useState<HTMLDivElement | null>(null);
   const assignDock = useCallback((node: HTMLDivElement | null) => {
@@ -532,7 +530,6 @@ export function Today() {
       setAddingExercise(false);
       setSwappingIndex(null);
       setEditingNote(null);
-      setFormVideoId(null);
     },
     [data],
   );
@@ -951,10 +948,9 @@ export function Today() {
   const activeStickyNote = activeId ? data.stickyNotes[activeId] : undefined;
   const activeEditing =
     editingNote?.id === activeId ? editingNote.kind : null;
-  const showContext =
-    Boolean(
-      activeId && (activeStickyNote || activeSessionNote || activeEditing),
-    ) || Boolean(activeId && formVideoId === activeId);
+  const showContext = Boolean(
+    activeId && (activeStickyNote || activeSessionNote || activeEditing),
+  );
   const showLower = showContext || (!phone && showComplete);
   const completeControl = showComplete ? (
     <div className={phone ? "set-finish" : "mt-6"}>
@@ -1066,24 +1062,6 @@ export function Today() {
                         />
                       ),
                     },
-                    ...(formClipsFor(activeExercise.id).length > 0
-                      ? [
-                          {
-                            id: "video",
-                            label:
-                              formVideoId === activeExercise.id
-                                ? "Hide form video"
-                                : "Form video",
-                            icon: <IconVideo />,
-                            onSelect: () =>
-                              setFormVideoId((current) =>
-                                current === activeExercise.id
-                                  ? null
-                                  : activeExercise.id,
-                              ),
-                          },
-                        ]
-                      : []),
                     {
                       id: "superset",
                       label: inSuperset(data.supersets, activeExercise.id)
@@ -1267,10 +1245,6 @@ export function Today() {
         </div>
       )}
 
-      {activeId && formVideoId === activeId && (
-        <FormVideoPanel exerciseId={activeId} open className="pt-1 pb-1" />
-      )}
-
       {!phone ? completeControl : null}
 
       </div>
@@ -1301,7 +1275,15 @@ export function Today() {
                   name={displayName}
                   muscle={exercise.muscleGroup}
                   titled
-                />
+                >
+                  {formClipsFor(exercise.id).length > 0 ? (
+                    <FormVideoPanel
+                      exerciseId={exercise.id}
+                      open
+                      className="quote-form"
+                    />
+                  ) : null}
+                </ExerciseQuote>
               </div>
             );
           })}

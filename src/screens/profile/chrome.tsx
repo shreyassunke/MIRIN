@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { HeaderBack } from "../../components/PageHeader";
 
 export function Chevron({
   direction = "right",
@@ -22,16 +22,7 @@ export function Chevron({
 }
 
 export function ProfileBack() {
-  return (
-    <Link
-      to="/profile"
-      className="glass-btn inline-flex h-11 items-center gap-1 rounded-pill pl-2.5 pr-3.5 text-sm font-medium text-ink"
-      aria-label="Back to profile"
-    >
-      <Chevron direction="left" />
-      Profile
-    </Link>
-  );
+  return <HeaderBack to="/profile" label="Profile" />;
 }
 
 export const fieldLabel = "text-[13px] font-medium text-muted";

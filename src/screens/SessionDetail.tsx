@@ -26,6 +26,7 @@ import { AddExerciseButton, ExerciseCombobox } from "../components/ExerciseCombo
 import { Stepper } from "../components/Stepper";
 import { NoteEditor } from "../components/NoteEditor";
 import { FormVideoPanel } from "../components/FormVideo";
+import { HeaderBack, PageHeader } from "../components/PageHeader";
 import { formClipsFor } from "../lib/formVideos";
 import {
   IconAddSet,
@@ -182,21 +183,13 @@ export function SessionDetail() {
 
   return (
     <div>
-      <header className="mb-6">
-        <Link
-          to={dayLink}
-          className="text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
-        >
-          History
-        </Link>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          {data.dayName}
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          {formatDayHeading(data.dateKey)}
-          {data.session.completed ? " · completed" : " · in progress"}
-        </p>
-      </header>
+      <PageHeader
+        title={data.dayName}
+        subtitle={`${formatDayHeading(data.dateKey)}${
+          data.session.completed ? " · completed" : " · in progress"
+        }`}
+        back={<HeaderBack to={dayLink} label="History" />}
+      />
 
       <p className="mb-6 max-w-[65ch] text-sm leading-relaxed text-muted">
         Tap a value to correct it. Changes save immediately.

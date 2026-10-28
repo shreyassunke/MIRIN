@@ -11,6 +11,7 @@ import {
   writeSetting,
 } from "../lib/profile";
 import { getDisplayName } from "../lib/user";
+import { PageHeader } from "../components/PageHeader";
 import { ProfileBack, fieldLabel, inputClass } from "./profile/chrome";
 
 const GENDERS: { value: Gender; label: string }[] = [
@@ -116,10 +117,7 @@ export function ProfileDetails() {
 
   return (
     <div>
-      <header className="mb-6">
-        <ProfileBack />
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Details</h1>
-      </header>
+      <PageHeader title="Details" back={<ProfileBack />} />
 
       {draft == null ? (
         <p className="text-sm text-muted">Loading…</p>

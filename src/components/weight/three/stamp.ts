@@ -126,7 +126,7 @@ function dumbbellFaceTexture(value: number): THREE.CanvasTexture {
   if (ctx) {
     ctx.clearRect(0, 0, s, s);
     ctx.fillStyle = "#f2f2f2";
-    ctx.font = "600 200px \"SF Pro\", system-ui, sans-serif";
+    ctx.font = "600 200px -apple-system, BlinkMacSystemFont, \"SF Pro\", system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(String(parseFloat(value.toFixed(2))), s / 2, s / 2);

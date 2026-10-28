@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { LoadBreakdown, SetLog } from "../db/db";
 import { useUnit } from "../lib/settings";
@@ -41,6 +41,9 @@ function sessionBreakdown(sets: SetLog[], unit: Unit): string | null {
   return breakdownText(top.loadBreakdown!, unit);
 }
 
+/** Five rows are one reading. The rest open in place so the list cannot bury the page. */
+const SESSION_PREVIEW = 5;
+
 const RANGE_PHRASE: Record<QuoteRangeId, string> = {
   "1W": "Past week",
   "1M": "Past month",
@@ -58,12 +61,15 @@ export function ExerciseQuote({
   name,
   muscle,
   titled = false,
+  children,
 }: {
   exerciseId: string;
   name: string;
   muscle?: string;
   /** Today names the lift above the reading; the exercise page has its own heading. */
   titled?: boolean;
+  /** Sits under the session rows. Today puts the form video here. */
+  children?: ReactNode;
 }) {
   const [unit] = useUnit();
   const [range, setRange] = useState<QuoteRangeId>("ALL");
@@ -139,6 +145,16 @@ export function ExerciseQuote({
     });
   }, [history, range]);
 
+  const [earlierOpen, setEarlierOpen] = useState(false);
+  const earlierId = useId();
+
+  useEffect(() => {
+    setEarlierOpen(false);
+  }, [exerciseId, range]);
+
+  const head = sessions.slice(0, SESSION_PREVIEW);
+  const rest = sessions.slice(SESSION_PREVIEW);
+
   return (
     <section
       className="exercise-quote"
@@ -205,27 +221,105 @@ export function ExerciseQuote({
         <div className="quote-sessions">
           {titled ? <h3>Sessions</h3> : <h2>Sessions</h2>}
           <ul>
-            {sessions.map(({ session, sets }) => {
-              const plates = sessionBreakdown(sets, unit);
-              return (
-                <li key={session.id} className="quote-session">
-                  <span className="min-w-0">
-                    <span className="tnum quote-sets">
-                      {sets
-                        .map((set) => formatSet(set, (lb) => toDisplay(lb, unit)))
-                        .join(" · ")}
-                    </span>
-                    {plates ? (
-                      <span className="tnum quote-plates">{plates}</span>
-                    ) : null}
+            {head.map(({ session, sets }) => (
+              <QuoteSession
+                key={session.id}
+                session={session}
+                sets={sets}
+                unit={unit}
+              />
+            ))}
+            {rest.length > 0 ? (
+              <li>
+                <button
+                  type="button"
+                  className="quote-earlier"
+                  aria-expanded={earlierOpen}
+                  aria-controls={earlierId}
+                  onClick={() => setEarlierOpen((open) => !open)}
+                >
+                  <span>
+                    {earlierOpen ? (
+                      "Hide earlier sessions"
+                    ) : (
+                      <>
+                        Show <span className="tnum">{rest.length}</span> earlier{" "}
+                        {rest.length === 1 ? "session" : "sessions"}
+                      </>
+                    )}
                   </span>
-                  <span className="tnum quote-when">{sessionDate(session.date)}</span>
-                </li>
-              );
-            })}
+                  <EarlierChevron open={earlierOpen} />
+                </button>
+              </li>
+            ) : null}
           </ul>
+          {rest.length > 0 ? (
+            <ul
+              id={earlierId}
+              hidden={!earlierOpen}
+              className={
+                earlierOpen ? "quote-earlier-rest panel-in" : "quote-earlier-rest"
+              }
+            >
+              {earlierOpen
+                ? rest.map(({ session, sets }) => (
+                    <QuoteSession
+                      key={session.id}
+                      session={session}
+                      sets={sets}
+                      unit={unit}
+                    />
+                  ))
+                : null}
+            </ul>
+          ) : null}
         </div>
       ) : null}
+      {children}
     </section>
+  );
+}
+
+function QuoteSession({
+  session,
+  sets,
+  unit,
+}: {
+  session: { id: string; date: string };
+  sets: SetLog[];
+  unit: Unit;
+}) {
+  const plates = sessionBreakdown(sets, unit);
+  return (
+    <li className="quote-session">
+      <span className="min-w-0">
+        <span className="tnum quote-sets">
+          {sets
+            .map((set) => formatSet(set, (lb) => toDisplay(lb, unit)))
+            .join(" · ")}
+        </span>
+        {plates ? <span className="tnum quote-plates">{plates}</span> : null}
+      </span>
+      <span className="tnum quote-when">{sessionDate(session.date)}</span>
+    </li>
+  );
+}
+
+function EarlierChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={open ? "quote-earlier-chevron is-open" : "quote-earlier-chevron"}
+      aria-hidden="true"
+    >
+      <path
+        d="M4 6.5 8 10.5 12 6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

@@ -1,12 +1,6 @@
 import { useLengthUnit, useUnit } from "../lib/settings";
-import type { LengthUnit } from "../lib/units";
-import { chipClass, chipTrackClass } from "./chip";
 
-const LENGTH_UNITS: LengthUnit[] = ["in", "cm"];
-
-const sizeClass = "h-9 min-w-10 px-3 text-[13px]";
-
-/** One unit at a time. A tap swaps pounds and kilograms. */
+/** One weight unit at a time. A tap swaps pounds and kilograms. */
 export function UnitToggle() {
   const [unit, setUnit] = useUnit();
   const next = unit === "lb" ? "kg" : "lb";
@@ -26,22 +20,32 @@ export function UnitToggle() {
   );
 }
 
-/** The persistent global in/cm switch for tape readings and height. */
-export function LengthUnitToggle() {
+/** One tape unit at a time. A tap swaps inches and centimetres. */
+export function LengthToggle() {
   const [lengthUnit, setLengthUnit] = useLengthUnit();
+  const next = lengthUnit === "in" ? "cm" : "in";
   return (
-    <div role="group" aria-label="Tape unit" className={chipTrackClass}>
-      {LENGTH_UNITS.map((u) => (
-        <button
-          key={u}
-          type="button"
-          aria-pressed={lengthUnit === u}
-          onClick={() => setLengthUnit(u)}
-          className={`${chipClass(lengthUnit === u)} ${sizeClass}`}
-        >
-          {u}
-        </button>
-      ))}
-    </div>
+    <button
+      type="button"
+      aria-label={
+        lengthUnit === "in"
+          ? "Inches. Switch to centimeters."
+          : "Centimeters. Switch to inches."
+      }
+      onClick={() => setLengthUnit(next)}
+      className="unit-switch inline-flex h-11 min-w-11 items-center justify-center px-1 text-[15px] font-medium text-ink"
+    >
+      {lengthUnit}
+    </button>
+  );
+}
+
+/** Weight unit and tape unit, the only unit control on Log. */
+export function MeasureUnits() {
+  return (
+    <>
+      <UnitToggle />
+      <LengthToggle />
+    </>
   );
 }
